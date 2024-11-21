@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "61F42F4B-79B9-4C9B-970F-ECD09C645728",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "identifier" : "E7D361EF2C0D0390003756C2",
+        "name" : "basenameTest"
+      }
+    }
+  ],
+  "version" : 1
+}

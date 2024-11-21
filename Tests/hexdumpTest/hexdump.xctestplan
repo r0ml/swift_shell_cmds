@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "5E2DED6C-DD40-45D4-B0AC-731EA7BEF236",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "identifier" : "E7A46F942C1909E100AB34F5",
+        "name" : "hexdumpTest"
+      }
+    }
+  ],
+  "version" : 1
+}

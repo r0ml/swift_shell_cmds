@@ -1,0 +1,164 @@
+{
+  "configurations" : [
+    {
+      "id" : "44D07035-5953-401D-A63A-942AADA8B0CD",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7EC84C92C4621A30098A4EB",
+        "name" : "reniceTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7A46F942C1909E100AB34F5",
+        "name" : "hexdumpTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E78D063E2C1242A500A7C01B",
+        "name" : "echoTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E763BAB62C3DD91E00649ACB",
+        "name" : "applyTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7918B7A2C22778C002619C1",
+        "name" : "testTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7EC85212C4623280098A4EB",
+        "name" : "timeTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7FFC9282C10CE7000B62995",
+        "name" : "dateTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7EC85002C4622BF0098A4EB",
+        "name" : "printfTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7D361EF2C0D0390003756C2",
+        "name" : "basenameTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E734F0EE2C0DF699007A3C58",
+        "name" : "jotTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7EC84DF2C4622410098A4EB",
+        "name" : "killallTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7EC84F52C4622A20098A4EB",
+        "name" : "path_helperTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E70AEBA82C37A50C00196BD4",
+        "name" : "mktempTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7EC85162C4623090098A4EB",
+        "name" : "sleepTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7EC850B2C4622D80098A4EB",
+        "name" : "scriptTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7FFC99C2C12041C00B62995",
+        "name" : "dirnameTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7DF6BBD2C005C19000F6D03",
+        "name" : "xargsTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E70AEB542C35DCE300196BD4",
+        "name" : "whereisTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7EC84D42C4621BB0098A4EB",
+        "name" : "seqTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7A46F872C19084400AB34F5",
+        "name" : "findTest"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E7EC84EA2C46225E0098A4EB",
+        "name" : "lastcommTest"
+      }
+    }
+  ],
+  "version" : 1
+}

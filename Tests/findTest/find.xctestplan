@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "883D84F5-D04E-4576-BB28-A9716094C92C",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "identifier" : "E7A46F872C19084400AB34F5",
+        "name" : "findTest"
+      }
+    }
+  ],
+  "version" : 1
+}

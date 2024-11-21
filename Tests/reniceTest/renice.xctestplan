@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "A1223317-9A23-492F-8489-9DCCCF6B9712",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "identifier" : "E7EC84C92C4621A30098A4EB",
+        "name" : "reniceTest"
+      }
+    }
+  ],
+  "version" : 1
+}

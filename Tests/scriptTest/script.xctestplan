@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "10AF9B60-23AA-4CC9-AA04-455324B24E0B",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "identifier" : "E7EC850B2C4622D80098A4EB",
+        "name" : "scriptTest"
+      }
+    }
+  ],
+  "version" : 1
+}

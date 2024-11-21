@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "2946DD2D-CF43-4ECF-B425-4D836E56E692",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "identifier" : "E7EC85002C4622BF0098A4EB",
+        "name" : "printfTest"
+      }
+    }
+  ],
+  "version" : 1
+}

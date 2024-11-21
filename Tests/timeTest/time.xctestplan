@@ -1,0 +1,25 @@
+{
+  "configurations" : [
+    {
+      "id" : "37DF6A1B-CC9E-4147-9743-25B8AAD795BD",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "identifier" : "E7EC85212C4623280098A4EB",
+        "name" : "timeTest"
+      }
+    }
+  ],
+  "version" : 1
+}

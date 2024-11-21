@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "4DD2875F-5B1E-439D-A2B8-E93A30EBE17D",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "identifier" : "E7EC84D42C4621BB0098A4EB",
+        "name" : "seqTest"
+      }
+    }
+  ],
+  "version" : 1
+}

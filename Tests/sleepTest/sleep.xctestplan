@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "BA51487D-F714-49FA-BF80-39CE4AD650C7",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "identifier" : "E7EC85162C4623090098A4EB",
+        "name" : "sleepTest"
+      }
+    }
+  ],
+  "version" : 1
+}

@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "C9A2107E-484B-4B82-8B3A-799B7915BF32",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "identifier" : "E7FFC9282C10CE7000B62995",
+        "name" : "dateTest"
+      }
+    }
+  ],
+  "version" : 1
+}

@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "AB1590DA-9427-4284-95B9-AE41A5470D01",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "identifier" : "E7FFC99C2C12041C00B62995",
+        "name" : "dirnameTest"
+      }
+    }
+  ],
+  "version" : 1
+}
