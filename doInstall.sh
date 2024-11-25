@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e -x
+set -e 
 
 if [ $# -eq 0 ]; then
     echo "Error: Root directory not provided"
@@ -15,7 +15,8 @@ MANDIR="$XDSTROOT/share/man"
 
 swift build --configuration release
 
-install -m 0755 -d "$BINDIR/bin"
+install -m 0755 -d "$BINDIR"
+install -m 0755 -d "$LIBEXECDIR"
 install -m 0755 -d "$MANDIR/man1"
 install -m 0755 -d "$MANDIR/man8"
 install -m 0644 Manuals/*.1 "$MANDIR/man1"
@@ -30,3 +31,5 @@ install -m 0755 $BINS "$BINDIR"
 install -m 0755 $EXECS "$LIBEXECDIR"
 
 ln -f "$BINDIR/test" "["
+
+echo Install complete
