@@ -33,35 +33,23 @@
   POSSIBILITY OF SUCH DAMAGE.
 */
 
-import Testing
-import testSupport
+import ShellTesting
 
-@Suite("sleep") struct sleepTest {
+@Suite("sleep") struct sleepTest : ShellTest {
+  let cmd = "sleep"
+  let suite = "shell_cmds_sleepTest"
   
-  @Test("Test that sleep(1) handles fractions of a second") func fraction() throws {
-    for i in [0.1, 0.2, 0.3] {
-      let (c, r, j) = try captureStdoutLaunch(Clem.self, "sleep", [String(i)] )
-      #expect(c == 0)
-      #expect(r!.isEmpty)
-      #expect(j!.isEmpty)
-    }
+  @Test("Test that sleep(1) handles fractions of a second", arguments: [0.1, 0.2, 0.3]) func fraction(_ i : Double) async throws {
+      try await run(output: "", args: String(i) )
   }
 
-  @Test("Test that sleep(1) errors out with non-numeric argument") func nonnumeric() throws {
-    for i in ["xyz", "x21", "/3"] {
-      let (c, r, j) = try captureStdoutLaunch(Clem.self, "sleep", [i] )
-      #expect(c != 0)
-      #expect(r!.isEmpty)
-      #expect(!j!.isEmpty)
-    }
+  @Test("Test that sleep(1) errors out with non-numeric argument",
+        arguments: ["xyz", "x21", "/3"]) func nonnumeric(_ i : String) async throws {
+    try await run(status: 1, error: /^usage:/, args: i )
   }
   
-  @Test("Test that sleep(1) handles hexadecimal arguments") func hex() throws {
-    let (c,r,j) = try captureStdoutLaunch(Clem.self, "sleep", ["0x01"])
-
-    #expect(c == 0)
-    #expect(r!.isEmpty)
-    #expect(j!.isEmpty)
+  @Test("Test that sleep(1) handles hexadecimal arguments") func hex() async throws {
+    try await run(output: "", args: "0x01")
   }
 
 }

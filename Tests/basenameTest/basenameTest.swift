@@ -28,21 +28,20 @@
   POSSIBILITY OF SUCH DAMAGE.
 */
 
-import Testing
-import testSupport
+import ShellTesting
 
-@Suite("basename tests") final class Tests {
-
+@Suite("basename tests") final class Tests : ShellTest {
+  let cmd = "basename"
+  let suite = "shell_cmds_basenameTest"
+  
   @Test(arguments: [("/usr/bin", "bin"), ("/usr", "usr"), ("/", "/") , ("///", "/"), ("/usr//", "usr"), ("//usr//bin", "bin"), ("usr", "usr"), ("usr/bin", "bin")])
-  func testBasic(_ i : String, _ o : String) throws {
-    let (_, j, _) = try captureStdoutLaunch(Self.self, "basename", [i] )
-    #expect(j == (o + "\n") )
+  func testBasic(_ i : String, _ o : String) async throws {
+    try await run(output: o+"\n", args: i)
 
   }
 
   @Test(arguments: [("usr/bin", "n", "bi"), ("usr/bin", "bin", "bin"), ("/", "/", "/"), ("/usr/bin/gcc", "cc", "g")])
-  func testSuffix(_ inp : String, _ suff : String, _ o : String) throws {
-    let (_, j, _) = try captureStdoutLaunch(Self.self, "basename", [inp, suff] )
-    #expect(j == (o + "\n") )
+  func testSuffix(_ inp : String, _ suff : String, _ o : String) async throws {
+    try await run(output: o+"\n", args: inp, suff)
   }
 }

@@ -8,19 +8,18 @@
   SPDX-License-Identifier: BSD-2-Clause
 */
 
-import Testing
-import testSupport
-import Foundation
+import ShellTesting
 
-@Suite("renice", .serialized) struct reniceTest {
+@Suite("renice", .serialized) struct reniceTest : ShellTest {
+  let cmd = "renice"
+  let suite = "shell_cmds_reniceTest"
 
-  @Test("Set a process's nice number to an absolute value") func abs_pid() throws {
+  @Test("Set a process's nice number to an absolute value") func abs_pid() async throws {
     let pid = run_test_process()
     let prio = Int(getpriority(PRIO_PROCESS, UInt32(pid)))
     let incr = 3
     
-    let (c, _, _) = try captureStdoutLaunch(Clem.self, "renice", [String(prio+incr), String(pid)], nil)
-    #expect(c == 0)
+    try await run(args: String(prio+incr), String(pid))
     
     let nprio = Int(getpriority(PRIO_PROCESS, UInt32(pid)))
     #expect(nprio == prio+incr)
@@ -29,16 +28,14 @@ import Foundation
   }
   
   
-  @Test("Change a process's nice number by a relative value") func rel_pid() throws {
+  @Test("Change a process's nice number by a relative value") func rel_pid() async throws {
     let pid = run_test_process()
     let prio = Int(getpriority(PRIO_PROCESS, UInt32(pid)))
     let incr = 3
     
-    let (c1, _, _) = try captureStdoutLaunch(Clem.self, "renice", ["-n", String(incr), String(pid)], nil)
-    let (c2, _, _) = try captureStdoutLaunch(Clem.self, "renice", ["-p", "-n", String(incr), String(pid)], nil)
-    let (c3, _, _) = try captureStdoutLaunch(Clem.self, "renice", ["-n", String(incr), "-p", String(pid)], nil)
-
-    #expect(c1 == 0 && c2 == 0 && c3 == 0)
+    try await run(args: "-n", String(incr), String(pid))
+    try await run(args: "-p", "-n", String(incr), String(pid))
+    try await run(args: "-n", String(incr), "-p", String(pid))
     
     let nprio = Int(getpriority(PRIO_PROCESS, UInt32(pid)))
     #expect(nprio == prio+incr+incr+incr)
@@ -47,14 +44,13 @@ import Foundation
     
   }
 
-  @Test("Set a process group's nice number to an absolute value") func abs_pgid() throws {
+  @Test("Set a process group's nice number to an absolute value") func abs_pgid() async throws {
     let pid = run_test_process()
     let pgrp = UInt32(getpgid(pid))
     let prio = Int(getpriority(PRIO_PGRP, pgrp))
     let incr = 3
     
-    let (c, _, _) = try captureStdoutLaunch(Clem.self, "renice", ["-g", String(prio+incr), String(pgrp)], nil)
-    #expect(c == 0)
+    try await run(args: "-g", String(prio+incr), String(pgrp))
     
     let nprio = Int(getpriority(PRIO_PGRP, pgrp))
     #expect(nprio == prio+incr)
@@ -62,17 +58,14 @@ import Foundation
     kill_process(pid)
   }
 
-  @Test("Change a process group's nice number by a relative value") func rel_pgid() throws {
+  @Test("Change a process group's nice number by a relative value") func rel_pgid() async throws {
     let pid = run_test_process()
     let pgrp = UInt32(getpgid(pid))
     let prio = Int(getpriority(PRIO_PGRP, pgrp))
     let incr = 3
     
-    let (c1, _, _) = try captureStdoutLaunch(Clem.self, "renice", ["-g", "-n", String(incr), String(pgrp)])
-    #expect(c1 == 0)
-
-    let (c2, _, _) = try captureStdoutLaunch(Clem.self, "renice", ["-n", String(incr), "-g", String(pgrp)])
-    #expect(c2 == 0)
+    try await run(args: "-g", "-n", String(incr), String(pgrp))
+    try await run(args: "-n", String(incr), "-g", String(pgrp))
     
     let nprio = Int(getpriority(PRIO_PGRP, pgrp))
     #expect(nprio == prio+incr+incr)
@@ -80,15 +73,14 @@ import Foundation
     kill_process(pid)
   }
   
-  @Test("Set a user's processes nice numbers to an absolute value", .disabled("must have a test user account and run test as root")) func abs_user() throws {
+  @Test("Set a user's processes nice numbers to an absolute value", .disabled("must have a test user account and run test as root")) func abs_user() async throws {
     let prio = Int(getpriority(PRIO_PROCESS, 0))
     let incr = 3
     let test_user = "test_user"
     
     let pid = run_test_process() // launch a process and get it's pid
     
-    let (c, _, _) = try captureStdoutLaunch(Clem.self, "renice", ["-u", "-n", String(prio+incr), test_user], nil)
-    #expect(c == 0)
+    try await run(args: "-u", "-n", String(prio+incr), test_user)
     
     let nprio = Int(getpriority(PRIO_PROCESS, UInt32(pid)))
     #expect(nprio == prio+incr)
@@ -98,7 +90,7 @@ import Foundation
     
   }
   
-  @Test("Test various delimiter positions") func delim() throws {
+  @Test("Test various delimiter positions") func delim() async throws {
     
     let pid = run_test_process()
     var incr = 0
@@ -106,44 +98,43 @@ import Foundation
     let nice = Int(getpriority(PRIO_PROCESS, UInt32(pid)))
 
     incr += 1
-    let (_, _, _) = try captureStdoutLaunch(Clem.self, "renice", ["--", String(nice+incr), String(pid)])
+    try await run(args: "--", String(nice+incr), String(pid))
     #expect( niceValue(pid) == nice+incr)
 
     incr += 1
-    let (_, _, _) = try captureStdoutLaunch(Clem.self, "renice", [String(nice+incr), "--", String(pid)])
+    try await run(args: String(nice+incr), "--", String(pid))
     #expect( niceValue(pid) == nice+incr)
 
     incr += 1
-    let (_, _, _) = try captureStdoutLaunch(Clem.self, "renice", [String(nice+incr), String(pid), "--"])
+    try await run(args: String(nice+incr), String(pid), "--")
     #expect( niceValue(pid) == nice+incr)
 
     incr += 1
-    let (_, _, _) = try captureStdoutLaunch(Clem.self, "renice", ["-p", "--", String(nice+incr), String(pid)])
+    try await run(args: "-p", "--", String(nice+incr), String(pid))
     #expect( niceValue(pid) == nice+incr)
 
     incr += 1
-    let (_, _, _) = try captureStdoutLaunch(Clem.self, "renice", ["-p", String(nice+incr), "--", String(pid)])
+    try await run(args: "-p", String(nice+incr), "--", String(pid))
     #expect( niceValue(pid) == nice+incr)
 
     incr += 1
-    let (_, _, _) = try captureStdoutLaunch(Clem.self, "renice", ["-p", String(nice+incr), String(pid), "--"])
+    try await run(args: "-p", String(nice+incr), String(pid), "--")
     #expect( niceValue(pid) == nice+incr)
 
     incr += 1
-    let (_, _, _) = try captureStdoutLaunch(Clem.self, "renice", [String(nice+incr), "-p", "--", String(pid)])
+    try await run(args: String(nice+incr), "-p", "--", String(pid))
     #expect( niceValue(pid) == nice+incr)
 
     incr += 1
-    let (_, _, _) = try captureStdoutLaunch(Clem.self, "renice", [String(nice+incr), "-p", String(pid)], "--")
+    try await run(withStdin: "--", args: String(nice+incr), "-p", String(pid))
     #expect( niceValue(pid) == nice+incr)
 
     kill_process(pid)
     
   }
   
-  @Test("Do not segfault if -n is given without an argument") func incr_noarg() throws {
-    let (c, r, _) = try captureStdoutLaunch(Clem.self, "renice", ["-n"])
-    #expect(c == 1 && r == "")
+  @Test("Do not segfault if -n is given without an argument") func incr_noarg() async throws {
+    try await run(status: 1, error: /.+/, args: "-n")
   }
 
   

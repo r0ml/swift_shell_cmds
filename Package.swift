@@ -24,7 +24,11 @@ import Foundation
 
 let package = Package(
   name: "shell_cmds",
-  platforms: [.macOS(.v14)],
+  platforms: [.macOS(.v15)],
+  dependencies: [
+//     .package(url: "https://github.com/r0ml/ShellTesting.git" , branch: "main")
+     .package(path: "../ShellTesting")
+  ],
 //  products: [
 //    .executable(name: "apply", targets: ["apply"])
 //  ],
@@ -33,43 +37,9 @@ let package = Package(
     // Targets can depend on other targets in this package and products from dependencies.
     .target(name: "shared",
             path: "Shared"),
-    .target(name: "testSupport",
-            path: "TestSupport" )
     ]
-    
-    +
-    
-    generateTargets()
-    
-    /*
-    .executableTarget(
-      name: "apply",
-      dependencies: [.target(name: "shared")]
-    ),
-    .executableTarget(
-      name: "basename",
-      dependencies: [.target(name: "shared")]
-    ),
-    */
-    
-    +
-    
-  /*
-  [
-    .testTarget(
-      name: "applyTest",
-      dependencies: [.target(name: "apply"), .target(name: "testSupport")],
-      resources: [.copy("Resources")]
-    ),
-    .testTarget(
-      name: "basenameTest",
-      dependencies: [.target(name: "basename"), .target(name: "testSupport")]
-    )
-
-  ]
-   */
-  
-  generateTestTargets()
+    + generateTargets()
+    + generateTestTargets()
 )
 
 func generateTargets() -> [Target] {
@@ -95,7 +65,7 @@ func generateTestTargets() -> [Target] {
       let x = try! FileManager.default.contentsOfDirectory(atPath: "Tests/\(i)").filter { $0.hasSuffix(".xctestplan") }
         let rr = r ? [Resource.copy("Resources")] : []
         let t = Target.testTarget(name: i,
-                                  dependencies: [.target(name: "testSupport"),
+                                  dependencies: [.product(name: "ShellTesting", package: "ShellTesting"),
                                                  .target(name: i.replacingOccurrences(of: "Test", with: ""))],
                                   path: nil,
                                   exclude: x

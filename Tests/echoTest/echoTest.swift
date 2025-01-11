@@ -28,18 +28,17 @@
   SUCH DAMAGE.
  */
 
-import Testing
-import testSupport
+import ShellTesting
 
-final class Tests {
+final class echoTest : ShellTest {
+  let cmd = "echo"
+  let suite = "shell_cmds_echoTest"
   
-  @Test func n_output() throws {
-    let (_, j, _) = try captureStdoutLaunch(Self.self, "echo", ["-n", "Hello world"] )
-    #expect(j == "Hello world")
+  @Test func n_output() async throws {
+    try await run(output: "Hello world", args: "-n", "Hello world")
   }
   
-  @Test func c_output() throws {
-    let (_, j, _) = try captureStdoutLaunch(Self.self, "echo", ["Hello world\\c"] )
-    #expect(j == "Hello world")
+  @Test func c_output() async throws {
+    try await run(output: "Hello world", args: "Hello world\\c" )
   }
 }

@@ -17,18 +17,17 @@
  OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import Testing
-import testSupport
-import Foundation
+import ShellTesting
 
-@Suite class applyTest {
-
+@Suite class applyTest : ShellTest {
+  let cmd = "apply"
+  let suite = "shell_cmds_applyTest"
+  
   @Test func regress00() async throws {
-    let x = getFile("applyTest", "regress.00", withExtension: "out")
-    var res = getFile("applyTest", "regress.00", withExtension: "in")!
+    let x = try fileContents("regress.00.out")
+    var res = try fileContents("regress.00.in")
     res.removeLast() // get rid of the trailing \n
-    let (_, j, _) = try captureStdoutLaunch(Self.self, "apply", ["echo %1 %1 %1 %1", res] )
-    #expect( j == x )
+    try await run( output: x, args: "echo %1 %1 %1 %1", res )
   }
 
   @Test func regress01() async throws {
@@ -36,8 +35,7 @@ import Foundation
     #expect ( x > 0, "sysconf(\(_SC_ARG_MAX)) returned \(x)" )
 
     let a = String(repeating: "1", count: x / 2)
-    let (_, _, e) = try captureStdoutLaunch(Self.self, "apply", ["echo %1 %1 %1", a] )
-    #expect( e == "apply: Argument list too long\n" )
+    try await run(status: 1, error: /Argument list too long/, args: "echo %1 %1 %1", a )
   }
 
 }

@@ -17,14 +17,14 @@
   OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import Testing
-import testSupport
+import ShellTesting
 
-@Suite("whereis tests") final class whereisTest {
+@Suite("whereis tests") final class whereisTest : ShellTest {
+  let cmd = "whereis"
+  let suite = "shell_cmds_whereisTest"
 
-  @Test func testBasic01() throws {
-    let (_, j, _) = try captureStdoutLaunch(Self.self, "whereis", ["-b", "ls"] )
-    #expect(j == "ls: /bin/ls\n")
+  @Test func testBasic01() async throws {
+    try await run(output: "ls: /bin/ls\n", args: "-b", "ls" )
   }
 
 

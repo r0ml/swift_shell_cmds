@@ -29,19 +29,18 @@
 
 */
 
-import Testing
-import Foundation
-import testSupport
+import ShellTesting
 
-@Suite("killall") final class killallTest {
-
+@Suite("killall") final class killallTest : ShellTest {
+  let cmd = "killall"
+  let suite = "shell_cmds_killallTest"
 
   // I think the test works as follows:
   // 1) Spawn a subprocess.
   // 2) Have the subprocess spawn a process named "innocent_test_prog"
   // 3) run killall innocent_test_prog
   // 4) make sure all innocent_test_prog processes have been killed.
-  @Test func argv0() throws {
+  @Test func argv0() async throws {
     // start three processes
     for _ in 0..<3 {
       try runKillableProcess()
@@ -50,7 +49,7 @@ import testSupport
     let (_, j, _) = try shell("ps -x")
     let jj = j.split(separator: "\n").filter {!($0.matches(of: /innocent_test_prog/).isEmpty) }
     #expect(jj.count == 3)
-    let _ = try captureStdoutLaunch(Self.self, "killall", ["innocent_test_prog"])
+    try await run(args: "innocent_test_prog")
     let (_, j2, _) = try shell("ps -x")
     let jj2 = j2.split(separator: "\n").filter {!($0.matches(of: /innocent_test_prog/).isEmpty) }
     #expect(jj2.count == 0)
@@ -60,9 +59,11 @@ import testSupport
   
   
   func runKillableProcess() throws {
-    let t = FileManager.default.temporaryDirectory
-    let tt = t.appending(component: "innocent_test_prog")
-    try FileManager.default.removeItem(at: tt)
+//    let t = FileManager.default.temporaryDirectory
+//    let tt = t.appending(component: "innocent_test_prog")
+//    try? FileManager.default.removeItem(at: tt)
+    let tt = try tmpfile("innocent_test_prog")
+    rm(tt)
     try FileManager.default.createSymbolicLink(at: tt, withDestinationURL: URL(filePath: "/bin/sleep"))
     
 //    FileManager.default.changeCurrentDirectoryPath(t.path)

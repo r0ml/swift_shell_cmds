@@ -14,7 +14,7 @@
   "testTargets" : [
     {
       "target" : {
-        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
         "identifier" : "E7EC84DF2C4622410098A4EB",
         "name" : "killallTest"
       }

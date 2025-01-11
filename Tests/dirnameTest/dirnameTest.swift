@@ -28,14 +28,14 @@
   POSSIBILITY OF SUCH DAMAGE.
  */
 
-import Testing
-import testSupport
+import ShellTesting
 
-@Suite final class dirnameTest {
+@Suite final class dirnameTest : ShellTest {
+  let cmd = "dirname"
+  let suite = "shell_cmds_dirnameTest"
   
   @Test(arguments: [ ("/", "/"), ("//", "/"), ("/usr/bin/", "/usr"), ("//usr//bin//", "//usr"), ("usr", "."), ("", "."), ("/usr", "/"), ("/usr/bin", "/usr"), ("usr/bin", "usr") ] )
-  func testDirname(_ inp : String, _ outp : String) throws {
-    let (_, j, _) = try captureStdoutLaunch(Self.self, "dirname", [inp] )
-        #expect(j == (outp + "\n") )
+  func testDirname(_ inp : String, _ outp : String) async throws {
+    try await run(output: outp+"\n", args: inp )
   }
 }

@@ -14,7 +14,7 @@
   "testTargets" : [
     {
       "target" : {
-        "containerPath" : "container:r0ml_shell_cmds.xcodeproj",
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
         "identifier" : "E7918B7A2C22778C002619C1",
         "name" : "testTest"
       }

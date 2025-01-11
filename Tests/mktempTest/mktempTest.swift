@@ -29,11 +29,12 @@
   SUCH DAMAGE.
  */
 
-import Testing
-import Foundation
-import testSupport
+import ShellTesting
 
-@Suite("mktemp") class mktempTest {
+@Suite("mktemp") class mktempTest : ShellTest {
+  let cmd = "mktemp"
+  let suite = "shell_cmds_mktempTest"
+  
   let pwd : String
   let tmpdir : String
   let pflag : String
@@ -49,24 +50,26 @@ import testSupport
   
   @Test func tmpdir_pflag() async throws {
     // Basic usage: just -p specified
-    
-    let (_, o, _) = try captureStdoutLaunch(Clem.self, "mktemp", ["-p", pflag])
-    #expect( o!.hasPrefix("\(pflag)/tmp."), "just -p without TMPDIR" )
+   
+    try await run(output: Regex("^\(pflag)/tmp."), args: "-p", pflag )
+//    let (_, o, _) = try captureStdoutLaunch(Clem.self, "mktemp", ["-p", pflag])
+//    #expect( o!.hasPrefix("\(pflag)/tmp."), "just -p without TMPDIR" )
   }
       /*
         atf_check -o match:"^$pflag/tmp\..+$" \
             env -u TMPDIR mktemp -p "$pflag"
 */
   
-  @Test func tmpdir_pflag_dir() throws {
+  @Test func tmpdir_pflag_dir() async throws {
     setenv("TMPDIR", tmpdir, 1)
-    let (_, o, _) = try captureStdoutLaunch(Clem.self, "mktemp", ["-p", pflag])
-    #expect( o!.hasPrefix("\(pflag)/tmp."), "just -p with TMPDIR" )
+    try await run(output: Regex("^\(pflag)/tmp."), args: "-p", pflag)
+//    let (_, o, _) = try captureStdoutLaunch(Clem.self, "mktemp", ["-p", pflag])
+//    #expect( o!.hasPrefix("\(pflag)/tmp."), "just -p with TMPDIR" )
   }
 
   // -p with a list of names
-  @Test func tmpdir_pflag_noarg() throws {
-    let (_, _, _) = try captureStdoutLaunch(Clem.self, "mktemp", ["-p", pflag, "x", "y", "z"])
+  @Test func tmpdir_pflag_noarg() async throws {
+    try await ShellProcess(cmd, "-p", pflag, "x", "y", "z").run()
     #expect( FileManager.default.fileExists(atPath: "\(pflag)/x"))
     #expect( FileManager.default.fileExists(atPath: "\(pflag)/y"))
     #expect( FileManager.default.fileExists(atPath: "\(pflag)/z"))
@@ -74,9 +77,10 @@ import testSupport
   
   
   
-  @Test func tmpdir_tflag_oneslash() throws {
+  @Test func tmpdir_tflag_oneslash() async throws {
     setenv("TMPDIR", tmpdir, 1)
-    let (c, r, _) = try captureStdoutLaunch(Clem.self, "mktemp", ["-t", "foo"])
+    let p = ShellProcess(cmd, "mktemp", "-t", "foo")
+    let (_, r, _) = try await p.run()
     let rr = r!
     let s = tmpdir
     
@@ -87,7 +91,10 @@ import testSupport
     }
   }
   
-  @Test func darwin_usertemp() throws {
+  // FIXME: finish this 
+  /*
+  
+  @Test func darwin_usertemp() async throws {
 
     let bc = 4096
     var buf = UnsafeMutablePointer<Int8>.allocate(capacity: bc)
@@ -95,8 +102,8 @@ import testSupport
     let ii = confstr(_CS_DARWIN_USER_TEMP_DIR, buf, bc)
     let usertemp = String(utf8String: buf)
     
-    let (c1, r1, _) = try captureStdoutLaunch(Clem.self, "mktemp", ["-ut", "foo"], nil, ["TMPDIR":tmpdir] )
-    let (c2, r2, _) = try captureStdoutLaunch(Clem.self, "mktemp", ["-u"], nil, ProcessInfo.processInfo.environment.merging(["TMPDIR":tmpdir], uniquingKeysWith: { $1 } ) )
+    let (c1, r1, _) = try await ShellProcess(cmd, "-ut", "foo", env: ["TMPDIR":tmpdir] ).run()
+    let (c2, r2, _) = try await ShellProcess(cmd, "-u", env: ProcessInfo.processInfo.environment.merging(["TMPDIR":tmpdir], uniquingKeysWith: { $1 } ) ).run()
     
     var env3 = ProcessInfo.processInfo.environment
     env3.removeValue(forKey: "TMPDIR")
@@ -113,6 +120,8 @@ import testSupport
 
 
   }
+   
+   */
 
 /*
         

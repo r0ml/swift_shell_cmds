@@ -17,11 +17,11 @@
   OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import Testing
-import testSupport
-import Foundation
+import ShellTesting
 
-@Suite("script") struct scriptTest {
+@Suite("script") struct scriptTest : ShellTest {
+  let cmd = "script"
+  let suite = "shell_cmds_scriptTest"
 
   @Test("Ignore tcgetattr() failure when input is a regular file") func from_file_body() throws {
     let infil = "empty"
@@ -36,11 +36,11 @@ import Foundation
   }
   
   
-  @Test("Ignore tcgetattr() failure when input is a device") func from_null() throws {
+  @Test("Ignore tcgetattr() failure when input is a device", .disabled("not yet implemented")) func from_null() throws {
     fatalError("not yet implemented")
   }
 
-  @Test("Ignore tcgetattr() failure when input is a pipe") func from_pipe() throws {
+  @Test("Ignore tcgetattr() failure when input is a pipe", .disabled("not yet implemented")) func from_pipe() throws {
     fatalError("not yet implemented")
   }
   
@@ -52,7 +52,7 @@ import Foundation
     let output = Pipe()
     let stderr = Pipe()
 
-    let d = Bundle(for: Clem.self).bundleURL
+    let d = Bundle(for: ShellProcess.self).bundleURL
     let execu = d.deletingLastPathComponent().appending(component: executable).path(percentEncoded:false)
     
   //  print("launchPath \(execu)")

@@ -89,8 +89,6 @@
 		E71789102C9D27C300D67968 /* libshared.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E712D4E22C9B396B004A9B59 /* libshared.a */; };
 		E717891C2C9DAFE800D67968 /* regress.00.out in Resources */ = {isa = PBXBuildFile; fileRef = E71789192C9DAFE800D67968 /* regress.00.out */; };
 		E717891D2C9DAFE800D67968 /* regress.00.in in Resources */ = {isa = PBXBuildFile; fileRef = E71789182C9DAFE800D67968 /* regress.00.in */; };
-		E717892A2C9DBF3600D67968 /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D361FC2C0D0ADB003756C2 /* TestSupport.swift */; };
-		E717892B2C9DBF4A00D67968 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
 		E734F0F62C0DF6C7007A3C58 /* jotTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E734F0E92C0DF629007A3C58 /* jotTest.swift */; };
 		E7529F812C48CB8C004CEBFB /* path_helperTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7529F7D2C48CB5C004CEBFB /* path_helperTest.swift */; };
 		E7529F8A2C48CC24004CEBFB /* scriptTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7529F872C48CC0D004CEBFB /* scriptTest.swift */; };
@@ -137,7 +135,27 @@
 		E7D29E002CB5A6DC00D6B28D /* libshared.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E712D4E22C9B396B004A9B59 /* libshared.a */; };
 		E7D361F92C0D044C003756C2 /* basenameTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D361F22C0D0390003756C2 /* basenameTest.swift */; };
 		E7DF6BC12C005C19000F6D03 /* xargsTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7DF6BC02C005C19000F6D03 /* xargsTest.swift */; };
-		E7E43A7C2CE80AA8007F3A48 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
+		E7E33DB72D30EB2800478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DB62D30EB2800478AF2 /* ShellTesting */; };
+		E7E33DB92D30EB2E00478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DB82D30EB2E00478AF2 /* ShellTesting */; };
+		E7E33DBB2D30EB3200478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DBA2D30EB3200478AF2 /* ShellTesting */; };
+		E7E33DBD2D30EB3700478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DBC2D30EB3700478AF2 /* ShellTesting */; };
+		E7E33DBF2D30EB3B00478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DBE2D30EB3B00478AF2 /* ShellTesting */; };
+		E7E33DC12D30EB4200478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DC02D30EB4200478AF2 /* ShellTesting */; };
+		E7E33DC32D30EB4700478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DC22D30EB4700478AF2 /* ShellTesting */; };
+		E7E33DC52D30EB4B00478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DC42D30EB4B00478AF2 /* ShellTesting */; };
+		E7E33DC72D30EB5200478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DC62D30EB5200478AF2 /* ShellTesting */; };
+		E7E33DC92D30EB5600478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DC82D30EB5600478AF2 /* ShellTesting */; };
+		E7E33DCB2D30EB5B00478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DCA2D30EB5B00478AF2 /* ShellTesting */; };
+		E7E33DCD2D30EB6100478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DCC2D30EB6100478AF2 /* ShellTesting */; };
+		E7E33DCF2D30EB6600478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DCE2D30EB6600478AF2 /* ShellTesting */; };
+		E7E33DD12D30EB6B00478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DD02D30EB6B00478AF2 /* ShellTesting */; };
+		E7E33DD32D30EB7000478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DD22D30EB7000478AF2 /* ShellTesting */; };
+		E7E33DD52D30EB7500478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DD42D30EB7500478AF2 /* ShellTesting */; };
+		E7E33DD72D30EB7A00478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DD62D30EB7A00478AF2 /* ShellTesting */; };
+		E7E33DD92D30EB7E00478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DD82D30EB7E00478AF2 /* ShellTesting */; };
+		E7E33DDB2D30EB8400478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DDA2D30EB8400478AF2 /* ShellTesting */; };
+		E7E33DDD2D30EB8800478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DDC2D30EB8800478AF2 /* ShellTesting */; };
+		E7E33DDF2D30EB8E00478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DDE2D30EB8E00478AF2 /* ShellTesting */; };
 		E7E5A1982BEC32B2002EC4B4 /* apply.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E5A1972BEC32B2002EC4B4 /* apply.swift */; };
 		E7E5A19A2BEC85DE002EC4B4 /* chroot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E5A1992BEC85DE002EC4B4 /* chroot.swift */; };
 		E7E5A19C2BEC8821002EC4B4 /* yes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E5A19B2BEC8821002EC4B4 /* yes.swift */; };
@@ -177,24 +195,6 @@
 		E7E5A2922BF269B2002EC4B4 /* envopts.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E5A2122BEC8D35002EC4B4 /* envopts.swift */; };
 		E7E6B7CB2C4DB0D00076DC3F /* printf.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E5A1BB2BEC8ACB002EC4B4 /* printf.swift */; };
 		E7E8E3082C24624C0000F08A /* test.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E5A1CF2BEC8B48002EC4B4 /* test.swift */; };
-		E7EBF7AE2CA462C800AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7AF2CA462DA00AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7B02CA462E400AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7B12CA462EC00AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7B22CA462F300AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7B32CA462F900AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7B42CA4630000AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7B52CA4630800AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7B62CA4631100AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7B72CA4631700AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7B82CA4631F00AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7B92CA4633400AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7BC2CA4634B00AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7BD2CA4635300AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7BE2CA4635A00AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7BF2CA4636200AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7C02CA4636A00AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
-		E7EBF7C12CA4637000AFAB94 /* libtestSupport.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E71789262C9DBF2800D67968 /* libtestSupport.a */; };
 		E7EBF8F82CA5E39600AFAB94 /* libshared.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E712D4E22C9B396B004A9B59 /* libshared.a */; };
 		E7EC85292C4623F10098A4EB /* reniceTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = E75520372C39CCEA005E098B /* reniceTest.swift */; };
 		E7F7FB2C2C3C8A6900FADED3 /* script.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E5A1C32BEC8AF6002EC4B4 /* script.swift */; };
@@ -333,26 +333,12 @@
 			remoteGlobalIDString = E712D4E12C9B396B004A9B59;
 			remoteInfo = shared;
 		};
-		E797C54C2CAA487A00178E3B /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = FC80BF5714A05A2F00C6F7F5 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E71789252C9DBF2800D67968;
-			remoteInfo = testSupport;
-		};
 		E797C54F2CAC4A1800178E3B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = FC80BF5714A05A2F00C6F7F5 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = E712D4E12C9B396B004A9B59;
 			remoteInfo = shared;
-		};
-		E797C5512CAC4A2600178E3B /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = FC80BF5714A05A2F00C6F7F5 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E71789252C9DBF2800D67968;
-			remoteInfo = testSupport;
 		};
 		E7A46F8F2C19085D00AB34F5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -375,26 +361,12 @@
 			remoteGlobalIDString = E712D4E12C9B396B004A9B59;
 			remoteInfo = shared;
 		};
-		E7D29DFE2CB4A0A300D6B28D /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = FC80BF5714A05A2F00C6F7F5 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E71789252C9DBF2800D67968;
-			remoteInfo = testSupport;
-		};
 		E7E43BCF2CEC2501007F3A48 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = FC80BF5714A05A2F00C6F7F5 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = E712D4E12C9B396B004A9B59;
 			remoteInfo = shared;
-		};
-		E7E43BD12CEC2509007F3A48 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = FC80BF5714A05A2F00C6F7F5 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E71789252C9DBF2800D67968;
-			remoteInfo = testSupport;
 		};
 		E7EBF9332CA61A3A00AFAB94 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -1383,7 +1355,6 @@
 		E712D4E22C9B396B004A9B59 /* libshared.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libshared.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		E71789182C9DAFE800D67968 /* regress.00.in */ = {isa = PBXFileReference; lastKnownFileType = text; path = regress.00.in; sourceTree = "<group>"; };
 		E71789192C9DAFE800D67968 /* regress.00.out */ = {isa = PBXFileReference; lastKnownFileType = text; path = regress.00.out; sourceTree = "<group>"; };
-		E71789262C9DBF2800D67968 /* libtestSupport.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libtestSupport.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		E734F0E82C0DF5FD007A3C58 /* jot.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = jot.xctestplan; sourceTree = "<group>"; };
 		E734F0E92C0DF629007A3C58 /* jotTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = jotTest.swift; sourceTree = "<group>"; };
 		E734F0EF2C0DF699007A3C58 /* jotTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = jotTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1428,7 +1399,6 @@
 		E7D361F02C0D0390003756C2 /* basenameTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = basenameTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7D361F22C0D0390003756C2 /* basenameTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = basenameTest.swift; sourceTree = "<group>"; };
 		E7D361F82C0D03D5003756C2 /* basename.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = basename.xctestplan; sourceTree = "<group>"; };
-		E7D361FC2C0D0ADB003756C2 /* TestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestSupport.swift; sourceTree = "<group>"; };
 		E7DF6BBE2C005C19000F6D03 /* xargsTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = xargsTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7DF6BC02C005C19000F6D03 /* xargsTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = xargsTest.swift; sourceTree = "<group>"; };
 		E7DF6BC62C006017000F6D03 /* xargs.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = xargs.xctestplan; sourceTree = "<group>"; };
@@ -1627,7 +1597,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7AF2CA462DA00AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DDB2D30EB8400478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1635,7 +1605,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7B82CA4631F00AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DC92D30EB5600478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1643,13 +1613,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E71789242C9DBF2800D67968 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
+				E7E33DDF2D30EB8E00478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1657,7 +1621,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7B92CA4633400AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DC52D30EB4B00478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1665,7 +1629,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E717892B2C9DBF4A00D67968 /* libtestSupport.a in Frameworks */,
+				E7E33DB72D30EB2800478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1673,7 +1637,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7BE2CA4635A00AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DBF2D30EB3B00478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1681,7 +1645,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7B12CA462EC00AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DD72D30EB7A00478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1689,7 +1653,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7BD2CA4635300AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DC12D30EB4200478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1697,7 +1661,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7BC2CA4634B00AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DC32D30EB4700478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1705,7 +1669,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7C12CA4637000AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DB92D30EB2E00478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1713,7 +1677,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7AE2CA462C800AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DDD2D30EB8800478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1721,7 +1685,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7B52CA4630800AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DCF2D30EB6600478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1729,7 +1693,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7B32CA462F900AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DD32D30EB7000478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1737,7 +1701,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7E43A7C2CE80AA8007F3A48 /* libtestSupport.a in Frameworks */,
+				E7E33DC72D30EB5200478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1745,7 +1709,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7B72CA4631700AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DCB2D30EB5B00478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1753,7 +1717,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7B62CA4631100AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DCD2D30EB6100478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1761,7 +1725,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7B42CA4630000AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DD12D30EB6B00478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1769,7 +1733,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7B22CA462F300AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DD52D30EB7500478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1777,7 +1741,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7B02CA462E400AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DD92D30EB7E00478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1785,7 +1749,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7C02CA4636A00AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DBB2D30EB3200478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1793,7 +1757,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7EBF7BF2CA4636200AFAB94 /* libtestSupport.a in Frameworks */,
+				E7E33DBD2D30EB3700478AF2 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2181,14 +2145,6 @@
 				E71789132C9DA8BB00D67968 /* Resources */,
 			);
 			path = applyTest;
-			sourceTree = "<group>";
-		};
-		E71789122C9D9FB500D67968 /* TestSupport */ = {
-			isa = PBXGroup;
-			children = (
-				E7D361FC2C0D0ADB003756C2 /* TestSupport.swift */,
-			);
-			path = TestSupport;
 			sourceTree = "<group>";
 		};
 		E71789132C9DA8BB00D67968 /* Resources */ = {
@@ -2909,7 +2865,6 @@
 				E7020DD62CA05C2C00641953 /* Work In Progress */,
 				E7A1CD742C9AA1DD00A95D6D /* Shared */,
 				E717892C2C9DC62900D67968 /* Sources */,
-				E71789122C9D9FB500D67968 /* TestSupport */,
 				E71789152C9DAF2000D67968 /* Tests */,
 				E7C4B6912CE3E0BB003B031E /* Manuals */,
 				FC80BF6114A05A2F00C6F7F5 /* Products */,
@@ -2984,7 +2939,6 @@
 				E7EC85172C4623090098A4EB /* sleepTest.xctest */,
 				E7EC85222C4623280098A4EB /* timeTest.xctest */,
 				E712D4E22C9B396B004A9B59 /* libshared.a */,
-				E71789262C9DBF2800D67968 /* libtestSupport.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -2993,13 +2947,6 @@
 
 /* Begin PBXHeadersBuildPhase section */
 		E712D4DE2C9B396B004A9B59 /* Headers */ = {
-			isa = PBXHeadersBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E71789222C9DBF2800D67968 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -3093,28 +3040,10 @@
 			);
 			name = shared;
 			packageProductDependencies = (
+				E7E33DDE2D30EB8E00478AF2 /* ShellTesting */,
 			);
 			productName = shared;
 			productReference = E712D4E22C9B396B004A9B59 /* libshared.a */;
-			productType = "com.apple.product-type.library.static";
-		};
-		E71789252C9DBF2800D67968 /* testSupport */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = E71789272C9DBF2800D67968 /* Build configuration list for PBXNativeTarget "testSupport" */;
-			buildPhases = (
-				E71789222C9DBF2800D67968 /* Headers */,
-				E71789232C9DBF2800D67968 /* Sources */,
-				E71789242C9DBF2800D67968 /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = testSupport;
-			packageProductDependencies = (
-			);
-			productName = testSupport;
-			productReference = E71789262C9DBF2800D67968 /* libtestSupport.a */;
 			productType = "com.apple.product-type.library.static";
 		};
 		E734F0EE2C0DF699007A3C58 /* jotTest */ = {
@@ -3128,7 +3057,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				E797C54D2CAA487A00178E3B /* PBXTargetDependency */,
 				E70AEB662C3606B400196BD4 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -3154,6 +3082,7 @@
 			);
 			name = applyTest;
 			packageProductDependencies = (
+				E7E33DB62D30EB2800478AF2 /* ShellTesting */,
 			);
 			productName = applyTest;
 			productReference = E763BAB72C3DD91E00649ACB /* applyTest.xctest */;
@@ -3206,7 +3135,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				E7E43BD22CEC2509007F3A48 /* PBXTargetDependency */,
 				E7A46F902C19085D00AB34F5 /* PBXTargetDependency */,
 			);
 			name = findTest;
@@ -3285,7 +3213,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				E7D29DFF2CB4A0A300D6B28D /* PBXTargetDependency */,
 				E7EBF9402CA61A9700AFAB94 /* PBXTargetDependency */,
 			);
 			name = reniceTest;
@@ -3415,7 +3342,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				E797C5522CAC4A2600178E3B /* PBXTargetDependency */,
 				E7EBF9462CA61ABF00AFAB94 /* PBXTargetDependency */,
 			);
 			name = timeTest;
@@ -4208,9 +4134,6 @@
 					E712D4E12C9B396B004A9B59 = {
 						CreatedOnToolsVersion = 16.0;
 					};
-					E71789252C9DBF2800D67968 = {
-						CreatedOnToolsVersion = 16.0;
-					};
 					E734F0EE2C0DF699007A3C58 = {
 						CreatedOnToolsVersion = 15.4;
 					};
@@ -4401,6 +4324,7 @@
 			mainGroup = FC80BF5514A05A2F00C6F7F5;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */,
 			);
 			productRefGroup = FC80BF6114A05A2F00C6F7F5 /* Products */;
 			projectDirPath = "";
@@ -4471,7 +4395,6 @@
 				E7DF6BBD2C005C19000F6D03 /* xargsTest */,
 				FCBA163614A145CA00AA698B /* yes */,
 				E712D4E12C9B396B004A9B59 /* shared */,
-				E71789252C9DBF2800D67968 /* testSupport */,
 			);
 		};
 /* End PBXProject section */
@@ -4661,14 +4584,6 @@
 				E7020DD52CA0596A00641953 /* Getopt.swift in Sources */,
 				E712D4E62C9B398C004A9B59 /* MigrationSupport.swift in Sources */,
 				E712D4E72C9B398C004A9B59 /* Flag.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E71789232C9DBF2800D67968 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				E717892A2C9DBF3600D67968 /* TestSupport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -5220,20 +5135,10 @@
 			target = E712D4E12C9B396B004A9B59 /* shared */;
 			targetProxy = E797C54A2CAA486D00178E3B /* PBXContainerItemProxy */;
 		};
-		E797C54D2CAA487A00178E3B /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = E71789252C9DBF2800D67968 /* testSupport */;
-			targetProxy = E797C54C2CAA487A00178E3B /* PBXContainerItemProxy */;
-		};
 		E797C5502CAC4A1800178E3B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = E712D4E12C9B396B004A9B59 /* shared */;
 			targetProxy = E797C54F2CAC4A1800178E3B /* PBXContainerItemProxy */;
-		};
-		E797C5522CAC4A2600178E3B /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = E71789252C9DBF2800D67968 /* testSupport */;
-			targetProxy = E797C5512CAC4A2600178E3B /* PBXContainerItemProxy */;
 		};
 		E7A46F902C19085D00AB34F5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -5250,20 +5155,10 @@
 			target = E712D4E12C9B396B004A9B59 /* shared */;
 			targetProxy = E7D29DFC2CB4A09400D6B28D /* PBXContainerItemProxy */;
 		};
-		E7D29DFF2CB4A0A300D6B28D /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = E71789252C9DBF2800D67968 /* testSupport */;
-			targetProxy = E7D29DFE2CB4A0A300D6B28D /* PBXContainerItemProxy */;
-		};
 		E7E43BD02CEC2501007F3A48 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = E712D4E12C9B396B004A9B59 /* shared */;
 			targetProxy = E7E43BCF2CEC2501007F3A48 /* PBXContainerItemProxy */;
-		};
-		E7E43BD22CEC2509007F3A48 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = E71789252C9DBF2800D67968 /* testSupport */;
-			targetProxy = E7E43BD12CEC2509007F3A48 /* PBXContainerItemProxy */;
 		};
 		E7EBF9342CA61A3A00AFAB94 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -5588,7 +5483,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -5626,7 +5520,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -5661,7 +5554,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -5699,7 +5591,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -5773,72 +5664,6 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 6.0;
-			};
-			name = Debug;
-		};
-		E71789282C9DBF2800D67968 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_STYLE = Automatic;
-				COPY_PHASE_STRIP = NO;
-				DEVELOPMENT_TEAM = MHEBPE6SV2;
-				ENABLE_NS_ASSERTIONS = NO;
-				EXECUTABLE_PREFIX = lib;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-			};
-			name = Release;
-		};
-		E71789292C9DBF2800D67968 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_STYLE = Automatic;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = MHEBPE6SV2;
-				EXECUTABLE_PREFIX = lib;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
 			};
 			name = Debug;
 		};
@@ -5938,7 +5763,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -5976,7 +5800,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -6083,7 +5906,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -6121,7 +5943,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -6465,7 +6286,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INSTALL_PATH = bin;
-				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -7035,7 +6856,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -7073,7 +6893,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -7108,7 +6927,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -7146,7 +6964,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -7181,7 +6998,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -7219,7 +7035,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -7254,7 +7069,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -7292,7 +7106,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -7327,7 +7140,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -7365,7 +7177,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -7400,7 +7211,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -7438,7 +7248,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -7473,7 +7282,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -7511,7 +7319,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -7546,7 +7353,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -7584,7 +7390,6 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GENERATE_INFOPLIST_FILE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.5;
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -7806,7 +7611,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				INSTALL_PATH = bin;
-				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_STRICT_CONCURRENCY = complete;
@@ -8328,15 +8133,6 @@
 			buildConfigurations = (
 				E712D4E32C9B396B004A9B59 /* Release */,
 				E712D4E42C9B396B004A9B59 /* Debug */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		E71789272C9DBF2800D67968 /* Build configuration list for PBXNativeTarget "testSupport" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				E71789282C9DBF2800D67968 /* Release */,
-				E71789292C9DBF2800D67968 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -8891,6 +8687,125 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/r0ml/ShellTesting";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E7E33DB62D30EB2800478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DB82D30EB2E00478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DBA2D30EB3200478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DBC2D30EB3700478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DBE2D30EB3B00478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DC02D30EB4200478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DC22D30EB4700478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DC42D30EB4B00478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DC62D30EB5200478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DC82D30EB5600478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DCA2D30EB5B00478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DCC2D30EB6100478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DCE2D30EB6600478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DD02D30EB6B00478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DD22D30EB7000478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DD42D30EB7500478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DD62D30EB7A00478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DD82D30EB7E00478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DDA2D30EB8400478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DDC2D30EB8800478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7E33DDE2D30EB8E00478AF2 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = FC80BF5714A05A2F00C6F7F5 /* Project object */;
 }

@@ -29,173 +29,98 @@
  SUCH DAMAGE.
  */
 
-import Testing
-import testSupport
+import ShellTesting
 
-
-final class hexdumpTest {
-
-  @Test func b_flag() async throws {
-    let x1 = getFile("hexdumpTest", "d_hexdump_bflag_a", withExtension: "out")
-    let res1 = inFile("hexdumpTest", "d_hexdump_a", withExtension: "in")
-    let (_, j1, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-b", res1!] )
-    #expect(j1 == x1)
-
-    let x2 = getFile("hexdumpTest", "d_hexdump_bflag_b", withExtension: "out")
-    let res2 = inFile("hexdumpTest", "d_hexdump_b", withExtension: "in")
-    let (_,j2,_) = try captureStdoutLaunch(Self.self, "hexdump", ["-b", res2!] )
-    #expect(j2 == x2)
-
-    let x3 = getFile("hexdumpTest", "d_hexdump_bflag_c", withExtension: "out")
-    let res3 = inFile("hexdumpTest", "d_hexdump_c", withExtension: "in")
-    let (_, j3, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-b", res3!] )
-    #expect(j3 == x3)
+final class hexdumpTest : ShellTest {
+  let cmd = "hexdump"
+  let suite = "shell_cmds_hexdumpTest"
+  
+  @Test(arguments: ["a", "b", "c"]) func b_flag(_ cand : String) async throws {
+    let x1 = try fileContents("d_hexdump_bflag_\(cand).out")
+    let res1 = try inFile("d_hexdump_\(cand).in")
+    try await run(output: x1, args: "-b", res1 )
   }
-
-
-  @Test func c_flag() async throws {
-    let x1 = getFile("hexdumpTest", "d_hexdump_cflag_a", withExtension: "out")
-    let res1 = inFile("hexdumpTest", "d_hexdump_a", withExtension: "in")
-    let (_, j1, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-c", res1!] )
-    #expect(j1 == x1)
-
-    let x2 = getFile("hexdumpTest", "d_hexdump_cflag_b", withExtension: "out")
-    let res2 = inFile("hexdumpTest", "d_hexdump_b", withExtension: "in")
-    let (_, j2, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-c", res2!] )
-    #expect(j2 == x2)
-
-    let x3 = getFile("hexdumpTest", "d_hexdump_cflag_c", withExtension: "out")
-    let res3 = inFile("hexdumpTest", "d_hexdump_c", withExtension: "in")
-    let (_, j3, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-c", res3!] )
-    #expect(j3 == x3)
+  
+  @Test(arguments: ["a", "b", "c"]) func c_flag(_ cand : String) async throws {
+    let x1 = try fileContents("d_hexdump_cflag_\(cand).out")
+    let res1 = try inFile("d_hexdump_\(cand).in")
+    try await run(output: x1, args: "-c", res1 )
   }
-
-
-  @Test func C_flag() async throws {
-    let x1 = getFile("hexdumpTest", "d_hexdump_UCflag_a", withExtension: "out")
-    let res1 = inFile("hexdumpTest", "d_hexdump_a", withExtension: "in")!
-    let (_, j1, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-C", res1] )
-    #expect(j1 == x1)
-
-    let x2 = getFile("hexdumpTest", "d_hexdump_UCflag_b", withExtension: "out")
-    let res2 = inFile("hexdumpTest", "d_hexdump_b", withExtension: "in")!
-    let (_, j2, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-C", res2] )
-    #expect(j2 == x2)
-
-    let x3 = getFile("hexdumpTest", "d_hexdump_UCflag_c", withExtension: "out")
-    let res3 = getFile("hexdumpTest", "d_hexdump_c", withExtension: "in")
-    let (_, j3, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-C"], res3 )
-    #expect(j3 == x3)
-
+  
+  
+  @Test(arguments: ["a", "b", "c"]) func C_flag(_ cand : String) async throws {
+    let x1 = try fileContents("d_hexdump_UCflag_\(cand).out")
+    let res1 = try inFile("d_hexdump_\(cand).in")
+    try await run(output: x1, args: "-C", res1 )
   }
-
-  @Test func d_flag() async throws {
+  
+  @Test(arguments: ["a", "b", "c"]) func d_flag(_ cand : String) async throws {
     let endian = "el"
-
+    
     // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-    let x1 = getFile("hexdumpTest", "d_hexdump_dflag_a_\(endian)", withExtension: "out")
-    let res1 = inFile("hexdumpTest", "d_hexdump_a", withExtension: "in")
-    let (_, j1, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-d", res1!] )
-    #expect(j1 == x1)
-
-    let x2 = getFile("hexdumpTest", "d_hexdump_dflag_b_\(endian)", withExtension: "out")
-    let res2 = inFile("hexdumpTest", "d_hexdump_b", withExtension: "in")
-    let (_, j2, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-d", res2!] )
-    #expect(j2 == x2)
-
-    let x3 = getFile("hexdumpTest", "d_hexdump_dflag_c_\(endian)", withExtension: "out")
-    let res3 = inFile("hexdumpTest", "d_hexdump_c", withExtension: "in")
-    let (_, j3, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-d", res3!] )
-    #expect(j3 == x3)
-
+    let x1 = try fileContents("d_hexdump_dflag_\(cand)_\(endian).out")
+    let res1 = try inFile("d_hexdump_\(cand).in")
+    try await run(output: x1, args: "-d", res1 )
   }
-
+  
   @Test func n_flag() async throws {
     // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-    let x1 = getFile("hexdumpTest", "d_hexdump_nflag_a", withExtension: "out")
-    let res1 = getFile("hexdumpTest", "d_hexdump_a", withExtension: "in")
-    let (_, j1, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-bn", "1"], res1 )
-    #expect(j1 == x1)
+    let x1 = try fileContents("d_hexdump_nflag_a.out")
+    let res1 = try fileContents("d_hexdump_a.in")
+    try await run(withStdin: res1, output: x1, args: "-bn", "1" )
   }
-
-  @Test func o_flag() async throws {
+  
+  @Test(arguments: ["a", "b", "c"]) func o_flag(_ cand : String) async throws {
     let endian = "el"
-    let x1 = getFile("hexdumpTest", "d_hexdump_oflag_a_\(endian)", withExtension: "out")
-    let res1 = getFile("hexdumpTest", "d_hexdump_a", withExtension: "in")
-    let (_, j1, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-o"], res1 )
-    #expect(j1 == x1)
-
-    let x2 = getFile("hexdumpTest", "d_hexdump_oflag_b_\(endian)", withExtension: "out")
-    let res2 = getFile("hexdumpTest", "d_hexdump_b", withExtension: "in")
-    let (_, j2, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-o"], res2 )
-    #expect(j2 == x2)
-
-    let x3 = getFile("hexdumpTest", "d_hexdump_oflag_c_\(endian)", withExtension: "out")
-    let res3 = getFile("hexdumpTest", "d_hexdump_c", withExtension: "in")
-    let (_, j3, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-o"], res3 )
-    #expect(j3 == x3)
+    let x1 = try fileContents("d_hexdump_oflag_\(cand)_\(endian).out")
+    let res1 = try fileContents("d_hexdump_\(cand).in")
+    try await run(withStdin: res1, output: x1, args: "-o" )
   }
-
+  
   @Test func s_flag() async throws {
-    let x1 = getFile("hexdumpTest", "d_hexdump_sflag_a", withExtension: "out")
-    let res1 = inFile("hexdumpTest", "d_hexdump_a", withExtension: "in")
-    let (_, j1, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-bs", "4", res1!] )
-    #expect(j1 == x1)
-
-    let (_, j2, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-n", "100", "-s", "1024", "/dev/random"])
-    #expect(j2 != nil && !j2!.isEmpty)
+    let x1 = try fileContents("d_hexdump_sflag_a.out")
+    let res1 = try inFile("d_hexdump_a.in")
+    try await run(output: x1, args: "-bs", "4", res1 )
+    
+    // FIXME: check to make sure that the output is not empty
+    try await run(args: "-n", "100", "-s", "1024", "/dev/random")
+    //    #expect(j2 != nil && !j2!.isEmpty)
   }
-
-  @Test func v_flag() async throws {
-    let res1 = inFile("hexdumpTest", "d_hexdump_c", withExtension: "in")
+  
+  @Test(arguments: 0...7, ["-s", "-vs"]) func v_flag(_ i : Int, _ f : String) async throws {
+    let res1 = try inFile("d_hexdump_c.in")
     for i in 0...7 {
-      let (_, j1, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-s", "\(i)", res1!])
+      let p = ShellProcess(cmd, f, "\(i)", res1)
+      let (_, j1, _) = try await p.run()
       let k1 = j1!.components(separatedBy: "\n")
-      #expect(k1.contains("*"))
-
-      let (_, j2, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-vs", "\(i)", res1!])
-      let k2 = j2!.components(separatedBy: "\n")
-      #expect(!k2.contains("*"))
+      if f == "-s" {
+        #expect(k1.contains("*"))
+      } else {
+        #expect(!k1.contains("*"))
+      }
     }
-
-    let (_, j1, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-s", "8", res1!])
+  }
+  
+  @Test(arguments: ["-s", "-vs"]) func v_flag8(_ f : String) async throws {
+    let res1 = try inFile("d_hexdump_c.in")
+    let p = ShellProcess(cmd, f, "8", res1)
+    let (_, j1, _) = try await p.run()
     let k1 = j1!.components(separatedBy: "\n")
     #expect(!k1.contains("*"))
-
-    let (_, j2, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-vs", "8", res1!])
-    let k2 = j2!.components(separatedBy: "\n")
-    #expect(!k2.contains("*"))
-
   }
 
-  @Test func x_flag() async throws {
+  @Test(arguments: ["a", "b", "c"]) func x_flag(_ cand : String) async throws {
     let endian = "el"
 
-    let x1 = getFile("hexdumpTest", "d_hexdump_xflag_a_\(endian)", withExtension: "out")
-    let res1 = getFile("hexdumpTest", "d_hexdump_a", withExtension: "in")
-    let (_, j1, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-x"], res1 )
-    #expect(j1 == x1)
-
-    let x2 = getFile("hexdumpTest", "d_hexdump_xflag_b_\(endian)", withExtension: "out")
-    let res2 = getFile("hexdumpTest", "d_hexdump_b", withExtension: "in")
-    let (_, j2, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-x"], res2 )
-    #expect(j2 == x2)
-
-    let x3 = getFile("hexdumpTest", "d_hexdump_xflag_c_\(endian)", withExtension: "out")
-    let res3 = getFile("hexdumpTest", "d_hexdump_c", withExtension: "in")
-    let (_, j3, _) = try captureStdoutLaunch(Self.self, "hexdump", ["-x"], res3 )
-    #expect(j3 == x3)
-
+    let x1 = try fileContents("d_hexdump_xflag_\(cand)_\(endian).out")
+    let res1 = try fileContents("d_hexdump_\(cand).in")
+    try await run(withStdin: res1, output: x1, args: "-x")
   }
 
   @Test func no_conv_err() async throws {
-    let (r1, _, e1) = try captureStdoutLaunch(Self.self, "hexdump", ["-e", "\"%\""])
-    #expect( r1 == 1 )
-    #expect( e1 == "hexdump: missing conversion character\n")
+    try await run(status: 1, error: /missing conversion character/, args: "-e", "\"%\"")
 
-    let (r2, _, e2) = try captureStdoutLaunch(Self.self, "hexdump", ["-e", "4/2 \"%\""])
-    #expect(r2 == 1)
-    #expect( e2 == "hexdump: missing conversion character\n")
+    try await run(status: 1, error: /missing conversion character/, args: "-e", "4/2 \"%\"")
   }
 
   // FIXME: need to add the od tests

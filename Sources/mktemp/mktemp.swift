@@ -151,6 +151,10 @@ import shared
         } else {
           let fd = mkstemp(k)
           if (fd < 0) {
+ /*           let ee = errno
+            let ef = strerror(ee)
+            let g = String(cString: ef!)
+   */
             ret = 1
             if (!qflag) {
               warn("mkstemp failed on \(name!)")

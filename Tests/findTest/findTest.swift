@@ -28,11 +28,11 @@
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-import Testing
-import Foundation
-import testSupport
+import ShellTesting
 
-@Suite("find tests") final class findTest {
+@Suite("find tests") final class findTest : ShellTest {
+  let cmd = "find"
+  let suite = "shell_cmds_findTest"
 
   var myDir : URL
   
@@ -90,14 +90,15 @@ import testSupport
     FileManager.default.createFile(atPath: myDir.appending(component: "file1").path(percentEncoded: false), contents: nil, attributes: [.modificationDate: date])
 
 
-    let j = try captureStdoutLaunch(Self.self, "find", [myDir.relativePath, "-newer", myDir.appending(component: "link").relativePath])
+//    let j = try captureStdoutLaunch(Self.self, "find", [myDir.relativePath, "-newer", myDir.appending(component: "link").relativePath])
     let res = """
 \(myDir.relativePath)
 \(myDir.appending(component: "file2").relativePath)
 \(myDir.appending(component: "file1").relativePath)
 
 """
-    #expect(j.1 == res)
+    try await run(output: res, args: myDir, "-newer", myDir.appending(component: "link") )
+//    #expect(j.1 == res)
   }
   
   @Test(.disabled("original test code implies a different result than the find shipped with macOS")) func find_samefile_link() async throws {
@@ -107,9 +108,10 @@ import testSupport
     try FileManager.default.createSymbolicLink(atPath: s.appending(component: "link2").relativePath, withDestinationPath: "file3")
     FileManager.default.createFile(atPath: s.appending(component: "file3").path(percentEncoded: false), contents: nil)
 
-    let j = try captureStdoutLaunch(Self.self, "find", [s.relativePath, "-samefile", s.appending(component: "link2").relativePath])
+//    let j = try captureStdoutLaunch(Self.self, "find", [s.relativePath, "-samefile", s.appending(component: "link2").relativePath])
     // FIXME: the find shipped with macOS produces "file3" here, NOT link2
-    #expect(j.1 == (s.appending(component: "link2").relativePath + "\n") )
+//    #expect(j.1 == (s.appending(component: "link2").relativePath + "\n") )
+    try await run(output: s.appending(component: "link2").relativePath + "\n", args: s, "-samefile", s.appending(component: "link2")  )
   }
   
   @Test
@@ -122,14 +124,14 @@ import testSupport
     try? await Task.sleep(nanoseconds: NSEC_PER_SEC)
     FileManager.default.createFile(atPath: s.appending(component: "file_b").path(percentEncoded: false), contents: nil)
 
-    let j = try captureStdoutLaunch(Self.self, "find", [s.relativePath, "-type", "f", "-newerBm", myDir.appending(component: "baseline").relativePath])
+//    let j = try captureStdoutLaunch(Self.self, "find", [s.relativePath, "-type", "f", "-newerBm", myDir.appending(component: "baseline").relativePath])
 
     let res = """
 \(s.appending(component: "file_a").relativePath)
 \(s.appending(component: "file_b").relativePath)
 
 """
-    #expect(j.1 == res)
+    try await run(output: res, args: s, "-type", "f", "-newerBm", myDir.appending(component: "baseline") )
   }
 
 }

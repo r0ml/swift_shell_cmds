@@ -17,157 +17,141 @@
   OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import Testing
-import testSupport
+import ShellTesting
 
-@Suite("xargs tests") final class xargsTest {
+@Suite("xargs tests") final class xargsTest : ShellTest {
+  let cmd = "xargs"
+  let suite = "shell_cmds_xargsTest"
 
 //  REGRESSION_TEST(`normal', `xargs echo The <${SRCDIR}/regress.in')
-  @Test func testNormal() throws {
-    let x = getFile("xargsTest", "regress.normal", withExtension: "out")
-    let res = getFile("xargsTest", "regress", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", ["echo", "The"], res )
-    #expect(j == x)
+  @Test func testNormal() async throws {
+    let x = try fileContents("regress.normal.out")
+    let res = try fileContents("regress.in")
+    try await run(withStdin: res, output: x, args: "echo", "The")
   }
   
 //  REGRESSION_TEST(`n2147483647', `xargs -n2147483647 <${SRCDIR}/regress.in')
-  @Test func testN2147483647() throws {
-    let x = getFile("xargsTest", "regress.n2147483647", withExtension: "out")
-    let res = getFile("xargsTest", "regress", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", [ "-n2147483647"], res )
-    #expect(j == x)
+  @Test func testN2147483647() async throws {
+    let x = try fileContents("regress.n2147483647.out")
+    let res = try fileContents("regress.in")
+    try await run(withStdin: res, output: x, args: "-n2147483647")
   }
 
 //  REGRESSION_TEST(`I', `xargs -I% echo The % % % %% % % <${SRCDIR}/regress.in')
-  @Test func testI() throws {
-    let x = getFile("xargsTest", "regress.I", withExtension: "out")
-    let res = getFile("xargsTest", "regress", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", ["-I", "%", "echo", "The", "%", "%", "%", "%%", "%", "%"], res )
-    #expect( j == x )
+  @Test func testI() async throws {
+    let x = try fileContents("regress.I.out")
+    let res = try fileContents("regress.in")
+    try await run(withStdin: res, output: x, args: "-I", "%", "echo", "The", "%", "%", "%", "%%", "%", "%")
   }
 
   
 //  REGRESSION_TEST(`J', `xargs -J% echo The % again. <${SRCDIR}/regress.in')
-  @Test func testJ() throws {
-    let x = getFile("xargsTest", "regress.J", withExtension: "out")
-    let res = getFile("xargsTest", "regress", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", [ "-J", "%", "echo", "The", "%", "again."], res)
-    #expect( j == x )
+  @Test func testJ() async throws {
+    let x = try fileContents("regress.J.out")
+    let res = try fileContents("regress.in")
+    try await run(withStdin: res, output: x, args:  "-J", "%", "echo", "The", "%", "again.")
   }
 
 //  REGRESSION_TEST(`L', `xargs -L3 echo <${SRCDIR}/regress.in')
-  @Test func testL() throws {
-    let x = getFile("xargsTest", "regress.L", withExtension: "out")
-    let res = getFile("xargsTest", "regress", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", ["-L3", "echo"], res )
-    #expect( j == x )
+  @Test func testL() async throws {
+    let x = try fileContents("regress.L.out")
+    let res = try fileContents("regress.in")
+    try await run(withStdin: res, output: x, args: "-L3", "echo")
   }
 
 //  REGRESSION_TEST(`P1', `xargs -P1 echo <${SRCDIR}/regress.in')
-  @Test func testP1() throws {
-    let x = getFile("xargsTest", "regress.P1", withExtension: "out")
-    let res = getFile("xargsTest", "regress", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", ["-P1", "echo"], res )
-    #expect( j == x )
+  @Test func testP1() async throws {
+    let x = try fileContents("regress.P1.out")
+    let res = try fileContents("regress.in")
+    try await run(withStdin: res, output: x, args: "-P1", "echo")
   }
 
 //  REGRESSION_TEST(`R', `xargs -I% -R1 echo The % % % %% % % <${SRCDIR}/regress.in')
-  @Test func testR() throws {
-    let x = getFile("xargsTest", "regress.R", withExtension: "out")
-    let res = getFile("xargsTest", "regress", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", ["-I", "%", "-R1", "echo", "The", "%", "%", "%", "%%", "%", "%"], res )
-    #expect( j == x )
+  @Test func testR() async throws {
+    let x = try fileContents("regress.R.out")
+    let res = try fileContents("regress.in")
+    try await run(withStdin: res, output: x, args: "-I", "%", "-R1", "echo", "The", "%", "%", "%", "%%", "%", "%")
   }
 
 //  REGRESSION_TEST(`R-1', `xargs -I% -R-1 echo The % % % %% % % <${SRCDIR}/regress.in')
-  @Test func testR_1() throws {
-    let x = getFile("xargsTest", "regress.R-1", withExtension: "out")
-    let res = getFile("xargsTest", "regress", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", ["-I", "%", "-R-1", "echo", "The", "%", "%", "%", "%%", "%", "%"], res )
-    #expect( j == x )
+  @Test func testR_1() async throws {
+    let x = try fileContents("regress.R-1.out")
+    let res = try fileContents("regress.in")
+    try await run(withStdin: res, output: x, args: "-I", "%", "-R-1", "echo", "The", "%", "%", "%", "%%", "%", "%")
   }
 
 //  REGRESSION_TEST(`n1', `xargs -n1 echo <${SRCDIR}/regress.in')
-  @Test func testN1() throws {
-    let x = getFile("xargsTest", "regress.n1", withExtension: "out")
-    let res = getFile("xargsTest", "regress", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", [ "-n1", "echo"], res )
-    #expect( j == x )
+  @Test func testN1() async throws {
+    let x = try fileContents("regress.n1.out")
+    let res = try fileContents("regress.in")
+    try await run(withStdin: res, output: x, args:  "-n1", "echo")
   }
 
 //  REGRESSION_TEST(`n2', `xargs -n2 echo <${SRCDIR}/regress.in')
-  @Test func testN2() throws {
-    let x = getFile("xargsTest", "regress.n2", withExtension: "out")
-    let res = getFile("xargsTest", "regress", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", [ "-n2", "echo"], res )
-    #expect( j == x )
+  @Test func testN2() async throws {
+    let x = try fileContents("regress.n2.out")
+    let res = try fileContents("regress.in")
+    try await run(withStdin: res, output: x, args:  "-n2", "echo")
   }
 
 //  REGRESSION_TEST(`n2P0',`xargs -n2 -P0 echo <${SRCDIR}/regress.in | sort')
-  @Test func testN2P0() throws {
-    let x = getFile("xargsTest", "regress.n2P0", withExtension: "out")
-    let res = getFile("xargsTest", "regress", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", [ "-n2", "-P0", "echo"], res )
+  @Test func testN2P0() async throws {
+    let x = try fileContents("regress.n2P0.out")
+    let res = try fileContents("regress.in")
+    let (_, j, _) = try await ShellProcess(cmd, "-n2", "-P0", "echo").run(res)
     let k = (j?.dropLast().components(separatedBy: "\n").sorted().joined(separator: "\n"))!+"\n"
     #expect( k == x )
   }
 
 //  REGRESSION_TEST(`n3', `xargs -n3 echo <${SRCDIR}/regress.in')
-  @Test func testN3() throws {
-    let x = getFile("xargsTest", "regress.n3", withExtension: "out")
-    let res = getFile("xargsTest", "regress", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", [ "-n3", "echo"] , res)
-    #expect( j == x )
+  @Test func testN3() async throws {
+    let x = try fileContents("regress.n3.out")
+    let res = try fileContents("regress.in")
+    try await run(withStdin: res, output: x, args:  "-n3", "echo")
   }
 
 //  REGRESSION_TEST(`0', `xargs -0 -n1 echo <${SRCDIR}/regress.0.in')
-  @Test func test0() throws {
-    let x = getFile("xargsTest", "regress.0", withExtension: "out")
-    let res = getFile("xargsTest", "regress.0", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", [ "-0", "-n1", "echo"], res )
-    #expect( j == x )
+  @Test func test0() async throws {
+    let x = try fileContents("regress.0.out")
+    let res = try fileContents("regress.0.in")
+    try await run(withStdin: res, output: x, args:  "-0", "-n1", "echo")
   }
 
 //  REGRESSION_TEST(`0I', `xargs -0 -I% echo The % %% % <${SRCDIR}/regress.0.in')
-  @Test func test0I() throws {
-    let x = getFile("xargsTest", "regress.0I", withExtension: "out")
-    let res = getFile("xargsTest", "regress.0", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", ["-0", "-I%", "echo", "The", "%", "%%", "%"], res )
-    #expect( j == x )
+  @Test func test0I() async throws {
+    let x = try fileContents("regress.0I.out")
+    let res = try fileContents("regress.0.in")
+    try await run(withStdin: res, output: x, args: "-0", "-I%", "echo", "The", "%", "%%", "%")
   }
 
 //  REGRESSION_TEST(`0J', `xargs -0 -J% echo The % again. <${SRCDIR}/regress.0.in')
-  @Test func test0J() throws {
-    let x = getFile("xargsTest", "regress.0J", withExtension: "out")
-    let res = getFile("xargsTest", "regress.0", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", ["-0", "-J%", "echo", "The", "%", "again."], res )
-    #expect( j == x )
+  @Test func test0J() async throws {
+    let x = try fileContents("regress.0J.out")
+    let res = try fileContents("regress.0.in")
+    try await run(withStdin: res, output: x, args: "-0", "-J%", "echo", "The", "%", "again.")
   }
 
 //  REGRESSION_TEST(`0L', `xargs -0 -L2 echo <${SRCDIR}/regress.0.in')
-  @Test func test0L() throws {
-    let x = getFile("xargsTest", "regress.0L", withExtension: "out")
-    let res = getFile("xargsTest", "regress.0", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", ["-0", "-L2", "echo"], res )
-    #expect( j == x )
+  @Test func test0L() async throws {
+    let x = try fileContents("regress.0L.out")
+    let res = try fileContents("regress.0.in")
+    try await run(withStdin: res, output: x, args: "-0", "-L2", "echo" )
   }
 
   // FIXME: when I forgot the "-" on "-P1" -- I didn't get the error I would have expected
   
 //  REGRESSION_TEST(`0P1', `xargs -0 -P1 echo <${SRCDIR}/regress.0.in')
-  @Test func test0P1() throws {
-    let x = getFile("xargsTest", "regress.0P1", withExtension: "out")
-    let res = getFile("xargsTest", "regress.0", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", [ "-0", "-P1", "echo"], res )
-    #expect( j == x )
+  @Test func test0P1() async throws {
+    let x = try fileContents("regress.0P1.out")
+    let res = try fileContents("regress.0.in")
+    try await run(withStdin: res, output: x, args:  "-0", "-P1", "echo")
   }
 
   
 //  REGRESSION_TEST(`quotes', `xargs -n1 echo <${SRCDIR}/regress.quotes.in')
-  @Test func testQuotes() throws {
-    let x = getFile("xargsTest", "regress.quotes", withExtension: "out")
-    let res = getFile("xargsTest", "regress.quotes", withExtension: "in")!
-    let (_, j, _) = try captureStdoutLaunch(Clem.self, "xargs", ["-n1", "echo"], res )
-    #expect( j == x )
+  @Test func testQuotes() async throws {
+    let x = try fileContents("regress.quotes.out")
+    let res = try fileContents("regress.quotes.in")
+    try await run(withStdin: res, output: x, args: "-n1", "echo")
   }
 }

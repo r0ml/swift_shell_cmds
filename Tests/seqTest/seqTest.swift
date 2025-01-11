@@ -30,30 +30,18 @@
   $FreeBSD$
 */
 
-import Testing
-import testSupport
+import ShellTesting
 
-@Suite("seq") class seqTest {
+@Suite("seq") class seqTest : ShellTest {
+  let cmd = "seq"
+  let suite = "shell_cmds_seqTest"
 
-  @Test func float_rounding() throws {
-    let (_, r, _) = try captureStdoutLaunch(Clem.self, "seq", ["1", "0.1", "1.2"])
-    #expect( r == "1\n1.1\n1.2\n")
-    }
+  @Test func float_rounding() async throws {
+    try await run(output: "1\n1.1\n1.2\n", args: "1", "0.1", "1.2")
+  }
 
-  @Test func format_includes_conversion() throws {
-    try {
-      let (c, r, e) = try captureStdoutLaunch(Clem.self, "seq", ["-f", "foo", "3"])
-      
-      #expect (c == 1)
-      #expect ( (r ?? "").isEmpty)
-      #expect( (e ?? "").matches(of: /invalid format string/).count > 0 )
-    }()
-
-    try {
-      let (_, r, e) = try captureStdoutLaunch(Clem.self, "seq", ["-f", "foo%g", "2"])
-      #expect( r == "foo1\nfoo2\n") 
-      #expect( (e ?? "").isEmpty )
-    }()
-    
+  @Test func format_includes_conversion() async throws {
+    try await run(status: 1, error: /invalid format string/, args: "-f", "foo", "3")
+    try await run(output: "foo1\nfoo2\n", args: "-f", "foo%g", "2")
   }
 }

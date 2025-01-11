@@ -17,23 +17,22 @@
   OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import Testing
-import Foundation
-import testSupport
+import ShellTesting
 
-@Suite("path_helper") final class path_helperTest {
+@Suite("path_helper", .serialized) final class path_helperTest : ShellTest {
+  let cmd = "path_helper"
+  let suite = "shell_cmds_path_helperTest"
   
-  @Test("empty PATH") func empty() throws {
+  @Test("empty PATH") func empty() async throws {
     let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)
     let tdx = "\(td)/empty.XXXXXXXX"
     try FileManager.default.createDirectory(atPath: tdx, withIntermediateDirectories: true)
     
-    let (_, r, _) = try captureStdoutLaunch(Self.self, "path_helper", [], nil, ["PATH":"", "PATH_HELPER_ROOT":tdx] )
-    
-    #expect(r == "PATH=\"\"; export PATH;\n")
+    let ex = "PATH=\"\"; export PATH;\n"
+    try await run(output: ex, env: ["PATH":"", "PATH_HELPER_ROOT":tdx, "MANPATH":""] )
   }
 
-  @Test("empty PATH and MANPATH") func empty2() throws {
+  @Test("empty PATH and MANPATH") func empty2() async throws {
     let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)
     let tdx = "\(td)/empty2.XXXXXXXX"
     try FileManager.default.createDirectory(atPath: tdx, withIntermediateDirectories: true)
@@ -42,12 +41,10 @@ import testSupport
     let mp = "MANPATH=\":\"; export MANPATH;\n"
     
     
-    let (_, r, _) = try captureStdoutLaunch(Self.self, "path_helper", [], nil, ["PATH":"", "PATH_HELPER_ROOT":tdx, "MANPATH":""] )
-    
-    #expect(r == (pp + mp) )
+    try await run(output: pp + mp, env: ["PATH":"", "PATH_HELPER_ROOT":tdx, "MANPATH":""] )
   }
   
-  @Test("preserve existing values") func preserve() throws {
+  @Test("preserve existing values") func preserve() async throws {
     let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)
     let tdx = "\(td)/preserve.XXXXXXXX"
     try FileManager.default.createDirectory(atPath: tdx, withIntermediateDirectories: true)
@@ -58,12 +55,10 @@ MANPATH="c:d:"; export MANPATH;
 
 """
     
-    let (_, r, _) = try captureStdoutLaunch(Self.self, "path_helper", [], nil, ["PATH":"a:b", "PATH_HELPER_ROOT":tdx, "MANPATH":"c:d"] )
-    
-    #expect(r == res )
+    try await run(output: res, env: ["PATH":"a:b", "PATH_HELPER_ROOT":tdx, "MANPATH":"c:d"] )
   }
   
-  @Test("combine defaults and add-ons in that order") func combine() throws {
+  @Test("combine defaults and add-ons in that order") func combine() async throws {
     let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)
     let tdx = "\(td)/combine.XXXXXXXX"
     let tdxx = "\(tdx)/etc/paths.d"
@@ -74,12 +69,10 @@ MANPATH="c:d:"; export MANPATH;
     
     let res = "PATH=\"a:b:c:d\"; export PATH;\n"
     
-    let (_, r, _) = try captureStdoutLaunch(Self.self, "path_helper", [], nil, [ "PATH_HELPER_ROOT":tdx ] )
-    
-    #expect(r == res )
+    try await run(output: res, env: [ "PATH_HELPER_ROOT":tdx, "PATH":"" ] )
   }
   
-  @Test("read add-ons in correct order") func order() throws {
+  @Test("read add-ons in correct order") func order() async throws {
     let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)
     let tdx = "\(td)/order.XXXXXXXX"
     let tdxx = "\(tdx)/etc/paths.d"
@@ -97,10 +90,7 @@ MANPATH="c:d:"; export MANPATH;
     
     let res = "PATH=\"a:b:c:d:e:f:w:x:y:z:g:h\"; export PATH;\n"
     
-    let (_, r, _) = try captureStdoutLaunch(Self.self, "path_helper", [], nil, [ "PATH_HELPER_ROOT":tdx, "PATH":"g:h" ] )
-    
-    #expect(r == res )
-
+    try await run(output: res, env: [ "PATH_HELPER_ROOT":tdx, "PATH":"g:h" ] )
   }
   
   

@@ -4,11 +4,12 @@
 
 // Submitted by Edwin Groothuis <edwin@FreeBSD.org>
 
-import Testing
-import testSupport
+import ShellTesting
 
-@Suite class dateTest {
-
+@Suite class dateTest : ShellTest {
+  let cmd = "date"
+  let suite = "shell_cmds_dateTesting"
+  
 /*
   These two date/times have been chosen carefully -- they
   create both the single digit and double/multidigit version of
@@ -20,7 +21,7 @@ import testSupport
   static let TEST1 = 3222243 // 1970-02-07 07:04:03
   static let TEST2 = 1005600000 // 2001-11-12 21:11:12
 
-  @Test(arguments: [("A", "Saturday", "Monday" ), ("a", "Sat", "Mon" ), ("B", "February", "November" ), ("b", "Feb", "Nov" ),
+  @Test(.serialized, arguments: [("A", "Saturday", "Monday" ), ("a", "Sat", "Mon" ), ("B", "February", "November" ), ("b", "Feb", "Nov" ),
                     ("C", "19", "20" ), ("c", "Sat Feb  7 07:04:03 1970", "Mon Nov 12 21:20:00 2001" ), ("D", "02/07/70", "11/12/01" ),
                     ("d", "07", "12" ), ("e", " 7", "12" ), ("F", "1970-02-07", "2001-11-12" ), ("G", "1970", "2001" ),
                     ("g", "70", "01" ), ("H", "07", "21" ), ("h", "Feb", "Nov" ), ("I", "07", "09" ), ("j", "038", "316" ),
@@ -31,21 +32,17 @@ import testSupport
                     ("y", "70", "01" ), ("Z", "UTC", "UTC" ), ("z", "+0000", "+0000" ), ("%", "%", "%" ),
                     ("+","Sat Feb  7 07:04:03 UTC 1970", "Mon Nov 12 21:20:00 UTC 2001" )
                    ])
-  func testFormat(_ opt : String, _ a : String, _ b : String) throws {
-    let (_, j, _) = try captureStdoutLaunch(Self.self, "date", ["-u", "-r", "\(Self.TEST1)", "+%\(opt)"], nil, ["LC_ALL":"default"] )
-    let (_, k, _) = try captureStdoutLaunch(Self.self, "date", ["-u", "-r", "\(Self.TEST2)", "+%\(opt)"], nil, ["LC_ALL":"default"] )
-      #expect(j == "\(a)\n")
-      #expect(k == "\(b)\n")
+  func testFormat(_ opt : String, _ a : String, _ b : String) async throws {
+    try await run(output: "\(a)\n", args: "-u", "-r", "\(Self.TEST1)", "+%\(opt)", env: ["LC_ALL":"default"] )
+    try await run(output: "\(b)\n", args: "-u", "-r", "\(Self.TEST2)", "+%\(opt)", env: ["LC_ALL":"default"] )
   }
 
   @Test(arguments: [("", "1970-02-07", "2001-11-12" ), ("date", "1970-02-07", "2001-11-12" ), ("hours", "1970-02-07T07+00:00", "2001-11-12T21+00:00" ),
                     ("minutes", "1970-02-07T07:04+00:00", "2001-11-12T21:20+00:00" ), ("seconds", "1970-02-07T07:04:03+00:00", "2001-11-12T21:20:00+00:00" )
                    ])
-  func testIso8601(_ arg : String, _ a : String, _ b : String) throws {
-      let (_, j, _) = try captureStdoutLaunch(Self.self, "date", [ "-u", "-r", "\(Self.TEST1)", "-I\(arg)"] )
-      let (_, k, _) = try captureStdoutLaunch(Self.self, "date", [ "-u", "-r", "\(Self.TEST2)", "-I\(arg)"] )
-        #expect(j == "\(a)\n")
-        #expect(k == "\(b)\n")
+  func testIso8601(_ arg : String, _ a : String, _ b : String) async throws {
+    try await run(output: "\(a)\n", args: "-u", "-r", "\(Self.TEST1)", "-I\(arg)" )
+    try await run(output: "\(b)\n", args: "-u", "-r", "\(Self.TEST2)", "-I\(arg)" )
   }
   
 
