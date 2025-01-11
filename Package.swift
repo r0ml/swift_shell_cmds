@@ -26,8 +26,8 @@ let package = Package(
   name: "shell_cmds",
   platforms: [.macOS(.v15)],
   dependencies: [
-//     .package(url: "https://github.com/r0ml/ShellTesting.git" , branch: "main")
-     .package(path: "../ShellTesting")
+     .package(url: "https://github.com/r0ml/ShellTesting.git" , branch: "main")
+//     .package(path: "../ShellTesting")
   ],
 //  products: [
 //    .executable(name: "apply", targets: ["apply"])
