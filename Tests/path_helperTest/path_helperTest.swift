@@ -21,7 +21,7 @@ import ShellTesting
 
 @Suite("path_helper", .serialized) final class path_helperTest : ShellTest {
   let cmd = "path_helper"
-  let suite = "shell_cmds_path_helperTest"
+  let suiteBundle = "shell_cmds_path_helperTest"
   
   @Test("empty PATH") func empty() async throws {
     let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)

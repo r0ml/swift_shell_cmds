@@ -21,7 +21,7 @@ import ShellTesting
 
 @Suite class applyTest : ShellTest {
   let cmd = "apply"
-  let suite = "shell_cmds_applyTest"
+  let suiteBundle = "shell_cmds_applyTest"
   
   @Test func regress00() async throws {
     let x = try fileContents("regress.00.out")

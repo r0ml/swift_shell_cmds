@@ -34,7 +34,7 @@ import ShellTesting
 
 @Suite("seq") class seqTest : ShellTest {
   let cmd = "seq"
-  let suite = "shell_cmds_seqTest"
+  let suiteBundle = "shell_cmds_seqTest"
 
   @Test func float_rounding() async throws {
     try await run(output: "1\n1.1\n1.2\n", args: "1", "0.1", "1.2")

@@ -21,7 +21,7 @@ import ShellTesting
 
 @Suite("xargs tests") final class xargsTest : ShellTest {
   let cmd = "xargs"
-  let suite = "shell_cmds_xargsTest"
+  let suiteBundle = "shell_cmds_xargsTest"
 
 //  REGRESSION_TEST(`normal', `xargs echo The <${SRCDIR}/regress.in')
   @Test func testNormal() async throws {

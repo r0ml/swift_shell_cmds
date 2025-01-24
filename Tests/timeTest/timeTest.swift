@@ -21,7 +21,7 @@ import ShellTesting
 
 @Suite("time") struct timeTest : ShellTest {
   let cmd = "time"
-  let suite = "shell_cmds_timeTest"
+  let suiteBundle = "shell_cmds_timeTest"
 
   @Test("check real time") func timeSleepTest() async throws {
     let (c, r, j) = try await ShellProcess(cmd, "sleep", "1").run()

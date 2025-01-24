@@ -21,7 +21,7 @@ import ShellTesting
 
 @Suite("script") struct scriptTest : ShellTest {
   let cmd = "script"
-  let suite = "shell_cmds_scriptTest"
+  let suiteBundle = "shell_cmds_scriptTest"
 
   @Test("Ignore tcgetattr() failure when input is a regular file") func from_file_body() throws {
     let infil = "empty"

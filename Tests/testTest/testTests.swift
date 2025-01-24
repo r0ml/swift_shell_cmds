@@ -32,7 +32,7 @@ import ShellTesting
 
 class testTests : ShellTest {
     let cmd = "test"
-  let suite = "shell_cmds_testTest"
+  let suiteBundle = "shell_cmds_testTest"
   
   func t(_ a : Int, _ b : String) async throws {
     try await run(status: a, args: b.components(separatedBy: " ").filter { !$0.isEmpty} )

@@ -32,7 +32,7 @@ import ShellTesting
 
 @Suite final class dirnameTest : ShellTest {
   let cmd = "dirname"
-  let suite = "shell_cmds_dirnameTest"
+  let suiteBundle = "shell_cmds_dirnameTest"
   
   @Test(arguments: [ ("/", "/"), ("//", "/"), ("/usr/bin/", "/usr"), ("//usr//bin//", "//usr"), ("usr", "."), ("", "."), ("/usr", "/"), ("/usr/bin", "/usr"), ("usr/bin", "usr") ] )
   func testDirname(_ inp : String, _ outp : String) async throws {

@@ -33,7 +33,7 @@ import ShellTesting
 
 final class hexdumpTest : ShellTest {
   let cmd = "hexdump"
-  let suite = "shell_cmds_hexdumpTest"
+  let suiteBundle = "shell_cmds_hexdumpTest"
   
   @Test(arguments: ["a", "b", "c"]) func b_flag(_ cand : String) async throws {
     let x1 = try fileContents("d_hexdump_bflag_\(cand).out")

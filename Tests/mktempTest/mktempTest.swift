@@ -33,7 +33,7 @@ import ShellTesting
 
 @Suite("mktemp") class mktempTest : ShellTest {
   let cmd = "mktemp"
-  let suite = "shell_cmds_mktempTest"
+  let suiteBundle = "shell_cmds_mktempTest"
   
   let pwd : String
   let tmpdir : String

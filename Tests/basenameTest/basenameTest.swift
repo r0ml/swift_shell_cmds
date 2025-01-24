@@ -32,7 +32,7 @@ import ShellTesting
 
 @Suite("basename tests") final class Tests : ShellTest {
   let cmd = "basename"
-  let suite = "shell_cmds_basenameTest"
+  let suiteBundle = "shell_cmds_basenameTest"
   
   @Test(arguments: [("/usr/bin", "bin"), ("/usr", "usr"), ("/", "/") , ("///", "/"), ("/usr//", "usr"), ("//usr//bin", "bin"), ("usr", "usr"), ("usr/bin", "bin")])
   func testBasic(_ i : String, _ o : String) async throws {

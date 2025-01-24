@@ -32,7 +32,7 @@ import ShellTesting
 
 @Suite("find tests") final class findTest : ShellTest {
   let cmd = "find"
-  let suite = "shell_cmds_findTest"
+  let suiteBundle = "shell_cmds_findTest"
 
   var myDir : URL
   

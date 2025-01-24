@@ -21,7 +21,7 @@ import ShellTesting
 
 @Suite("whereis tests") final class whereisTest : ShellTest {
   let cmd = "whereis"
-  let suite = "shell_cmds_whereisTest"
+  let suiteBundle = "shell_cmds_whereisTest"
 
   @Test func testBasic01() async throws {
     try await run(output: "ls: /bin/ls\n", args: "-b", "ls" )

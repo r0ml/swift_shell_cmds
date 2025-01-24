@@ -33,7 +33,7 @@ import ShellTesting
 
 @Suite("killall") final class killallTest : ShellTest {
   let cmd = "killall"
-  let suite = "shell_cmds_killallTest"
+  let suiteBundle = "shell_cmds_killallTest"
 
   // I think the test works as follows:
   // 1) Spawn a subprocess.

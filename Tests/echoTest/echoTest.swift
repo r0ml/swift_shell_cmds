@@ -32,7 +32,7 @@ import ShellTesting
 
 final class echoTest : ShellTest {
   let cmd = "echo"
-  let suite = "shell_cmds_echoTest"
+  let suiteBundle = "shell_cmds_echoTest"
   
   @Test func n_output() async throws {
     try await run(output: "Hello world", args: "-n", "Hello world")

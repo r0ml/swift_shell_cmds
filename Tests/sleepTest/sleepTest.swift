@@ -37,7 +37,7 @@ import ShellTesting
 
 @Suite("sleep") struct sleepTest : ShellTest {
   let cmd = "sleep"
-  let suite = "shell_cmds_sleepTest"
+  let suiteBundle = "shell_cmds_sleepTest"
   
   @Test("Test that sleep(1) handles fractions of a second", arguments: [0.1, 0.2, 0.3]) func fraction(_ i : Double) async throws {
       try await run(output: "", args: String(i) )

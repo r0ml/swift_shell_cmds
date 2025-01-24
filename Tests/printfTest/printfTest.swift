@@ -21,7 +21,7 @@ import ShellTesting
 
 struct printfTest : ShellTest {
   let cmd = "printf"
-  let suite = "shell_cmds_printfTest"
+  let suiteBundle = "shell_cmds_printfTest"
 
   // REGRESSION_TEST(`b', `env printf "abc%b%b" "def\n" "\cghi"')
   @Test func test_b() async throws {

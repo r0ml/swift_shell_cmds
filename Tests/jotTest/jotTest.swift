@@ -21,7 +21,7 @@ import ShellTesting
 
 @Suite("jot Tests", .serialized) final class jotTest : ShellTest {
   let cmd = "jot"
-  let suite = "shell_cmds_jotTest"
+  let suiteBundle = "shell_cmds_jotTest"
   
   func doTest(_ o : String, _ a : [String]) async throws {
     let (_, j, _) = try await ShellProcess(cmd, a).run()

@@ -12,7 +12,7 @@ import ShellTesting
 
 @Suite("renice", .serialized) struct reniceTest : ShellTest {
   let cmd = "renice"
-  let suite = "shell_cmds_reniceTest"
+  let suiteBundle = "shell_cmds_reniceTest"
 
   @Test("Set a process's nice number to an absolute value") func abs_pid() async throws {
     let pid = run_test_process()

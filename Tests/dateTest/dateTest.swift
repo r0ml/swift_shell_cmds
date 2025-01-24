@@ -8,7 +8,7 @@ import ShellTesting
 
 @Suite class dateTest : ShellTest {
   let cmd = "date"
-  let suite = "shell_cmds_dateTesting"
+  let suiteBundle = "shell_cmds_dateTesting"
   
 /*
   These two date/times have been chosen carefully -- they
