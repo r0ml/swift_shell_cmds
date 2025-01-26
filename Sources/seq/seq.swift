@@ -34,14 +34,23 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 @main final class seq : ShellCommand {
   
-  var opts = Option()
-  var args : [String] = []
+  struct CommandOptions {
+    var format: String?
+    var separator: String = "\n"
+    var terminator: String?
+    var equalWidth: Bool = false
+    var pad : Character = "0"
+
+    var args : [String] = []
+  }
+
   
-  func parseOptions() throws(shared.CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     let go = BSDGetopt_long(optstring, longOpts)
     while let (opt, optarg) = try go.getopt_long() {
       switch opt {
@@ -67,10 +76,11 @@ import shared
       }
     }
     
-    args = go.remaining
-    if args.count < 1 || args.count > 3 {
+    opts.args = go.remaining
+    if opts.args.count < 1 || opts.args.count > 3 {
       throw CmdErr(1)
     }
+    return opts
   }
   
   
@@ -96,13 +106,6 @@ import shared
   var decimal_point: String = "." // default
   var defaultFormat: String = "%g" // default
   
-  struct Option {
-    var format: String?
-    var separator: String = "\n"
-    var terminator: String?
-    var equalWidth: Bool = false
-    var pad : Character = "0"
-  }
   
 //  var options = Option(format: nil, separator: nil, terminator: nil, equalWidth: false)
   
@@ -112,12 +115,12 @@ import shared
   
   
   let optstring = "f:hs:t:w"
-  let longOpts: [shared.option] = [
-    shared.option("format", .required_argument),
-    shared.option("separator", .required_argument),
-    shared.option("terminator", .required_argument),
-    shared.option("equal-width", .no_argument),
-    shared.option("help", .no_argument),
+  let longOpts: [CMigration.option] = [
+    .init("format", .required_argument),
+    .init("separator", .required_argument),
+    .init("terminator", .required_argument),
+    .init("equal-width", .no_argument),
+    .init("help", .no_argument),
     //      (nil, .noArgument, 0)
   ]
   
@@ -341,19 +344,19 @@ import shared
     return places
   }
   
-  func runCommand() throws(shared.CmdErr) {
-    
-    let last = e_atof(args.last!) // replace "1" with actual input
+  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
+    var opts = optsx
+    let last = e_atof(opts.args.last!) // replace "1" with actual input
     
     var first : Double = 1
     var incr : Double = 0
     
-    if args.count > 1 {
-      first = e_atof(args[0])
+    if opts.args.count > 1 {
+      first = e_atof(opts.args[0])
     }
     
-    if args.count > 2 {
-      incr = e_atof(args[1])
+    if opts.args.count > 2 {
+      incr = e_atof(opts.args[1])
       if incr == 0 {
         throw CmdErr(1, "zero \( first < last ? "in" : "de") crement")
       }

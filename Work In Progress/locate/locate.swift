@@ -42,7 +42,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 
 @main class locate {

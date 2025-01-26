@@ -34,7 +34,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 @main class killCommand {
   #if os(macOS) || os(iOS) || os(visionOS) || os(tvOS) || os(watchOS)

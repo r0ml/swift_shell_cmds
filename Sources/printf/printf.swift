@@ -37,7 +37,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 #if SHELL
 @_cdecl("printfcmd") public func printfcmd(_ argc : Int32, _ argv : UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> Int32 {
@@ -54,10 +54,14 @@ import shared
 @main
 #endif
 class printf : ShellCommand {
-  var args : ArraySlice<String> = []
-  var encoding : String.Encoding
   
-//  var myargv : ArraySlice<String> = []
+  struct CommandOptions {
+    var args : ArraySlice<String> = []
+  }
+
+  var encoding : String.Encoding
+
+  //  var myargv : ArraySlice<String> = []
 //  var myargc : Int
   
   required init() {
@@ -73,7 +77,9 @@ setlocale(LC_ALL, "")
   }
   
 
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
+    
     // FIXME: need to handle this case
     /*
      #if SHELL
@@ -94,24 +100,25 @@ setlocale(LC_ALL, "")
     }
     //    #endif
     
-    args = ArraySlice(go.remaining)
+    opts.args = ArraySlice(go.remaining)
     
-    if args.count < 1 {
+    if opts.args.count < 1 {
       throw CmdErr(1)
     }
     
+    return opts
   }
   
-  func runCommand() throws(CmdErr) {
-    
-    let (_, format) = escape(args.removeFirst(), 1) // backslash interpretation
+  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
+    var opts = optsx
+    let (_, format) = escape(opts.args.removeFirst(), 1) // backslash interpretation
     
     
 //    var rval : Int = 0
 
     while true {
-      var maxargv = args
-//      myargv = args
+      var maxargv = opts.args
+//      myargv = opts.args
 //      myargc = args.count
       
       // Restart at the beginning of the format string.
@@ -128,7 +135,7 @@ setlocale(LC_ALL, "")
             print("%", terminator: "")
             fmt = fmt.dropFirst(2)
           } else {
-            let fmtx = try printf_doformat(String(fmt))
+            let fmtx = try printf_doformat(String(fmt), &opts)
             if let fmtx, fmtx != end_fmt {
               fmt = Substring(fmtx)
             }
@@ -139,17 +146,17 @@ setlocale(LC_ALL, "")
         } else {
           fmt.removeFirst()
         }
-        if args.count < maxargv.count {
-          maxargv = args
+        if opts.args.count < maxargv.count {
+          maxargv = opts.args
         }
       }
-      args = maxargv
+      opts.args = maxargv
       
       if end {
         throw CmdErr(1, "missing format character")
       }
       print(start, terminator: "")
-      if args.isEmpty { return }
+      if opts.args.isEmpty { return }
       end = true
     }
   }
@@ -160,7 +167,7 @@ setlocale(LC_ALL, "")
   
   
   /// implement the formatting following a %
-  func printf_doformat(_ fmt: String /* , _ rval: inout Int */) throws(CmdErr) -> String? {
+  func printf_doformat(_ fmt: String /* , _ rval: inout Int */, _ opts : inout CommandOptions) throws(CmdErr) -> String? {
     
     
     
@@ -234,7 +241,7 @@ setlocale(LC_ALL, "")
     let l = fmt.prefix(while: { "0123456789".contains($0) }).count
     if l > 0 && fmt.dropFirst(l).first == "$" {
       let idx = Int(String(fmt.prefix(l)))!
-      args = args.dropFirst(idx - 1)
+      opts.args = opts.args.dropFirst(idx - 1)
       
       // FIXME: doesnt make sense to me
       //      if args > maxargv {
@@ -242,7 +249,7 @@ setlocale(LC_ALL, "")
       //      }
       
       fmt = fmt.dropFirst(l + 1)
-      fargv = args
+      fargv = opts.args
       
     } else {
       fargv = nil
@@ -262,14 +269,14 @@ setlocale(LC_ALL, "")
           throw CmdErr(1, "incomplete use of n$")
         }
 
-        args = args.dropFirst(idx - 1)
+        opts.args = opts.args.dropFirst(idx - 1)
 
         fmt = fmt.dropFirst(l + 1)
       } else if fargv != nil {
         throw CmdErr(1,"incomplete use of n$")
       }
       
-      fieldwidth = try getint()
+      fieldwidth = try getint(&opts)
       
       // FIXME: this still makes no sense
       /*
@@ -303,14 +310,14 @@ setlocale(LC_ALL, "")
             throw CmdErr(1, "incomplete use of n$")
           }
           
-          args = args.dropFirst(idx - 1)
+          opts.args = opts.args.dropFirst(idx - 1)
 
           fmt = fmt.dropFirst(l + 1)
         } else if fargv != nil {
           throw CmdErr(1, "incomplete use of n$")
         }
         
-        precision = try getint()
+        precision = try getint(&opts)
         
         // FIXME: still making no sense
         //        if args > maxargv {
@@ -347,7 +354,7 @@ setlocale(LC_ALL, "")
     }
     
     if fargv != nil {
-      args = fargv ?? []
+      opts.args = fargv ?? []
     }
     
     let convch = fmt.removeFirst()
@@ -357,7 +364,7 @@ setlocale(LC_ALL, "")
       
       start = String(start.dropLast())
       start.append("s")
-      let (getout, p) = escape(getstr(), 0)
+      let (getout, p) = escape(getstr(&opts), 0)
       // FIXME: does this mean isEmpty?
       if p.count == 1 && p.first == "\0" {
         print(p.first!, terminator: "")
@@ -369,12 +376,12 @@ setlocale(LC_ALL, "")
         return end_fmt
       }
     case "c":
-      let p = getchr()
+      let p = getchr(&opts)
       if p != 0 {
         PF(String(start), p )
       }
     case "s":
-      let p = getstr()
+      let p = getstr(&opts)
       PF(String(start), p)
     case "d", "i", "o", "u", "x", "X":
       var f: String?
@@ -387,14 +394,14 @@ setlocale(LC_ALL, "")
         return nil
       }
       if signedconv {
-        let v = try getnum()
+        let v = try getnum(&opts)
         PF(f!, v)
       } else {
-        let v = try getunum()
+        let v = try getunum(&opts)
         PF(f!, v)
       }
     case "e", "E", "f", "F", "g", "G", "a", "A":
-        let p = try getfloating()
+        let p = try getfloating(&opts)
         PF(String(start), p)
 
     default:
@@ -503,32 +510,32 @@ setlocale(LC_ALL, "")
     return (0, store)
   }
   
-  func getchr() -> Int {
-    if args.isEmpty {
+  func getchr(_ opts : inout CommandOptions) -> Int {
+    if opts.args.isEmpty {
       return 0
     }
-    let char = args.removeFirst()
+    let char = opts.args.removeFirst()
     return Int(char.unicodeScalars.first!.value)
   }
   
-  func getstr() -> String {
-    if args.isEmpty {
+  func getstr(_ opts : inout CommandOptions) -> String {
+    if opts.args.isEmpty {
       return ""
     }
-    return args.removeFirst()
+    return opts.args.removeFirst()
   }
   
-  func getint() throws(CmdErr) -> Int {
-    let val = try getnum()
+  func getint(_ opts : inout CommandOptions) throws(CmdErr) -> Int {
+    let val = try getnum(&opts)
     if val < Int.min || val > Int.max {
       throw CmdErr(1, "\(val): \(strerror(ERANGE)!)")
     }
     return val
   }
   
-  func getunum() throws(CmdErr) -> UInt {
-    if args.isEmpty { return 0 }
-    let ss = args.removeFirst()
+  func getunum(_ opts : inout CommandOptions) throws(CmdErr) -> UInt {
+    if opts.args.isEmpty { return 0 }
+    let ss = opts.args.removeFirst()
       if ss.first == "\"" || ss.first == "\'" {
         return UInt(asciicode(ss.dropFirst().first))
       }
@@ -538,9 +545,9 @@ setlocale(LC_ALL, "")
     throw CmdErr(1, "\(ss): expected numeric value")
   }
   
-  func getnum() throws(CmdErr) -> Int {
-    if args.isEmpty { return 0 }
-    let ss = args.removeFirst()
+  func getnum(_ opts : inout CommandOptions) throws(CmdErr) -> Int {
+    if opts.args.isEmpty { return 0 }
+    let ss = opts.args.removeFirst()
       if ss.first == "\"" || ss.first == "\'" {
         return Int(asciicode(ss.dropFirst().first))
       }
@@ -550,9 +557,9 @@ setlocale(LC_ALL, "")
       throw CmdErr(1, "\(ss): expected numeric value")
   }
   
-  func getfloating() throws(CmdErr) -> Double {
-    if args.isEmpty { return 0 }
-    let ss = args.removeFirst()
+  func getfloating(_ opts : inout CommandOptions) throws(CmdErr) -> Double {
+    if opts.args.isEmpty { return 0 }
+    let ss = opts.args.removeFirst()
     if ss.first == "\"" || ss.first == "\'" {
       return Double(asciicode(ss.dropFirst().first))
     }

@@ -34,7 +34,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 let DEFFILEMODE = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH
 
@@ -52,19 +52,22 @@ let DEFFILEMODE = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH
   
   var usage = "usage: tee [-ai] [file ...]"
 
-  var args : [String] = []
-//  var exitval: Int = 0
   let BSIZE = 8 * 1024
-  
-  var append = false
 
-  func parseOptions() throws(CmdErr) {
+  struct CommandOptions {
+    var args : [String] = []
+    //  var exitval: Int = 0
+    var append = false
+  }
+  
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     
     let go = BSDGetopt("ai")
     while let (ch, _) = try go.getopt() {
       switch(ch) {
       case "a":
-        append = true
+          opts.append = true
         break
       case "i":
         signal(SIGINT, SIG_IGN)
@@ -76,16 +79,17 @@ let DEFFILEMODE = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH
       }
     }
     
-    args = go.remaining
+    opts.args = go.remaining
+    return opts
   }
   
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
     var buf = [Int8](repeating: 0, count: BSIZE)
     
     add(STDOUT_FILENO, "stdout")
     
-    for arg in args {
-      let fd = open(arg, append ?
+    for arg in opts.args {
+      let fd = open(arg, opts.append ?
                     O_WRONLY|O_CREAT|O_APPEND :
                       O_WRONLY|O_CREAT|O_TRUNC, DEFFILEMODE)
       if fd < 0 {

@@ -34,16 +34,20 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 @main final class basename : ShellCommand {
-  var args : [String] = []
-  var suffix: String?
+  
+  struct CommandOptions {
+    var args : [String] = []
+    var suffix: String?
+  }
 
 
   // the actual main function, with the commandline arguments passed in so that testing
   // can invoke the main with mocked command line arguments
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     var aflag = false
 
     let go = BSDGetopt("as:")
@@ -52,31 +56,32 @@ import shared
         case "a":
           aflag = true
         case "s":
-          suffix = optarg
+          opts.suffix = optarg
         default:
           throw CmdErr(1)
       }
     }
 
-    args = go.remaining // (optind..<argc).map { String(cString: argv[Int($0)]!) }
+    opts.args = go.remaining // (optind..<argc).map { String(cString: argv[Int($0)]!) }
 
-    if args.count < 1 {
+    if opts.args.count < 1 {
       throw CmdErr(1)
     }
 
-    if suffix == nil, !aflag, args.count == 2 {
-      suffix = args[1]
-      args.removeLast()
+    if opts.suffix == nil, !aflag, opts.args.count == 2 {
+      opts.suffix = opts.args[1]
+      opts.args.removeLast()
     }
+    return opts
   }
 
-  func runCommand() {
-    for arg in args {
+  func runCommand(_ opts : CommandOptions) {
+    for arg in opts.args {
       arg.withCString { vv in
         let vvv = UnsafeMutablePointer(mutating: vv)
         if let pa = Darwin.basename(vvv) {
           let p = String(cString: pa)
-          let px = stripSuffix(p, suffix)
+          let px = stripSuffix(p, opts.suffix)
           print(px)
         }
       }

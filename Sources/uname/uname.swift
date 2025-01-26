@@ -39,7 +39,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 struct Flags : OptionSet {
 
@@ -79,7 +79,7 @@ struct Flags : OptionSet {
 
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
-let opts = "amnoprsv"
+let optString = "amnoprsv"
 
 let env_opts : [String:String] = [
   "m" :  "UNAME_MACHINE",
@@ -90,44 +90,48 @@ let env_opts : [String:String] = [
   ]
 
 #else
-let opts = "abiKmnoprsUv"
+let optString = "abiKmnoprsUv"
 #endif
 
 @main final class uname : ShellCommand {
-  var flags : Flags = []
   
-  func parseOptions() throws(CmdErr) {
+  struct CommandOptions {
+    var flags : Flags = []
+  }
+  
+  func parseOptions() throws(CmdErr) -> CommandOptions {
     // setup_get()
+    var opts = CommandOptions()
     
-    let go = BSDGetopt(opts)
+    let go = BSDGetopt(optString)
     while let (ch, _) = try go.getopt() {
       switch ch {
       case "a":
-        flags = Flags.all
+          opts.flags = Flags.all
         
 #if os(Windows) || os(Linux)
       case "b":
-        flags.formUnion(.BFLAG)
+          opts.flags.formUnion(.BFLAG)
       case "i":
-        flags.formUnion(.IFLAG)
+          opts.flags.formUnion(.IFLAG)
       case "K":
-        flags.formUnion(.KFLAG)
+          opts.flags.formUnion(.KFLAG)
       case "U":
-        flags.formUnion(.UFLAG)
+          opts.flags.formUnion(.UFLAG)
 #endif
         
       case "m":
-        flags.formUnion(.MFLAG)
+          opts.flags.formUnion(.MFLAG)
       case "n":
-        flags.formUnion(.NFLAG)
+          opts.flags.formUnion(.NFLAG)
       case "p":
-        flags.formUnion(.PFLAG)
+          opts.flags.formUnion(.PFLAG)
       case "r":
-        flags.formUnion(.RFLAG)
+          opts.flags.formUnion(.RFLAG)
       case "s","o":
-        flags.formUnion(.SFLAG)
+          opts.flags.formUnion(.SFLAG)
       case "v":
-        flags.formUnion(.VFLAG)
+          opts.flags.formUnion(.VFLAG)
       case "?":
         fallthrough
       default:
@@ -139,13 +143,14 @@ let opts = "abiKmnoprsUv"
       throw CmdErr(1)
     }
     
-    if flags.isEmpty {
-      flags.formUnion(.SFLAG)
+    if opts.flags.isEmpty {
+      opts.flags.formUnion(.SFLAG)
     }
+    return opts
   }
   
-  func runCommand() throws(CmdErr) {
-    print_uname(flags)
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
+    print_uname(opts.flags)
   }
   
   /*
@@ -214,7 +219,7 @@ let opts = "abiKmnoprsUv"
   }
   
   
-  var usage = "usage: uname [-\(opts)]"
+  var usage = "usage: uname [-\(optString)]"
   
   func native_q(_ mib0 : Int32, _ mib1 : Int32) -> String {
     var mib : [Int32] = [ mib0, mib1]

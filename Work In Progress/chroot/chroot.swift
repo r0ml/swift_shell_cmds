@@ -37,19 +37,19 @@
 /// The code is left here for historical reasons, but you shouldn't expect that it will do anything useful.
 
 import Foundation
-import shared
+import CMigration
 
-class Options {
+class CommandOptions {
   var userName: String?
   var groupName: String?
   var grouplist: String?
+  var args : [String] = []
 }
 
 @main final class Chroot : ShellCommand {
-  var opts : Options = Options()
-  var args : [String] = []
 
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     let go = BSDGetopt("G:g:u:")
 
     while let (ch, optarg) = try go.getopt() {
@@ -68,14 +68,15 @@ class Options {
       }
     }
 
-    args = go.remaining
-    if args.count < 1 {
+    opts.args = go.remaining
+    if opts.args.count < 1 {
       throw CmdErr(1)
     }
+    return opts
   }
 
-  func runCommand() throws(CmdErr) {
-    let cmd : String = args[0]
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
+    let cmd : String = opts.args[0]
 
     var this_gid_1 : gid_t = 0
 
@@ -153,10 +154,10 @@ class Options {
 
     try! print( FileManager.default.contentsOfDirectory(atPath: "."))
 
-    if args.count > 1 {
-      let evpa = args.dropFirst().map { strdup($0) }
-      execvp(args[1], evpa) //  &argv[1])
-      err(1, args[1])
+    if opts.args.count > 1 {
+      let evpa = opts.args.dropFirst().map { strdup($0) }
+      execvp(opts.args[1], evpa) //  &argv[1])
+      err(1, opts.args[1])
     }
 
     var shell : String = _PATH_BSHELL

@@ -8,26 +8,30 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 @main final class Getopt : ShellCommand {
     
+  struct CommandOptions {
     var args : [String] = []
     var help = false
-    
+  }
+  
 //    optind = 2
 //    var argv = CommandLine.arguments
     
 //    var c: Int32
     
-    func parseOptions() throws(CmdErr) {
+    func parseOptions() throws(CmdErr) -> CommandOptions {
+      var opts = CommandOptions()
+      
       let go = BSDGetopt( CommandLine.arguments[0] )
       go.skip()
       
       while let (ch, optarg) = try go.getopt() {
         switch ch {
         case "?":
-          help = true
+            opts.help = true
         default:
           if !optarg.isEmpty {
             print(" -\(ch) \(optarg)", terminator: "")
@@ -37,12 +41,13 @@ import shared
         }
       }
       
-      args = go.remaining
+      opts.args = go.remaining
+      return opts
     }
     
-    func runCommand() throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
       print(" --", terminator: "")
-      for i in args {
+    for i in opts.args {
         print(" \(i)", terminator: "")
       }
       print("")

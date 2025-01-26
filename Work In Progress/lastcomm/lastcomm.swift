@@ -32,7 +32,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 ///to turn accounting on, use   sudo accton /var/account/acct
 ///to turn it off, use  sudo accton

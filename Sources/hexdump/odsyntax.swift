@@ -34,7 +34,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 let PADDING = "         "
 let TYPE_OFFSET = 7
@@ -42,7 +42,7 @@ let TYPE_OFFSET = 7
 
 extension hexdump {
   
-  func oldsyntax() throws(CmdErr) {
+  func oldsyntax(_ opts : inout CommandOptions) throws(CmdErr) {
 #if os(macOS)
     let _n = "%_n"
     let padding = PADDING
@@ -138,7 +138,7 @@ extension hexdump {
       case "t":
         odformat(optarg)
       case "v":
-        vflag = .ALL
+          opts.vflag = .ALL
       case "?":
         fallthrough
       default:
@@ -150,14 +150,14 @@ extension hexdump {
       odformat("oS")
     }
     
-      self.args = Array.SubSequence( go.remaining )
+      opts.args = Array.SubSequence( go.remaining )
 
-  if self.args.count != 0 {
-      odoffset()
+  if opts.args.count != 0 {
+      odoffset(&opts)
     }
   }
   
-  func odoffset( /* argc: Int, argvp: inout [String?] */) {
+  func odoffset( _ opts : inout CommandOptions) {
 //    var p: [UInt8]?, q: [UInt8]?, num: [UInt8]?, end: [UInt8]?
     var base: Int
     var num : Substring
@@ -174,9 +174,9 @@ extension hexdump {
      *
      * We assume it's a file if the offset is bad.
      */
-    var p = Substring(args.count == 1 ? args[0] : args[1])
+    var p = Substring(opts.args.count == 1 ? opts.args[0] : opts.args[1])
     
-    if p.first != "+" && (args.count < 2 || !(p.first!.isNumber )  && (p.first! != "x") || !p.dropFirst().first!.isHexDigit) {
+    if p.first != "+" && (opts.args.count < 2 || !(p.first!.isNumber )  && (p.first! != "x") || !p.dropFirst().first!.isHexDigit) {
       return
     }
     
@@ -266,7 +266,7 @@ extension hexdump {
       fsArray[1].fuArray[0].fmt = String(z)
     }
     
-      args = args.prefix(1)
+    opts.args = opts.args.prefix(1)
   }
   
   

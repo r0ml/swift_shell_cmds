@@ -38,7 +38,7 @@
 
 // FIXME: deal with #ifndef __APPLE__ stuff
 import Foundation
-import shared
+import CMigration
 
 let NO_BIN_FOUND : Int32 = 1
 let NO_MAN_FOUND : Int32 = 2
@@ -68,7 +68,7 @@ func colonify(_ cpp: [String]) -> String {
   
   var usage = "usage: whereis [-abmqu] [-BM dir ... -f] program ..."
 
-  //  struct Options {
+  struct CommandOptions {
   var opt_a: Bool = false
   var opt_b: Bool = false
   var opt_m: Bool = false
@@ -77,11 +77,13 @@ func colonify(_ cpp: [String]) -> String {
   var bindirs: [String]? = nil
   var mandirs: [String]? = nil
   var query: [String] = []
-  //  }
+
+    var unusual : Int32 = 0
+
+  }
   
   
   
-  var unusual : Int32 = 0
 //  var re : Regex<String>
 //  = Regex(MANWHEREISMATCH)
   /*
@@ -105,7 +107,8 @@ func colonify(_ cpp: [String]) -> String {
    var p: UnsafeMutablePointer<FILE>?
    */
   
-  func scanopts() throws(CmdErr) {
+  func scanopts(_ opts : inout CommandOptions) throws(CmdErr) {
+    // FIXME: where does this get used?
     var dirlist : [String]
     
 //    let argc = CommandLine.argc
@@ -115,10 +118,10 @@ func colonify(_ cpp: [String]) -> String {
     while let (ch, _) = try go.getopt() {
       switch ch {
       case "B":
-        dirlist = bindirs ?? []
+          dirlist = opts.bindirs ?? []
         fallthrough
       case "M":
-        dirlist = mandirs ?? []
+          dirlist = opts.mandirs ?? []
         fatalError("not yet implemented")
         // FIXME: put me back
         /*
@@ -131,48 +134,49 @@ func colonify(_ cpp: [String]) -> String {
         }
          */
       case "a":
-        opt_a = true
+          opts.opt_a = true
       case "b":
-        opt_b = true
+          opts.opt_b = true
       case "f":
         break
       case "m":
-        opt_m = true
+          opts.opt_m = true
       case "q":
-        opt_q = true
+          opts.opt_q = true
       case "u":
-        opt_u = true
+          opts.opt_u = true
       default:
         throw CmdErr(1)
       }
     }
     
-    query = go.remaining
-    if query.count == 0 {
+    opts.query = go.remaining
+    if opts.query.count == 0 {
       throw CmdErr(1)
     }
   }
   
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     
     setlocale(LC_ALL, "")
     
-    try scanopts()
-    defaults()
+    try scanopts(&opts)
+    defaults(&opts)
     
-    if mandirs == nil {
-      opt_m = false
+    if opts.mandirs == nil {
+      opts.opt_m = false
     }
-    if bindirs == nil {
-      opt_b = false
+    if opts.bindirs == nil {
+      opts.opt_b = false
     }
     
-    if !(opt_m || opt_b) {
+    if !(opts.opt_m || opts.opt_b) {
       errx(Int(EX_DATAERR), "no directories to search")
     }
     
-    if opt_m {
-      setenv("MANPATH", colonify(mandirs!), 1)
+    if opts.opt_m {
+      setenv("MANPATH", colonify(opts.mandirs!), 1)
 //      re = try
 //      if regcomp(&re, MANWHEREISMATCH, REG_EXTENDED) != 0 {
 //        regerror(i, &re, buf, BUFSIZ - 1)
@@ -180,15 +184,16 @@ func colonify(_ cpp: [String]) -> String {
 //      }
     }
     
-    
+    return opts
     
   }
   
 
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
+    var opts = optsx
     
-    while let nam = query.first {
-      query.removeFirst()
+    while let nam = opts.query.first {
+      opts.query.removeFirst()
        var name = Substring(nam)
       
       if let x = name.lastIndex(of: "/") {
@@ -209,20 +214,20 @@ func colonify(_ cpp: [String]) -> String {
       var man : String? = nil
       //      s = strlen(name)
       
-      if opt_b {
-        bin = do_optB(namex)
+      if opts.opt_b {
+        bin = do_optB(namex, &opts)
       }
       
-      if opt_m  {
-        man = do_optM(namex)
+      if opts.opt_m  {
+        man = do_optM(namex, &opts)
       }
       
-      if opt_u && unusual == 0 {
+      if opts.opt_u && opts.unusual == 0 {
         continue
       }
       
       var printed = 0
-      if !opt_q {
+      if !opts.opt_q {
         fputs("\(name):", stdout)
         printed += 1
       }
@@ -266,23 +271,23 @@ func colonify(_ cpp: [String]) -> String {
     exit(0)
   }
   
-  func do_optB(_ name : String) -> String? {
-    unusual = unusual | NO_BIN_FOUND
+  func do_optB(_ name : String, _ opts : inout CommandOptions) -> String? {
+    opts.unusual = opts.unusual | NO_BIN_FOUND
     
     var bin : String?
-    while let dp = bindirs?.first {
-      bindirs?.removeFirst()
+    while let dp = opts.bindirs?.first {
+      opts.bindirs?.removeFirst()
       let cp = "\(dp)/\(name)"
       var sb : stat! = stat()
       if stat(cp, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG && (sb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 {
-        unusual = unusual & ~NO_BIN_FOUND
+        opts.unusual = opts.unusual & ~NO_BIN_FOUND
         if var bin {
           bin.append(" ")
           bin.append(cp)
         } else {
           bin = cp
         }
-        if !opt_a {
+        if !opts.opt_a {
           break
         }
       }
@@ -290,9 +295,9 @@ func colonify(_ cpp: [String]) -> String {
     return bin
   }
   
-  func do_optM(_ name : String) -> String? {
-    unusual = unusual | NO_MAN_FOUND
-    let cp = opt_a ? ["-a","-w", name] : ["-S1:8:6", "-w", name]
+  func do_optM(_ name : String, _ opts : inout CommandOptions) -> String? {
+    opts.unusual = opts.unusual | NO_MAN_FOUND
+    let cp = opts.opt_a ? ["-a","-w", name] : ["-S1:8:6", "-w", name]
 //    let cpx = cp + ["-M", colonify(mandirs ?? [])]
     let (_, man, _) = try! captureStdoutLaunch("/usr/bin/man", cp)
     return man
@@ -337,7 +342,7 @@ func colonify(_ cpp: [String]) -> String {
   /*
    * Provide defaults for all options and directory lists.
    */
-  func defaults() {
+  func defaults(_ opts : inout CommandOptions) {
 //      var s: Int
 //      var b: String
   //    var buf = [Character](repeating: "\0", count: BUFSIZ)
@@ -348,13 +353,13 @@ func colonify(_ cpp: [String]) -> String {
 //      var mandirs: [String?]
 
       // default to -bm if none has been specified
-      if !opt_b && !opt_m {
-          opt_b = true
-        opt_m = true
+    if !opts.opt_b && !opts.opt_m {
+      opts.opt_b = true
+      opts.opt_m = true
       }
 
       // -b defaults to default path + /usr/libexec + user's path
-      if bindirs == nil {
+    if opts.bindirs == nil {
         var mib = [CTL_USER, USER_CS_PATH]
         var s : Int = 0
         if sysctl(&mib, 2, nil, &s, nil, 0) == -1 {
@@ -377,16 +382,16 @@ func colonify(_ cpp: [String]) -> String {
           // This part is system-specific and may not be directly translatable to Swift.
           // You would need to use a Swift or Objective-C API to get the system path.
 
-          bindirs = decolonify(b)
-          bindirs?.append(PATH_LIBEXEC)
+      opts.bindirs = decolonify(b)
+      opts.bindirs?.append(PATH_LIBEXEC)
           if let path = ProcessInfo.processInfo.environment["PATH"] {
               // don't destroy the original environment...
-            bindirs?.append(contentsOf: decolonify(path))
+            opts.bindirs?.append(contentsOf: decolonify(path))
           }
       }
 
       // -m defaults to $(manpath)
-    if mandirs == nil {
+    if opts.mandirs == nil {
       
       /* How to query the current manpath. */
       let MANPATHCMD = ["manpath","-q"]
@@ -396,7 +401,7 @@ func colonify(_ cpp: [String]) -> String {
         if let x = b.lastIndex(of: "\n") {
           b = b[b.startIndex..<x]
         }
-        mandirs = decolonify(String(b))
+        opts.mandirs = decolonify(String(b))
       } catch(let e) {
         err( Int(EX_OSERR), "cannot execute manpath command")
       }

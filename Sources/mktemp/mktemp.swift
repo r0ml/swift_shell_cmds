@@ -36,10 +36,10 @@ import Foundation
 // Swift doesn't have a direct equivalent to C's getopt_long function, so the command line argument parsing will need to be done manually. Also, Swift doesn't have a direct equivalent to C's mkdtemp and mkstemp functions, so we'll need to use the FileManager class to create temporary directories and files. Here's a rough translation of the C code to Swift:
 
 import Foundation
-import shared
+import CMigration
 
 @main final class mktemp : ShellCommand {
-  let long_opts: [shared.option] = [
+  let long_opts: [CMigration.option] = [
     option("directory", .no_argument),
     option("tmpdir", .required_argument),
     option("quiet", .no_argument),
@@ -47,21 +47,25 @@ import shared
   ]
   
   
-  var dflag = false
-  var qflag = false
-  var tflag = false
-  var uflag = false
-  var prefix = "mktemp"
-  var tmpdir: String?
-  var prefer_tmpdir = true
-  
-  var args : [String] = []
+  struct CommandOptions {
+    var dflag = false
+    var qflag = false
+    var tflag = false
+    var uflag = false
+    var prefix = "mktemp"
+    var tmpdir: String?
+    var prefer_tmpdir = true
+    
+    var args : [String] = []
+  }
   
   var ret : Int32 = 0
   
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
     //    let argc = CommandLine.argc
     //    let argv = CommandLine.unsafeArgv
+    
+    var opts = CommandOptions()
     
     let go = BSDGetopt_long("dp:qt:u", long_opts)
     while let (ch, optarg) = try go.getopt_long() {
@@ -72,79 +76,82 @@ import shared
       switch ch {
         
       case "d", "directory":
-        dflag = true
+          opts.dflag = true
       case "p", "tmpdir":
-        tmpdir = optarg
-        if tmpdir == nil || tmpdir!.isEmpty {
-          tmpdir = ProcessInfo.processInfo.environment["TMPDIR"]
+          opts.tmpdir = optarg
+          if opts.tmpdir == nil || opts.tmpdir!.isEmpty {
+            opts.tmpdir = ProcessInfo.processInfo.environment["TMPDIR"]
         }
-        prefer_tmpdir = false
+          opts.prefer_tmpdir = false
       case "q", "quiet":
-        qflag = true
+          opts.qflag = true
       case "t":
-        prefix = optarg
-        tflag = true
+          opts.prefix = optarg
+          opts.tflag = true
       case "u", "dry-run":
-        uflag = true
+          opts.uflag = true
       default:
         throw CmdErr(1)
       }
     }
     
-    args = go.remaining
+    opts.args = go.remaining
+    return opts
   }
   
   
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
+    var opts = optsx
+    
     var name : String?
     
-    if !tflag && args.count < 1 {
-      tflag = true
-      prefix = "tmp"
-      prefer_tmpdir = false
+    if !opts.tflag && opts.args.count < 1 {
+      opts.tflag = true
+      opts.prefix = "tmp"
+      opts.prefer_tmpdir = false
     }
     
-    if tflag {
+    if opts.tflag {
       let envtmp = ProcessInfo.processInfo.environment["TMPDIR"]
-      if prefer_tmpdir || tmpdir == nil {
-        tmpdir = envtmp
+      if opts.prefer_tmpdir || opts.tmpdir == nil {
+        opts.tmpdir = envtmp
       }
-      if tmpdir == nil {
-        tmpdir = "/tmp"
+      if opts.tmpdir == nil {
+        opts.tmpdir = "/tmp"
       }
       
-      if tmpdir != nil && !tmpdir!.isEmpty && tmpdir!.last! == "/" {
-        name = "\(tmpdir!)\(prefix).XXXXXXXXXX"
+      if opts.tmpdir != nil && !opts.tmpdir!.isEmpty && opts.tmpdir!.last! == "/" {
+        name = "\(opts.tmpdir!)\(opts.prefix).XXXXXXXXXX"
       } else {
-        name = "\(tmpdir!)/\(prefix).XXXXXXXXXX"
+        name = "\(opts.tmpdir!)/\(opts.prefix).XXXXXXXXXX"
       }
     }
     
     /* generate all requested files */
-    while name != nil || !args.isEmpty {
+    while name != nil || !opts.args.isEmpty {
       if name == nil {
-        if (!tflag && tmpdir != nil) {
-          name = "\(tmpdir!)/\(args.first!)"
+        if (!opts.tflag && opts.tmpdir != nil) {
+          name = "\(opts.tmpdir!)/\(opts.args.first!)"
         } else {
-          name = args.first
+          name = opts.args.first
         }
         if (name == nil) {
           err(1, "");
         }
-        args.removeFirst()
+        opts.args.removeFirst()
       }
       
       name!.withCString {
         let k = UnsafeMutablePointer(mutating: $0)
-        if (dflag) {
+        if (opts.dflag) {
           if mkdtemp(k) == nil {
             ret = 1
-            if (!qflag) {
+            if (!opts.qflag) {
               warn("mkdtemp failed on \(name!)")
             }
           } else {
             print(name!)
-            if uflag {
+            if opts.uflag {
               rmdir(name)
             }
           }
@@ -156,12 +163,12 @@ import shared
             let g = String(cString: ef!)
    */
             ret = 1
-            if (!qflag) {
+            if (!opts.qflag) {
               warn("mkstemp failed on \(name!)")
             }
           } else {
             close(fd)
-            if uflag {
+            if opts.uflag {
               unlink($0)
             }
             print(name!)

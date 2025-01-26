@@ -34,7 +34,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 @main class renice {
   enum PriorityType: Int32 {

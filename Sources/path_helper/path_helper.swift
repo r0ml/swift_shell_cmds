@@ -26,7 +26,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 @main final class path_helper : ShellCommand {
   enum Style {
@@ -34,9 +34,11 @@ import shared
     case sh
   }
   
-  var style: Style = .sh
-
-  var args = [String]()
+  struct CommandOptions {
+    var style: Style = .sh
+    
+    var args = [String]()
+  }
   
   var usage = "usage: path_helper [-c | -s]"
 
@@ -154,13 +156,14 @@ import shared
     return result
   }
   
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
     
+    var opts = CommandOptions()
     
     // default to csh style, if $SHELL ends with "csh".
     if let shell = ProcessInfo.processInfo.environment["SHELL"] {
       if shell.contains(/csh/) {
-        style = .csh
+        opts.style = .csh
       }
     }
     
@@ -169,22 +172,22 @@ import shared
     while let (ch, _) = try go.getopt() {
       switch ch {
       case "c":
-        style = .csh
+          opts.style = .csh
       case "s":
-        style = .sh
+          opts.style = .sh
       default:
         throw CmdErr(1)
       }
     }
     
-    args = go.remaining
-    if args.count > 0 {
+    opts.args = go.remaining
+    if opts.args.count > 0 {
       throw CmdErr(1)
     }
-    
+    return opts
   }
   
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
     let path = construct_path("PATH", "/etc/paths", "/etc/paths.d")
     var manpath: String?
     
@@ -194,7 +197,7 @@ import shared
       manpath = construct_path("MANPATH", "/etc/manpaths", "/etc/manpaths.d")
     }
     
-    if style == .csh {
+    if opts.style == .csh {
       print("setenv PATH \"\(path!)\";")
       if doManpath {
         print("setenv MANPATH \"\(manpath ?? "")\";")

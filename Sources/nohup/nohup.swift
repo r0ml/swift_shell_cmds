@@ -35,7 +35,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 let FILENAME = "nohup.out"
 let EXIT_NOEXEC : Int32 = 126

@@ -37,7 +37,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 /*
 var now = time_t()
@@ -57,15 +57,22 @@ var exitstatus : Int32 = 0
 @main final class find : ShellCommand {
   var now = time_t()
   var exitstatus : Int32 = 0
+
+  // FIXME: these should really be CommandOptions
   var ftsoptions : Int32 = 0
-  var ignore_readdir_race : Int32 = 0
-  var isdepth : Int32 = 0
-  var isoutput : Int32 = 0
-  var issort : Int32 = 0
-  var isxargs : Int32 = 0
+  var regexp_flags = REG_BASIC
   var mindepth : Int32 = -1
   var maxdepth : Int32 = -1
-  var regexp_flags = REG_BASIC
+  var isdepth : Int32 = 0
+  var isoutput : Int32 = 0
+  var ignore_readdir_race : Int32 = 0
+
+  struct CommandOptions {
+    var issort : Int32 = 0
+    var isxargs : Int32 = 0
+    var args : ArraySlice<String> = []
+  }
+  
   var unix2003_compat = true
   
   // from find.swift
@@ -81,14 +88,14 @@ var exitstatus : Int32 = 0
 
   // from option.swift
   var options : [String : OPTION] = [:]
-  var args : ArraySlice<String> = []
   var p = [String]()
 
   required init() {
     options = initOptions()
   }
   
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     var Hflag, Lflag : Bool
     
     setlocale(LC_ALL, "")
@@ -110,26 +117,26 @@ var exitstatus : Int32 = 0
       
       switch (ch) {
       case "E":
-        regexp_flags |= REG_EXTENDED
+          regexp_flags |= REG_EXTENDED
       case "H":
-        Hflag = true
-        Lflag = false
+          Hflag = true
+          Lflag = false
       case "L":
-        Lflag = true
-        Hflag = false
+          Lflag = true
+          Hflag = false
       case "P":
         Hflag = false
-        Lflag = false
+          Lflag = false
       case "X":
-        isxargs = 1
+          opts.isxargs = 1
       case "d":
-        isdepth = 1
+          isdepth = 1
       case "f":
         p.append( optarg )
       case "s":
-        issort = 1
+          opts.issort = 1
       case "x":
-        ftsoptions |= FTS_XDEV
+          ftsoptions |= FTS_XDEV
       case "?":
         fallthrough
       default:
@@ -137,7 +144,7 @@ var exitstatus : Int32 = 0
       }
     }
     
-    args = ArraySlice(go.remaining)
+    opts.args = ArraySlice(go.remaining)
     
     if (Hflag) {
       ftsoptions |= FTS_COMFOLLOW
@@ -153,7 +160,7 @@ var exitstatus : Int32 = 0
      * part of the find expression, according to POSIX .2.
      */
     
-    var fl = args
+    var fl = opts.args
     
     while !fl.isEmpty {
       let arg = fl.first!
@@ -171,10 +178,12 @@ var exitstatus : Int32 = 0
       throw CmdErr(1)
     }
     
-    args = fl
+    opts.args = fl
+    return opts
   }
     
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
+    var opts = optsx
     // ???
     let dotfd = open(".", O_RDONLY | O_CLOEXEC, 0)
     if dotfd < 0 {
@@ -186,7 +195,7 @@ var exitstatus : Int32 = 0
     
     let ch = 
 //    gg.withUnsafeMutableBfufferPointer { pp in
-    find_execute(plan: find_formplan( &args ), paths: p)
+    find_execute(plan: find_formplan( &opts.args, opts ), paths: p, options: opts)
 //    }
     if ferror(stdout) != 0 || fflush(stdout) != 0 {
       err(1, "stdout")

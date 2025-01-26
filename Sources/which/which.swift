@@ -31,7 +31,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 func usage() {
     print("usage: which [-as] program ...")
@@ -82,38 +82,42 @@ func printMatches(path: String, filename: String, allpaths: Bool ) -> Bool {
 
 
 @main final class Which : ShellCommand {
-  var silent = false
-  var allpaths = false
-  var args = ArraySlice<String>()
+  struct CommandOptions {
+    var silent = false
+    var allpaths = false
+    var args = ArraySlice<String>()
+  }
   
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     let go = BSDGetopt("as")
     while let (ch, _) = try go.getopt() {
       switch ch {
       case "a":
-        allpaths = true
+          opts.allpaths = true
       case "s":
-        silent = true
+          opts.silent = true
       default:
         throw CmdErr(1)
       }
     }
     
-    args = ArraySlice(go.remaining)
+    opts.args = ArraySlice(go.remaining)
     
-    if args.count == 0 {
+    if opts.args.count == 0 {
       throw CmdErr(1)
     }
+    return opts
   }
   
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
     guard let path = ProcessInfo.processInfo.environment["PATH"]
     else {
       throw CmdErr(1, "no PATH")
     }
     
-    for a in args {
-      if a.count >= FILENAME_MAX || !printMatches(path: path, filename: a, allpaths: allpaths) {
+    for a in opts.args {
+      if a.count >= FILENAME_MAX || !printMatches(path: path, filename: a, allpaths: opts.allpaths) {
         throw CmdErr(Int(EXIT_FAILURE))
       }
     }

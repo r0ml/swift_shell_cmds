@@ -34,7 +34,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 import os
 
 @main final class Env : ShellCommand {
@@ -45,19 +45,21 @@ import os
 
     var usage = "usage: env [-0iv] [-P utilpath] [-S string] [-u name]\n[name=value ...] [utility [argument ...]]"
 
-  var aa : [String] = []
-  var rtrn: Int32 = 0
-  var altpath: String? = nil
-  var term: Character = "\n"
-
+  struct CommandOptions {
+    var aa : [String] = []
+    var rtrn: Int32 = 0
+    var altpath: String? = nil
+    var term: Character = "\n"
+  }
+    
   enum ExitCode : Int {
     case EXIT_CANCELED = 125
     case EXIT_CANNOT_INVOKE = 126
     case EXIT_ENOENT = 127
   }
 
-  func parseOptions() throws(CmdErr) {
-    
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     
     let log = Logger.init(subsystem: "env", category: "main")
     
@@ -78,9 +80,9 @@ import os
       case "i":
         want_clear = 1
       case "0":
-        term = "\0"
+          opts.term = "\0"
       case "P":
-        altpath = optarg
+          opts.altpath = optarg
       case "S":
         let opta = optarg
         // FIXME: figure out how to put this back
@@ -89,8 +91,8 @@ import os
         if env_verbosity != 0 {
           fputs("#env unset:\(optarg)\n", stderr)
         }
-        rtrn = unsetenv(optarg)
-        if rtrn == -1 {
+          opts.rtrn = unsetenv(optarg)
+          if opts.rtrn == -1 {
           err(Int(EXIT_FAILURE), "unsetenv \(optarg)")
         }
       case "v":
@@ -112,12 +114,13 @@ import os
       }
     }
     
-    aa = go.remaining
+    opts.aa = go.remaining
+    return opts
   }
   
-  func runCommand() throws(CmdErr) {
-    
-    for argv in aa {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
+    var rtrn = opts.rtrn
+    for argv in opts.aa {
       if let p = argv.firstIndex(of: "=") {
         if env_verbosity != 0 {
           fputs("#env setenv:\(argv)\n", stderr)
@@ -131,9 +134,9 @@ import os
       }
     }
     
-    if aa.isEmpty {
+    if opts.aa.isEmpty {
       for ep in environ {
-        print("\(ep.0)=\(ep.1)", terminator: String(term))
+        print("\(ep.0)=\(ep.1)", terminator: String(opts.term))
       }
       
 #if os(macOS)
@@ -144,16 +147,16 @@ import os
       
       exit(0)
     } else {
-        var argv = aa.first! // CommandLine.arguments[Int(optind)]
-      if term == "\0" {
+      var argv = opts.aa.first! // CommandLine.arguments[Int(optind)]
+      if opts.term == "\0" {
         err( ExitCode.EXIT_CANCELED.rawValue, "cannot specify command with -0")
       }
-      if let altpath {
+      if let altpath = opts.altpath {
         argv = search_paths(altpath, argv)
       }
       if env_verbosity != 0 {
         fputs("#env executing:\(argv)\n", stderr)
-          for (argc, parg) in aa.dropFirst().enumerated() {
+        for (argc, parg) in opts.aa.dropFirst().enumerated() {
           fputs("#env    arg[\(argc)]=\(parg)\n", stderr)
         }
         if env_verbosity > 1 {
@@ -162,7 +165,7 @@ import os
       }
       
 //      execvp(argv, CommandLine.unsafeArgv.advanced(by: Int(optind)))
-      let az = aa.map { $0.withCString { strdup($0) } } + [UnsafeMutablePointer<CChar>.init(bitPattern: 0)]
+      let az = opts.aa.map { $0.withCString { strdup($0) } } + [UnsafeMutablePointer<CChar>.init(bitPattern: 0)]
         execvp(argv, az )
       err( (errno == ENOENT ? ExitCode.EXIT_ENOENT : ExitCode.EXIT_CANNOT_INVOKE).rawValue, argv)
       

@@ -37,7 +37,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 /* Instead of using inout variables (passing a string in and then mutating it, pass in a string and return the
    replaced string.  The "maxsize" argument can be ignored -- because in Swift, I don't need to do memory management,
@@ -89,12 +89,11 @@ var p: String? // the current position of the end of the current argument
   let NOPID: pid_t = 0
   
   var childpids: Set<pid_t> = []
-  var opts = Options()
   var jbxp : [String] = []
   var kbxp : [String] = []
   var rval = 0
   
-  class Options {
+  class CommandOptions {
     var arg_max: Int = Int(sysconf(_SC_ARG_MAX))
     var Jflag = false
     var Iflag = false
@@ -153,10 +152,11 @@ var p: String? // the current position of the end of the current argument
     }
  */
   
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
     let optstr = "+0E:I:J:L:n:oP:pR:S:s:rtxf:"
+    var opts = CommandOptions()
     
-    let long_options: [shared.option] /* [(String?, Int32, UnsafeMutablePointer<Int32>?, Int32)] */ = [
+    let long_options: [CMigration.option] /* [(String?, Int32, UnsafeMutablePointer<Int32>?, Int32)] */ = [
       option("exit", /* "x", */ .no_argument),
       option("interactive", /* "p", */ .no_argument),
       option("max-args", /* "n", */ .required_argument),
@@ -311,7 +311,8 @@ var p: String? // the current position of the end of the current argument
     opts.nline -= cnt
     if opts.nline <= 0 {
      throw CmdErr(1, "insufficient space for command")
-     }    
+     }
+    return opts
   }
 
   /**
@@ -328,7 +329,7 @@ var p: String? // the current position of the end of the current argument
     case newline
   }
   
-  func parseArgument(_ prevc : Character) throws(CmdErr) -> (String, Character?) {
+  func parseArgument(_ prevc : Character, _ opts : CommandOptions) throws(CmdErr) -> (String, Character?) {
     var indouble = false
     var insingle = false
     var argp = ""
@@ -435,11 +436,11 @@ var p: String? // the current position of the end of the current argument
     }
   }
 
-  func prerun(_ jbxp : [String], _ ibxp : [String], _ kbxp : [String], _ inpline : String) throws(CmdErr) {
+  func prerun(_ jbxp : [String], _ ibxp : [String], _ kbxp : [String], _ inpline : String, _ opts : CommandOptions) throws(CmdErr) {
     let repls = opts.Rflag
    
     if repls == 0 {
-      try run(jbxp + (ibxp.filter { !$0.isEmpty }) + kbxp)
+      try run(jbxp + (ibxp.filter { !$0.isEmpty }) + kbxp, opts)
       return
     }
     
@@ -468,7 +469,7 @@ var p: String? // the current position of the end of the current argument
       tmp.append(tmpLast)
     }
     
-    try run(tmp)
+    try run(tmp, opts)
     
     /*
     for _ in tmp2 {
@@ -484,7 +485,7 @@ var p: String? // the current position of the end of the current argument
      */
   }
   
-  func run(_ args : [String] ) throws(CmdErr) {
+  func run(_ args : [String], _ opts : CommandOptions) throws(CmdErr) {
     var pid: pid_t = 0
     var rc: Int32 = 0
 
@@ -534,7 +535,7 @@ var p: String? // the current position of the end of the current argument
     rc = posix_spawnp(&pid, args[0], &file_actions, nil, xy, environ)
     
     if rc != 0 {
-      waitchildren(jbxp[0], true)
+      waitchildren(jbxp[0], true, opts)
       errno = rc
 //      fputs(args[0], stderr)
       throw CmdErr(rc == ENOENT ? 127 : 126, args[0])
@@ -542,7 +543,7 @@ var p: String? // the current position of the end of the current argument
       childpids.insert(pid)
  //     let jj = try pipe.fileHandleForReading.availableData
 //      print( String(data: jj, encoding: .utf8)! )
-      waitchildren(jbxp[0], false)
+      waitchildren(jbxp[0], false, opts)
     }
   }
   
@@ -660,19 +661,19 @@ var p: String? // the current position of the end of the current argument
   }
   */
   
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
     var pc : Character? = "\n"
     var a : String = ""
     var ibxp = [String]()
     
     while pc != nil {
-      (a, pc) = try parseArgument(pc!)
+      (a, pc) = try parseArgument(pc!, opts)
       if (!a.isEmpty) || (opts.zflag && opts.xflag) {
         ibxp.append(a)
       }
       if (pc == nil && ibxp.count > 0) || ibxp.count >= opts.nargs || (opts.xflag && opts.Lflag <= ibxp.count)  {
           //        try arg2(av)
-          try prerun(jbxp, ibxp, kbxp, a)
+          try prerun(jbxp, ibxp, kbxp, a, opts)
         ibxp = []
       }
     }
@@ -704,12 +705,12 @@ var p: String? // the current position of the end of the current argument
   
   var usage = "usage: xargs [-0opt] [-E eofstr] [-I replstr [-R replacements] [-S replsize]] [-J replstr] [-L number] [-n number [-x]] [-P maxprocs] [-s size] [utility [argument ...]]"
 
-  func xexit(_ name: String, _ exit_code: Int) throws {
-    waitchildren(name, true)
+  func xexit(_ name: String, _ exit_code: Int, _ opts : CommandOptions) throws {
+    waitchildren(name, true, opts)
     exit(Int32(exit_code))
   }
   
-  func waitchildren(_ name: String, _ waitl: Bool) {
+  func waitchildren(_ name: String, _ waitl: Bool, _ opts : CommandOptions) {
     var waitall = waitl
 //    var pid: pid_t
     var cause_exit : Int32 = 0

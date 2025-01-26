@@ -35,7 +35,7 @@
 
 import Foundation
 import os
-import shared
+import CMigration
 
 
 @main final class Date : ShellCommand {
@@ -66,7 +66,6 @@ import shared
   // ===============================
 
   var tval: time_t = 0
-  var unix2003_std = false
 
   struct iso8601_fmt {
     var refname: String
@@ -86,26 +85,30 @@ import shared
   let rfc2822_format = "%a, %d %b %Y %T %z"
 
   let TM_YEAR_BASE : Int32 = 1900
-
-  var argv : [String] = []
-  var rflag: Bool = false
-  var Iflag: Bool = false
-  var jflag: Bool = false
-  var Rflag: Bool = false
-  var format: String = ""
+  var unix2003_std = false
   var buf = [CChar](repeating: 0, count: 1024)
-  var fmt: String?
-  var v: Vary?
-  var iso8601_subset : [iso8601_fmt]!
 
-  func parseOptions() throws(CmdErr) {
+  struct CommandOptions {
+    var argv : [String] = []
+    var rflag: Bool = false
+    var Iflag: Bool = false
+    var jflag: Bool = false
+    var Rflag: Bool = false
+    var format: String = ""
+    var fmt: String?
+    var v: Vary?
+    var iso8601_subset : [iso8601_fmt]!
+  }
+  
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     var sb: stat = stat()
     //    var i: Int = 0
 
     unix2003_std = true // compat_mode("bin/date", "unix2003")
 
-    v = nil
-    fmt = nil
+    opts.v = nil
+    opts.fmt = nil
     setlocale(LC_TIME, "")
 
 
@@ -113,14 +116,14 @@ import shared
     while let (ch, optarg) = try go.getopt() {
       switch ch {
         case "f":
-          fmt = optarg
+          opts.fmt = optarg
         case "I":
-          if Rflag {
+          if opts.Rflag {
             multipleformats()
           }
-          Iflag = true
+          opts.Iflag = true
           if optarg.isEmpty {
-            iso8601_subset = [iso8601_fmts[0]]
+            opts.iso8601_subset = [iso8601_fmts[0]]
             break
           }
           for i in 0...iso8601_fmts.count {
@@ -130,21 +133,21 @@ import shared
             }
 
             if optarg == iso8601_fmts[i].refname {
-              iso8601_subset = Array(iso8601_fmts.prefix(through: i))
+              opts.iso8601_subset = Array(iso8601_fmts.prefix(through: i))
               break
             }
           }
         case "j":
-          jflag = true
+          opts.jflag = true
         case "n":
           break
         case "R":
-          if Iflag {
+          if opts.Iflag {
             multipleformats()
           }
-          Rflag = true
+          opts.Rflag = true
         case "r":
-          rflag = true
+          opts.rflag = true
           var tmp: UnsafeMutablePointer<CChar>?
           tval = time_t(strtoq(optarg, &tmp, 0))
           if tmp!.pointee != 0 {
@@ -158,67 +161,67 @@ import shared
         case "u":
           setenv("TZ", "UTC0", 1)
         case "v":
-          v?.append(optarg)
+          opts.v?.append(optarg)
         default:
           throw CmdErr(1)
       }
     }
 
-    argv = go.remaining
+    opts.argv = go.remaining
 
 
-    if !rflag && time(&tval) == -1 {
+    if !opts.rflag && time(&tval) == -1 {
       err(1, "time")
     }
 
-    format = "%+"
+    opts.format = "%+"
 
-    if Rflag {
-      format = rfc2822_format
+    if opts.Rflag {
+      opts.format = rfc2822_format
     }
 
-    if let firstArg = argv.first, firstArg.hasPrefix("+") {
-      if Iflag {
+    if let firstArg = opts.argv.first, firstArg.hasPrefix("+") {
+      if opts.Iflag {
         multipleformats()
       }
-      format = String(firstArg.dropFirst())
-      argv.removeFirst()
+      opts.format = String(firstArg.dropFirst())
+      opts.argv.removeFirst()
     }
 
-    if let firstArg = argv.first {
-      try setthetime(fmt, firstArg, jflag)
-      argv.removeFirst()
-    } else if fmt != nil {
+    if let firstArg = opts.argv.first {
+      try setthetime(opts.fmt, firstArg, opts.jflag)
+      opts.argv.removeFirst()
+    } else if opts.fmt != nil {
       throw CmdErr(1)
     }
 
-    if let firstArg = argv.first, firstArg.hasPrefix("+") {
-      if Iflag {
+    if let firstArg = opts.argv.first, firstArg.hasPrefix("+") {
+      if opts.Iflag {
         multipleformats()
       }
-      format = String(firstArg.dropFirst())
+      opts.format = String(firstArg.dropFirst())
     }
-
+    return opts
   }
 
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ opts: CommandOptions) throws(CmdErr) {
 
     var lt = localtime(&tval).pointee
-    if let v {
+    if let v = opts.v {
       if let badv = vary_apply(v, &lt) {
         throw CmdErr(1, "\(badv): Cannot apply date adjustment")
       }
     }
 
-    if Iflag {
-      printisodate(&lt, iso8601_subset)
+    if opts.Iflag {
+      printisodate(&lt, opts.iso8601_subset)
     }
 
-    if format == rfc2822_format {
+    if opts.format == rfc2822_format {
       setlocale(LC_TIME, "C")
     }
 
-    strftime(&buf, buf.count, format, &lt)
+    strftime(&buf, buf.count, opts.format, &lt)
     printdate(String(cString: buf, encoding: .utf8) ?? "???")
   }
 

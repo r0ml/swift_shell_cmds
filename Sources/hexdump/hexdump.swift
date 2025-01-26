@@ -34,7 +34,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 /*
 struct prOptions : OptionSet {
@@ -137,8 +137,7 @@ final class hexdump : ShellCommand {
         case WAIT
     }
     
-    var vflag : _vflag = .FIRST
-    
+
     var address: off_t = 0
     var eaddress: off_t = 0
     // var _argv: [String]
@@ -152,7 +151,11 @@ final class hexdump : ShellCommand {
   // options
   var skip : off_t = 0
   
-  var args :  Array<String>.SubSequence = []
+  struct CommandOptions {
+    var vflag : _vflag = .FIRST
+    var args :  Array<String>.SubSequence = []
+  }
+  
   // Format specifications
   var fsArray: [FS] = []        /* head of format strings */
 
@@ -173,22 +176,23 @@ final class hexdump : ShellCommand {
   
 
   
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
     //    var p: String?
+    var opts = CommandOptions()
     
     _ = setlocale(LC_ALL, "")
     
     let av = CommandLine.arguments[0]
     if let p = av.lastIndex(of: "o"), av[p...] != "od" {
       do {
-        try newsyntax()
+        try newsyntax(&opts)
       } catch let e as CmdErr {
         throw e
       } catch(let e) {
         err(1, e.localizedDescription)
       }
     } else {
-      try oldsyntax()
+      try oldsyntax(&opts)
     }
     
     /* figure out the data block size */
@@ -202,13 +206,17 @@ final class hexdump : ShellCommand {
     for t in fsArray {
       rewrite(fs: t)
     }
+    return opts
   }
   
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
     /*
      * Cache NLS data, for strerror, for err(3), before entering capability
      * mode.
      */
+    
+    var opts = optsx
+    
 #if !os(macOS)
     caph_cache_catpages()
     if caph_limit_stdio() < 0 {
@@ -216,8 +224,7 @@ final class hexdump : ShellCommand {
     }
 #endif
     
-//    _ = next(argv)
-    try display()
+    try display(&opts)
 #if os(macOS)
     if ferror(stdout) != 0 || fflush(stdout) != 0 {
       throw CmdErr(1, "stdout")

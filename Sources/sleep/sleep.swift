@@ -32,7 +32,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 nonisolated(unsafe) var reportRequested = false
 

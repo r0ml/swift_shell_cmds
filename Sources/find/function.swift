@@ -37,7 +37,7 @@
  */
 
 import Foundation
-import shared 
+import CMigration
 
 extension find {
   

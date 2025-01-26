@@ -37,7 +37,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 indirect enum P_un {
   case g_data(_ a : gid_t)
@@ -216,7 +216,7 @@ extension find {
    *  process the command line and create a "plan" corresponding to the
    *  command arguments.
    */
-  func find_formplan(_ argv : inout ArraySlice<String>) -> [PLAN] {
+  func find_formplan(_ argv : inout ArraySlice<String>, _ opts : CommandOptions) -> [PLAN] {
     var plan = ArraySlice<PLAN>()
     var new: PLAN
     
@@ -255,7 +255,7 @@ extension find {
    *  take a search plan and an array of search paths and executes the plan
    *  over all FTSENT's returned for the given search paths.
    */
-  func find_execute(plan: [PLAN], paths: [String]) -> Int32 {
+  func find_execute(plan: [PLAN], paths: [String], options opts: CommandOptions) -> Int32 {
     var e: Int
     var myPaths: [String] = []
     var nonSearchableDirFound : Int32 = 0
@@ -284,7 +284,7 @@ extension find {
     
     let mp = myPaths.map { strdup($0) }
     
-    tree = fts_open(mp, ftsoptions, ((issort != 0) ? find_compare : nil))
+    tree = fts_open(mp, ftsoptions, ((opts.issort != 0) ? find_compare : nil))
     if tree == nil {
       err(1, "ftsopen")
     }
@@ -310,11 +310,11 @@ extension find {
       
       switch Int32(entryz.fts_info) {
       case FTS_D:
-        if (isdepth != 0) {
+          if (isdepth != 0) {
           continue
         }
       case FTS_DP:
-        if (isdepth == 0) {
+          if (isdepth == 0) {
           continue
         }
       case FTS_DNR, FTS_NS:
@@ -328,7 +328,7 @@ extension find {
         exitstatus = 1
         continue
       case FTS_W:
-        if ftsoptions & FTS_WHITEOUT != 0 {
+          if ftsoptions & FTS_WHITEOUT != 0 {
           break
         }
         continue
@@ -336,7 +336,7 @@ extension find {
         break
       }
       
-      if (isxargs != 0) && fts_path.contains(where: { " \t\n\\'\"".contains($0) }) {
+      if (opts.isxargs != 0) && fts_path.contains(where: { " \t\n\\'\"".contains($0) }) {
         fflush(stdout)
         warnx("\(fts_path): illegal path")
         exitstatus = 1

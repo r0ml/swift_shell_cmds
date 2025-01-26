@@ -34,26 +34,30 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 @main final class dirnameTool :ShellCommand {
-  var args : [String] = []
+  struct CommandOptions {
+    var args : [String] = []
+  }
 
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     let go = BSDGetopt("")
     while let (_, _) = try go.getopt() {
       throw CmdErr(1)
     }
 
-    args = go.remaining
+    opts.args = go.remaining
 
-    if args.count < 1 {
+    if opts.args.count < 1 {
       throw CmdErr(1)
     }
+    return opts
   }
 
-  func runCommand() throws(CmdErr) {
-    for v in args {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
+    for v in opts.args {
       v.withCString { vv in
         let vvv = UnsafeMutablePointer(mutating: vv)
         if let p = dirname(vvv) {

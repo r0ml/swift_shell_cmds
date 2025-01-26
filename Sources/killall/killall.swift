@@ -32,7 +32,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 @main final class killall : ShellCommand {
   
@@ -46,22 +46,28 @@ import shared
   var pmatch = regmatch_t()
   var buf : String = ""
 //  var first: CChar
-  var user: String?
-  var tty: String?
-  var cmd: String?
-  var qflag = 0
-  var vflag = 0
-  var sflag = 0
-  var dflag = 0
-  var eflag = 0
-  var jflag = 0
-  var Iflag = 0
-  var mflag = 0
-  var zflag = 0
-  var uid: uid_t = 0
-  var tdev: dev_t = 0
-//  var mypid: pid_t
-  var thiscmd: String?
+  
+  struct CommandOptions {
+    var user: String?
+    var tty: String?
+    var cmd: String?
+    var qflag = 0
+    var vflag = 0
+    var sflag = 0
+    var dflag = 0
+    var eflag = 0
+    var jflag = 0
+    var Iflag = 0
+    var mflag = 0
+    var zflag = 0
+    var uid: uid_t = 0
+    var tdev: dev_t = 0
+    //  var mypid: pid_t
+    var thiscmd: String?
+
+    var args = [String]()
+  }
+  
 //  var thispid: pid_t
 //  var thistdev: dev_t
   var sig = SIGTERM
@@ -72,7 +78,6 @@ import shared
 //  var size: size_t
 //  var matched: Int
   var killed = 0
-  var args = [String]()
   
   var justPrint = false
   
@@ -172,7 +177,8 @@ At least one option or argument to specify processes must be given."
 
     
   
-    func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
       setlocale(LC_ALL, "")
       
       if CommandLine.arguments.count < 2 {
@@ -182,18 +188,18 @@ At least one option or argument to specify processes must be given."
       while let (ch, optarg) = try go.getopt() {
         switch ch {
         case "c":
-          cmd = optarg
+            opts.cmd = optarg
         case "d":
-          dflag += 1
+            opts.dflag += 1
         case "e":
-          eflag += 1
+            opts.eflag += 1
         case "I":
-          Iflag += 1
+            opts.Iflag += 1
 #if !os(macOS)
         case "j":
-          jflag += 1
+            opts.jflag += 1
           if let x = Int(String(cString: optarg)) {
-            jid = x
+            opts.jid = x
           } else {
             errx(1, "illegal jid: \(String(cString: optarg))")
           }
@@ -204,21 +210,21 @@ At least one option or argument to specify processes must be given."
         case "l":
           printsig(FileHandle.standardOutput)
           justPrint = true
-          return
+          return opts
         case "m":
-          mflag += 1
+            opts.mflag += 1
         case "q":
-          qflag += 1
+            opts.qflag += 1
         case "s":
-          sflag += 1
+            opts.sflag += 1
         case "t":
-          tty = optarg
+            opts.tty = optarg
         case "u":
-          user = optarg
+            opts.user = optarg
         case "v":
-          vflag += 1
+            opts.vflag += 1
         case "z":
-          zflag += 1
+            opts.zflag += 1
         default:
           if let s = try kludge_signal_arg(optarg) {
             sig = s
@@ -228,10 +234,10 @@ At least one option or argument to specify processes must be given."
         }
       }
       
-      args = go.remaining
+    opts.args = go.remaining
       
 #if os(macOS)
-      if user == nil && tty == nil && cmd == nil && CommandLine.arguments.count == 0 {
+    if opts.user == nil && opts.tty == nil && opts.cmd == nil && CommandLine.arguments.count == 0 {
         throw CmdErr(1)
       }
 #else
@@ -239,13 +245,15 @@ At least one option or argument to specify processes must be given."
         throw CmdErr(1)
       }
 #endif
+    return opts
     }
     
     
-    func runCommand() throws(CmdErr) {
+  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
+    var opts = optsx
       if justPrint { return }
       
-      if let tty {
+      if let tty = opts.tty {
         if tty.hasPrefix("/dev/") {
           buf = tty
         } else if strncmp(tty, "tty", 3) == 0 {
@@ -259,33 +267,33 @@ At least one option or argument to specify processes must be given."
         if !S_ISCHR(sb.st_mode) {
           errx(1, "\(buf): not a character device")
         }
-        tdev = sb.st_rdev
-        if dflag != 0 {
-          print("ttydev:0x\(String(format: "%x", tdev))")
+        opts.tdev = sb.st_rdev
+        if opts.dflag != 0 {
+          print("ttydev:0x\(String(format: "%x", opts.tdev))")
         }
       }
-      if let user {
-        if let x = uid_t(user) {
-          uid = x
+    if let user = opts.user {
+      if let x = uid_t(user) {
+        opts.uid = x
         } else {
           pw = getpwnam(user)
           if pw == nil {
             errx(1, "user \(user) does not exist")
           }
-          uid = pw!.pointee.pw_uid
-          if dflag != 0 {
-            print("uid:\(uid)")
+          opts.uid = pw!.pointee.pw_uid
+          if opts.dflag != 0 {
+            print("uid:\(opts.uid)")
           }
         }
       } else {
-        uid = getuid()
-        if uid != 0 {
-          pw = getpwuid(uid)
+        opts.uid = getuid()
+        if opts.uid != 0 {
+          pw = getpwuid(opts.uid)
           if let pw = pw {
-            user = String(cString: pw.pointee.pw_name)
+            opts.user = String(cString: pw.pointee.pw_name)
           }
-          if dflag != 0 {
-            print("uid:\(uid)", uid)
+          if opts.dflag != 0 {
+            print("uid:\(opts.uid)", opts.uid)
           }
         }
       }
@@ -296,13 +304,13 @@ At least one option or argument to specify processes must be given."
       
       var miblen : UInt32
       
-    if user != nil {
-        mib[2] = eflag != 0 ? KERN_PROC_UID : KERN_PROC_RUID
-        mib[3] = Int32(uid)
+    if opts.user != nil {
+      mib[2] = opts.eflag != 0 ? KERN_PROC_UID : KERN_PROC_RUID
+      mib[3] = Int32(opts.uid)
         miblen = 4
-    } else if tty != nil {
+    } else if opts.tty != nil {
         mib[2] = KERN_PROC_TTY
-        mib[3] = tdev
+      mib[3] = opts.tdev
         miblen = 4
       } else {
 #if os(macOS)
@@ -351,14 +359,14 @@ At least one option or argument to specify processes must be given."
         exit(1)
       }
       let nprocs = size / MemoryLayout<kinfo_proc>.size
-      if dflag != 0 {
+    if opts.dflag != 0 {
         print("nprocs \(nprocs)")
       }
       let mypid = getpid()
       
       for i in 0..<nprocs {
 #if os(macOS)
-        if procs[i].kp_proc.p_stat == SZOMB && zflag == 0 {
+        if procs[i].kp_proc.p_stat == SZOMB && opts.zflag == 0 {
           continue
         }
         let thispid = procs[i].kp_proc.p_pid
@@ -387,7 +395,7 @@ At least one option or argument to specify processes must be given."
         mib[2] = thispid
         
         syssize = size_t(argmax)
-        thiscmd = withUnsafeTemporaryAllocation(byteCount: syssize, alignment: 16) {p in
+        opts.thiscmd = withUnsafeTemporaryAllocation(byteCount: syssize, alignment: 16) {p in
           if sysctl(&mib, 3, p.baseAddress!, &syssize, nil, 0) != -1 {
             let procargs = Data(bytes: p.baseAddress!.advanced(by: 4), count: syssize-4)
             
@@ -417,28 +425,28 @@ At least one option or argument to specify processes must be given."
         }
         
         var matched = true
-        if let tty = tty {
-          if thistdev != tdev {
+        if let tty = opts.tty {
+          if thistdev != opts.tdev {
             matched = false
           }
         }
-        if let cmd = cmd {
-          if mflag != 0 {
+        if let cmd = opts.cmd {
+          if opts.mflag != 0 {
             if regcomp(&rgx, cmd, REG_EXTENDED|REG_NOSUB) != 0 {
-              mflag = 0
+              opts.mflag = 0
               warnx("\(cmd): illegal regexp")
             }
           }
-          if mflag != 0 {
+          if opts.mflag != 0 {
             pmatch.rm_so = 0
-            pmatch.rm_eo = regoff_t(thiscmd!.count)
-            if regexec(&rgx, thiscmd, 0, &pmatch, REG_STARTEND) != 0 {
+            pmatch.rm_eo = regoff_t(opts.thiscmd!.count)
+            if regexec(&rgx, opts.thiscmd, 0, &pmatch, REG_STARTEND) != 0 {
               matched = false
             }
             regfree(&rgx)
           } else {
             // FIXME: what is this?
-            if strncmp(thiscmd, cmd, Int(MAXCOMLEN)) != 0 {
+            if strncmp(opts.thiscmd, cmd, Int(MAXCOMLEN)) != 0 {
               matched = false
             }
           }
@@ -450,21 +458,21 @@ At least one option or argument to specify processes must be given."
           matched = false
         }
         for j in CommandLine.arguments {
-          if mflag != 0 {
+          if opts.mflag != 0 {
             if regcomp(&rgx, j, REG_EXTENDED|REG_NOSUB) != 0 {
-              mflag = 0
+              opts.mflag = 0
               warnx("\(j): illegal regexp")
             }
           }
-          if mflag != 0 {
+          if opts.mflag != 0 {
             pmatch.rm_so = 0
-            pmatch.rm_eo = regoff_t(thiscmd!.count)
-            if regexec(&rgx, thiscmd, 0, &pmatch, REG_STARTEND) == 0 {
+            pmatch.rm_eo = regoff_t(opts.thiscmd!.count)
+            if regexec(&rgx, opts.thiscmd, 0, &pmatch, REG_STARTEND) == 0 {
               matched = true
             }
             regfree(&rgx)
           } else {
-            if thiscmd == j {
+            if opts.thiscmd == j {
               matched = true
             }
           }
@@ -472,9 +480,9 @@ At least one option or argument to specify processes must be given."
             break
           }
         }
-        if matched && Iflag != 0 {
+        if matched && opts.Iflag != 0 {
 #if os(macOS)
-          print("Send signal \(sig) to \(thiscmd!) (pid \(thispid))? ", terminator: "")
+          print("Send signal \(sig) to \(opts.thiscmd!) (pid \(thispid))? ", terminator: "")
 #else
           printf("Send signal %d to %s (pid %d uid %d)? ", sig, thiscmd, thispid, thisuid)
 #endif
@@ -491,20 +499,20 @@ At least one option or argument to specify processes must be given."
         if matched == false {
           continue
         }
-        if dflag != 0 {
+        if opts.dflag != 0 {
 #if os(macOS)
-          print("sig:\(sig), cmd:\(thiscmd!), pid:\(thispid), dev:0x\(String(format:"%0x",thistdev))")
+          print("sig:\(sig), cmd:\(opts.thiscmd!), pid:\(thispid), dev:0x\(String(format:"%0x",thistdev))")
 #else
           printf("sig:%d, cmd:%s, pid:%d, dev:0x%jx uid:%d\n", sig, thiscmd, thispid, thistdev, thisuid)
 #endif
         }
         
-        if vflag != 0 || sflag != 0 {
+        if opts.vflag != 0 || opts.sflag != 0 {
           print("kill -\(signames[Int(sig)]) \(thispid)")
         }
         
         killed += 1
-        if dflag == 0 && sflag == 0 {
+        if opts.dflag == 0 && opts.sflag == 0 {
           if kill(thispid, sig) < 0 {
             warn("warning: kill -\(signames[Int(sig)]) \(thispid)")
             errors = 1
@@ -512,7 +520,7 @@ At least one option or argument to specify processes must be given."
         }
       }
       if killed == 0 {
-        if qflag == 0 {
+        if opts.qflag == 0 {
           var se = FileHandle.standardError
           let j = getuid() != 0 ? "belonging to you " : ""
           print("No matching processes \(j)were found", to: &se )

@@ -34,7 +34,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 let nl = Int32(Character("\n").asciiValue!)
 let spec = ".#-+ 0123456789"

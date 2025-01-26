@@ -34,7 +34,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 // FIXME: need to brew install libxo  to get the xo stuff.
 

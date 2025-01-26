@@ -34,7 +34,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 /* Defaults */
 let BEGIN_DEF : Double = 1
@@ -53,27 +53,30 @@ let HAVE_REPS = 8
     return s.isEmpty || s == "-"
   }
 
-  var boring : Bool = false
-  var prec = -1
-  var longdata : Bool = false
-  var intdata : Bool = false
-  var chardata : Bool = false
-  var nosign : Bool = false
-  var sepstring = "\n"
-  
-  var format : String = ""
-  
-  var args : [String] = []
-  
-  // =================================
-  
+  struct CommandOptions {
+    var boring : Bool = false
+    var prec = -1
+    var longdata : Bool = false
+    var intdata : Bool = false
+    var chardata : Bool = false
+    var nosign : Bool = false
+    var sepstring = "\n"
+    
+    var format : String = ""
+    
+    var args : [String] = []
+    
+    // =================================
+    
     var haveFormat = false
     var infinity = false
     var nofinalnl = false
     var randomize = false
     var useRandom = false
-    var ch: Int = 0
     var mask = 0
+  }
+    
+    var ch: Int = 0
     var n = 0
   var begin : Double = Double(BEGIN_DEF)
     var divisor: Double = 0.0
@@ -85,11 +88,12 @@ let HAVE_REPS = 8
     var reps = REPS_DEF
     
 
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
     //    let argc = CommandLine.argc
     //    let argv = CommandLine.unsafeArgv
     
     //    while case let option = getopt(Int32(argc), &argv, "b:cnp:rs:w:"), option != -1 {
+    var opts = CommandOptions()
     
     let optstr = "b:cnp:rs:w:"
     let go = BSDGetopt(optstr)
@@ -97,124 +101,126 @@ let HAVE_REPS = 8
       switch ch {
         
       case "b":
-        boring = true
+          opts.boring = true
         fallthrough
       case "w":
-        format = optarg
-        haveFormat = true
+          opts.format = optarg
+          opts.haveFormat = true
       case "c":
-        chardata = true
+          opts.chardata = true
       case "n":
-        nofinalnl = true
+          opts.nofinalnl = true
       case "p":
-        prec = Int(atoi(optarg))
-        if prec < 0 {
+          opts.prec = Int(atoi(optarg))
+          if opts.prec < 0 {
           errx(1, "bad precision value")
         }
-        haveFormat = true
+          opts.haveFormat = true
       case "r":
-        randomize = true
+          opts.randomize = true
       case "s":
-        sepstring = optarg
+          opts.sepstring = optarg
       default:
         throw CmdErr(1)
       }
     }
     
-    args = go.remaining
+    opts.args = go.remaining
     
-    switch args.count {
+    switch opts.args.count {
     case 4:
-      if !is_default(args[3]) {
+        if !is_default(opts.args[3]) {
         let z = withUnsafeMutablePointer(to: &self.s) {
           let r = withVaList([$0]) {
-            vsscanf(args[3], "%lf", $0)
+            vsscanf(opts.args[3], "%lf", $0)
           }
           return r
         }
         if z == 0 {
-          errx(1, "bad s value: \(args[3])")
+          errx(1, "bad s value: \(opts.args[3])")
         }
-        mask |= HAVE_STEP
-        if randomize {
-          useRandom = true
+          opts.mask |= HAVE_STEP
+          if opts.randomize {
+            opts.useRandom = true
         }
       }
       fallthrough
     case 3:
-      if !is_default(args[2]) {
+        if !is_default(opts.args[2]) {
         let z = withUnsafeMutablePointer(to: &self.ender) {
           let r = withVaList([$0]) {
-            vsscanf(args[2], "%lf", $0)
+            vsscanf(opts.args[2], "%lf", $0)
           }
           return r
         }
         if z == 0 {
-          ender = Double(String(args[2].last!.asciiValue!))!
+          ender = Double(String(opts.args[2].last!.asciiValue!))!
         }
-        mask |= HAVE_ENDER
-        if prec < 0 {
-          n = getprec(args[2])
+          opts.mask |= HAVE_ENDER
+        if opts.prec < 0 {
+          n = getprec(opts.args[2])
         }
       }
       fallthrough
     case 2:
-      if !is_default(args[1]) {
+        if !is_default(opts.args[1]) {
         let z = withUnsafeMutablePointer(to: &self.begin) {
           let r = withVaList([$0]) {
-            vsscanf(args[1], "%lf", $0)
+            vsscanf(opts.args[1], "%lf", $0)
           }
           return r
         }
         if z == 0 {
-          begin = Double(String(args[1].last!.asciiValue!))!
+          begin = Double(String(opts.args[1].last!.asciiValue!))!
         }
-        mask |= HAVE_BEGIN
-        if prec < 0 {
-          prec = getprec(args[1])
+          opts.mask |= HAVE_BEGIN
+        if opts.prec < 0 {
+          opts.prec = getprec(opts.args[1])
         }
-        if n > prec {
-          prec = n
+        if n > opts.prec {
+          opts.prec = n
         }
       }
       fallthrough
     case 1:
-      if !is_default(args[0]) {
+        if !is_default(opts.args[0]) {
         let z = withUnsafeMutablePointer(to: &self.reps) {
           let r = withVaList([$0]) {
-            vsscanf(args[0], "%ld", $0)
+            vsscanf(opts.args[0], "%ld", $0)
           }
           return r
         }
         if z == 0 {
-          errx(1, "bad reps value: \(args[0])")
+          errx(1, "bad reps value: \(opts.args[0])")
         }
-        mask |= HAVE_REPS
+          opts.mask |= HAVE_REPS
       }
     case 0:
       throw CmdErr(1)
     default:
-      errx(1, "too many arguments.  What do you mean by \(args[4])?")
+        errx(1, "too many arguments.  What do you mean by \(opts.args[4])?")
     }
-    getformat()
+    getformat(&opts)
     
-    if prec == -1 {
-      prec = 0
+    if opts.prec == -1 {
+      opts.prec = 0
     }
+    return opts
   }
   
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
+    var opts = optsx
     
-    while mask != 0 {
-      switch mask {
+    while opts.mask != 0 {
+      switch opts.mask {
       case HAVE_STEP, HAVE_ENDER, HAVE_ENDER | HAVE_STEP, HAVE_BEGIN, HAVE_BEGIN | HAVE_STEP:
         reps = REPS_DEF
-        mask |= HAVE_REPS
+          opts.mask |= HAVE_REPS
       case HAVE_BEGIN | HAVE_ENDER:
         s = ender > begin ? 1 : -1
-        mask |= HAVE_STEP
+          opts.mask |= HAVE_STEP
       case HAVE_BEGIN | HAVE_ENDER | HAVE_STEP:
-        if randomize {
+          if opts.randomize {
           reps = REPS_DEF
         } else if s == 0.0 {
           reps = 0
@@ -224,33 +230,33 @@ let HAVE_REPS = 8
         if reps <= 0 {
           errx(1, "impossible stepsize")
         }
-        mask = 0
+          opts.mask = 0
       case HAVE_REPS, HAVE_REPS | HAVE_STEP:
         begin = BEGIN_DEF
-        mask |= HAVE_BEGIN
+          opts.mask |= HAVE_BEGIN
       case HAVE_REPS | HAVE_ENDER:
         s = STEP_DEF
-        mask = HAVE_REPS | HAVE_ENDER | HAVE_STEP
+          opts.mask = HAVE_REPS | HAVE_ENDER | HAVE_STEP
       case HAVE_REPS | HAVE_ENDER | HAVE_STEP:
-        if randomize {
+          if opts.randomize {
           begin = BEGIN_DEF
         } else if reps == 0 {
           errx(1, "must specify begin if reps == 0")
         }
         begin = ender - Double(reps) * s + s
-        mask = 0
+          opts.mask = 0
       case HAVE_REPS | HAVE_BEGIN:
         s = STEP_DEF
-        mask = HAVE_REPS | HAVE_BEGIN | HAVE_STEP
+          opts.mask = HAVE_REPS | HAVE_BEGIN | HAVE_STEP
       case HAVE_REPS | HAVE_BEGIN | HAVE_STEP:
-        if randomize {
+          if opts.randomize {
           ender = ENDER_DEF
         } else {
           ender = begin + Double(reps) * s - s
         }
-        mask = 0
+          opts.mask = 0
       case HAVE_REPS | HAVE_BEGIN | HAVE_ENDER:
-        if !randomize {
+          if !opts.randomize {
           if reps == 0 {
             errx(1, "infinite sequences cannot be bounded")
           } else if reps == 1 {
@@ -259,9 +265,9 @@ let HAVE_REPS = 8
             s = (ender - begin) / Double(reps - 1)
           }
         }
-        mask = 0
+          opts.mask = 0
       case HAVE_REPS | HAVE_BEGIN | HAVE_ENDER | HAVE_STEP:
-        if !randomize && s != 0.0 {
+          if !opts.randomize && s != 0.0 {
           let t = Int((ender - begin + s) / s)
           if t <= 0 {
             errx(1, "impossible stepsize")
@@ -270,82 +276,82 @@ let HAVE_REPS = 8
             reps = t
           }
         }
-        mask = 0
+          opts.mask = 0
       default:
         errx(1, "bad mask")
       }
     }
     if reps == 0 {
-      infinity = true
+      opts.infinity = true
     }
-    if randomize {
-      if useRandom {
+    if opts.randomize {
+      if opts.useRandom {
         srandom(UInt32(s))
         divisor = Double(INT32_MAX) + 1
       } else {
         divisor = Double(UINT32_MAX) + 1
       }
       
-      if !haveFormat && prec == 0 && begin >= 0 && begin < divisor && ender >= 0 && ender < divisor {
+      if !opts.haveFormat && opts.prec == 0 && begin >= 0 && begin < divisor && ender >= 0 && ender < divisor {
         if begin <= ender {
           ender += 1
         } else {
           begin += 1
         }
-        nosign = true
-        intdata = true
-        format = chardata ? "%c" : "%u"
+        opts.nosign = true
+        opts.intdata = true
+        opts.format = opts.chardata ? "%c" : "%u"
       }
       x = ender - begin
       for i in 1...reps {
-        if useRandom {
+        if opts.useRandom {
           // FIXME: can i get random in swift?
           //         y = Double(random()) / divisor
           y = Double(arc4random()) / divisor
         } else {
           y = Double(arc4random()) / divisor
         }
-        if (putdata(y * x + begin, ((reps - i) == 0)) != 0) {
+        if (putdata(y * x + begin, ((reps - i) == 0), opts) != 0) {
           errx(1, "range error in conversion")
         }
       }
     } else {
       x = begin
       for i in 1...reps {
-        if (putdata(x, ((reps - i) == 0)) != 0) {
+        if (putdata(x, ((reps - i) == 0), opts) != 0) {
           errx(1, "range error in conversion")
         }
         x += s
       }
     }
-    if !nofinalnl {
+    if !opts.nofinalnl {
       print("")
     }
     exit(0)
   }
     
-    func putdata(_ x: Double, _ last: Bool) -> Int {
-      if boring {
-        print(format, terminator: "")
-      } else if longdata && nosign {
+  func putdata(_ x: Double, _ last: Bool, _ opts : CommandOptions) -> Int {
+    if opts.boring {
+        print(opts.format, terminator: "")
+      } else if opts.longdata && opts.nosign {
         if x <= Double(UInt.max) && x >= 0 {
-          print(String(format: format, UInt(x)), terminator: "")
+          print(String(format: opts.format, UInt(x)), terminator: "")
         } else {
           return 1
         }
-      } else if longdata {
+      } else if opts.longdata {
         if x <= Double(Int.max) && x >= Double(Int.min) {
           let _ = withVaList([Int(x)]) {
-            vprintf(format, $0)
+            vprintf(opts.format, $0)
           }
 //          print(String(format: format, Int(x)), terminator: "")
         } else {
           return 1
         }
-      } else if chardata || (intdata && !nosign) {
+      } else if opts.chardata || (opts.intdata && !opts.nosign) {
         if x <= Double(Int32.max) && x >= Double(Int32.min) {
             let _ = withVaList([Int(x)]) {
-              vprintf(format, $0)
+              vprintf(opts.format, $0)
             }
 //          } else {
 //            print(String(format: format, Int(x)), terminator: "")
@@ -353,17 +359,17 @@ let HAVE_REPS = 8
         } else {
           return 1
         }
-      } else if intdata {
+      } else if opts.intdata {
         if x <= Double(UInt32.max) && x >= 0 {
-          print(String(format: format, UInt(x)), terminator: "")
+          print(String(format: opts.format, UInt(x)), terminator: "")
         } else {
           return 1
         }
       } else {
-        print(String(format: format, x), terminator: "")
+        print(String(format: opts.format, x), terminator: "")
       }
       if !last {
-        print(sepstring, terminator: "")
+        print(opts.sepstring, terminator: "")
       }
       
       return 0
@@ -379,25 +385,25 @@ let HAVE_REPS = 8
     return decimalPart.count-1
   }
   
-  func getformat() {
+  func getformat(_ opts : inout CommandOptions) {
 //    var xformat = Substring(format)
     var dot = 0, hash = 0, space = 0, sign = 0, numbers = 0
 //    let sz = MemoryLayout.size(ofValue: format) - strlen(format) - 1
     
-    if boring { return }
+    if opts.boring { return }
     
     let j = /(^(?:[^%]|%%)*)%(.*$)/
-    let pp = try! j.firstMatch(in: format)
+    let pp = try! j.firstMatch(in: opts.format)
     
       if pp == nil {
-        if !chardata {
-        format.append("%.\(prec)f")
+        if !opts.chardata {
+          opts.format.append("%.\(opts.prec)f")
         } else {
-          format.append("%c")
-          intdata = true
+          opts.format.append("%c")
+          opts.intdata = true
         }
       } else if pp!.2.isEmpty {
-        format.append("%") // cannot end in single %
+        opts.format.append("%") // cannot end in single %
       } else {
         let p2 = pp!.output.2 // the only reason for p2 is for error reporting
         var p = p2
@@ -415,7 +421,7 @@ let HAVE_REPS = 8
           }
         }
         if p.first == "l" {
-          longdata = true
+          opts.longdata = true
           if p.dropFirst().first == "l" {
             if p.count != 2 {
               p.removeFirst()
@@ -425,30 +431,30 @@ let HAVE_REPS = 8
         }
         switch p.first {
         case "o", "u", "x", "X":
-          intdata = true
-          nosign = true
+            opts.intdata = true
+            opts.nosign = true
         case "d", "i":
-          intdata = true
+            opts.intdata = true
         case "D":
-          if !longdata {
-            intdata = true
+            if !opts.longdata {
+            opts.intdata = true
             break
           }
         case "O", "U":
-          if !longdata {
-            intdata = true
-            nosign = true
+            if !opts.longdata {
+              opts.intdata = true
+              opts.nosign = true
             break
           }
         case "c":
-          if !(intdata || longdata) {
-            chardata = true
+            if !(opts.intdata || opts.longdata) {
+              opts.chardata = true
             break
           }
         case "h", "n", "p", "q", "s", "L", "$", "*":
           break
         case "f", "e", "g", "E", "G":
-          if !longdata {
+            if !opts.longdata {
             break
           }
         default:
@@ -464,7 +470,7 @@ let HAVE_REPS = 8
           } else if np == "%" && p.first == "%" {
             p.removeFirst()
           } else if np == "%" && p.first == nil {
-            format.append("%")
+            opts.format.append("%")
             break
           }
         }

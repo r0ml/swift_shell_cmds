@@ -34,13 +34,13 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
     extension hexdump {
 
     
         
-        func display() throws(CmdErr) {
+      func display(_ opts : inout CommandOptions) throws(CmdErr) {
             //    var fs: FS?
             //    var fu: FU?
             //    var pr: PR?
@@ -50,7 +50,7 @@ import shared
             //    var savech: u_char, savebp: u_char?
             
             //    var savech = 0
-            while var bp = try get() {
+            while var bp = try get(&opts) {
                 let savebp = bp
                 let saveaddress = address
                 for fs in fsArray {
@@ -226,7 +226,7 @@ import shared
             pr.fmt = String(p3)
         }
         
-        func get() throws(CmdErr) -> String? {
+      func get(_ opts : inout CommandOptions) throws(CmdErr) -> String? {
             var n: Int
             //    var need: Int, nread: Int
             var valid_save = false
@@ -247,7 +247,7 @@ import shared
             var need = blocksize
             var nread = 0
             while true {
-              let nn = try next()
+              let nn = try next(&opts)
                 if (length == 0) || (ateof && !nn) {
                     if odmode && address < skip {
                         errx(1, "cannot skip past end of input")
@@ -255,8 +255,8 @@ import shared
                     if need == blocksize {
                         return nil
                     }
-                    if (need == 0) && vflag != .ALL && valid_save && bcmp(curp, savp, nread) == 0 {
-                        if vflag != .DUP {
+                  if (need == 0) && opts.vflag != .ALL && valid_save && bcmp(curp, savp, nread) == 0 {
+                      if opts.vflag != .DUP {
                             Swift.print("*")
                         }
                         return nil
@@ -280,16 +280,16 @@ import shared
                 }
                 need -= n
                 if need == 0 {
-                    if vflag == .ALL || vflag == .FIRST || !valid_save || bcmp(curp, savp, blocksize) != 0 {
-                        if vflag == .DUP || vflag == .FIRST {
-                            vflag = .WAIT
+                  if opts.vflag == .ALL || opts.vflag == .FIRST || !valid_save || bcmp(curp, savp, blocksize) != 0 {
+                    if opts.vflag == .DUP || opts.vflag == .FIRST {
+                      opts.vflag = .WAIT
                         }
                         return String(data: Data(bytes: curp!, count: blocksize), encoding: .ascii)
                     }
-                    if vflag == .WAIT {
+                  if opts.vflag == .WAIT {
                         Swift.print("*")
                     }
-                    vflag = .DUP
+                  opts.vflag = .DUP
                     address += Int64(blocksize)
                     need = blocksize
                     nread = 0
@@ -326,15 +326,15 @@ import shared
         // start reading the next file (argument)
         // if no arguments, read from stdin
         // skip arguments for files which can't be read
-        func next() throws(CmdErr) -> Bool {
+      func next(_ opts: inout CommandOptions) throws(CmdErr) -> Bool {
             var statok = false
             
             while true {
-                if let aa = args.first {
+              if let aa = opts.args.first {
                     didStdin = true
                     if ((freopen(aa, "r", stdin)) == nil) {
                         throw CmdErr(1, aa)
-                        args = args.dropFirst()
+                      opts.args = opts.args.dropFirst()
                         continue
                     }
                     statok = true
@@ -347,11 +347,11 @@ import shared
                 }
                 
                 if (skip != 0) {
-                    let lf = statok ? args.first! : "stdin"
+                  let lf = statok ? opts.args.first! : "stdin"
                     lastFile = lf
                     doskip(fname: lf, statok: statok)
                 }
-                args = args.dropFirst()
+              opts.args = opts.args.dropFirst()
                 if (skip == 0) {
                     return true
                 }

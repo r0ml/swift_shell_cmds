@@ -34,7 +34,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 let PRIu64 = "u"
 
@@ -83,11 +83,16 @@ actor Stuff {
 @main final class time : ShellCommand {
   var stuff = Stuff()
 
-  var decimal_point : Int8 = Int8(".".first!.asciiValue!)
-  var pflag = false
-  var hflag = false
-  var lflag = false
-  var aflag = false
+  struct CommandOptions {
+    var decimal_point : Int8 = Int8(".".first!.asciiValue!)
+    var pflag = false
+    var hflag = false
+    var lflag = false
+    var aflag = false
+    var ofn : String?
+
+    var args : [String] = []
+  }
   
   var xstatus : Int32 = 0
   var fh : FileHandle = FileHandle.standardOutput
@@ -95,10 +100,6 @@ actor Stuff {
   var after = timespec()
   
   var pid : pid_t = -1
-
-  var ofn : String?
-  
-  var args : [String] = []
 
   var usage = "usage: time [-al] [-h | -p] [-o file] utility [argument ...]"
 
@@ -118,7 +119,7 @@ actor Stuff {
     }
   }
   
-  func humantime(out: FileHandle, sec: Int, centisec: Int) {
+  func humantime(out: FileHandle, sec: Int, centisec: Int, options opts : CommandOptions) {
     let days = sec / (60 * 60 * 24)
     let secx = sec % (60 * 60 * 24)
     let hrs = secx / (60 * 60)
@@ -136,10 +137,10 @@ actor Stuff {
     if mins != 0 {
       out.write("\(mins)m")
     }
-    out.write("\(secz)\(decimal_point)\(String(format: "%02d", centisec))s")
+    out.write("\(secz)\(opts.decimal_point)\(String(format: "%02d", centisec))s")
   }
   
-  func showtime(out: inout FileHandle, before: timespec, after: inout timespec, ru: rusage) {
+  func showtime(out: inout FileHandle, before: timespec, after: inout timespec, ru: rusage, options opts: CommandOptions) {
     
     after.tv_sec -= before.tv_sec
     after.tv_nsec -= before.tv_nsec
@@ -148,33 +149,33 @@ actor Stuff {
       after.tv_nsec += 1000000000
     }
     
-    if pflag {
+    if opts.pflag {
       print(String(format: "real %jd%c%02ld",
-                   after.tv_sec, decimal_point, after.tv_nsec/10000000), to: &out)
+                   after.tv_sec, opts.decimal_point, after.tv_nsec/10000000), to: &out)
       print(String(format: "user %jd%c%02ld",
-                   ru.ru_utime.tv_sec, decimal_point,
+                   ru.ru_utime.tv_sec, opts.decimal_point,
                    ru.ru_utime.tv_usec/10000), to: &out)
       print(String(format: "sys %jd%c%02ld",
-                   ru.ru_stime.tv_sec, decimal_point,
+                   ru.ru_stime.tv_sec, opts.decimal_point,
                    ru.ru_stime.tv_usec/10000), to: &out)
-    } else if hflag {
-      humantime(out: out, sec: Int(after.tv_sec), centisec: Int(after.tv_nsec/10000000))
+    } else if opts.hflag {
+      humantime(out: out, sec: Int(after.tv_sec), centisec: Int(after.tv_nsec/10000000), options: opts)
       print(" real\t", terminator: "", to: &out)
-      humantime(out: out, sec: Int(ru.ru_utime.tv_sec), centisec: Int(ru.ru_utime.tv_usec)/10000)
+      humantime(out: out, sec: Int(ru.ru_utime.tv_sec), centisec: Int(ru.ru_utime.tv_usec)/10000, options: opts)
       
       print(" user\t", terminator: "", to: &out)
       
-      humantime(out: out, sec: Int(ru.ru_stime.tv_sec), centisec: Int(ru.ru_stime.tv_usec)/10000)
+      humantime(out: out, sec: Int(ru.ru_stime.tv_sec), centisec: Int(ru.ru_stime.tv_usec)/10000, options: opts)
       print(" sys\n", to: &out)
     } else {
       print(String(format: "%9jd%c%02ld real ",
-                   after.tv_sec, decimal_point,
+                   after.tv_sec, opts.decimal_point,
                    after.tv_nsec/10000000), terminator: "", to: &out)
       print(String(format: "%9jd%c%02ld user ",
-                   ru.ru_utime.tv_sec, decimal_point,
+                   ru.ru_utime.tv_sec, opts.decimal_point,
                    ru.ru_utime.tv_usec/10000), terminator: "", to: &out)
       print(String(format: "%9jd%c%02ld sys",
-                   ru.ru_stime.tv_sec, decimal_point,
+                   ru.ru_stime.tv_sec, opts.decimal_point,
                    ru.ru_stime.tv_usec/10000), to: &out)
     }
   }
@@ -183,7 +184,7 @@ actor Stuff {
   // =========================================================================
   
 
-  func parseOptions() throws(CmdErr)  {
+  func parseOptions() throws(CmdErr) -> CommandOptions  {
     //    let argc = CommandLine.argc
     //    let argv = CommandLine.unsafeArgv
     
@@ -199,26 +200,27 @@ actor Stuff {
      FILE *out = stderr;
      */
     
+    var opts = CommandOptions()
     setlocale(LC_NUMERIC, "")
-    decimal_point = localeconv().pointee.decimal_point[0]
+    opts.decimal_point = localeconv().pointee.decimal_point[0]
     
     let go = BSDGetopt("ahlo:p")
     while let (ch, optarg) = try go.getopt() {
       switch ch {
       case "a":
-        aflag = true
+          opts.aflag = true
         break;
       case "h":
-        hflag = true
+          opts.hflag = true
         break;
       case "l":
-        lflag = true
+          opts.lflag = true
         break;
       case "o":
-        ofn = optarg
+          opts.ofn = optarg
         break;
       case "p":
-        pflag = true
+          opts.pflag = true
         break;
       case "?":
         fallthrough
@@ -226,11 +228,12 @@ actor Stuff {
         throw CmdErr(1)
       }
     }
-    args = go.remaining
+    opts.args = go.remaining
+    return opts
   }
   
-  func runCommand() async throws(CmdErr) {
-    if args.count == 0 { return }
+  func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
+    if opts.args.count == 0 { return }
   
     /* r0ml: Supposing I get rid of all this muck
     sigemptyset(&sigmask)
@@ -252,7 +255,7 @@ actor Stuff {
     
     var out : UnsafeMutablePointer<FILE>?
     */
-    if let ofn {
+    if let ofn = opts.ofn {
       if !FileManager.default.fileExists(atPath: ofn) {
         FileManager.default.createFile(atPath: ofn, contents: Data() )
       }
@@ -260,7 +263,7 @@ actor Stuff {
     } else {
       fh = FileHandle.standardOutput
     }
-    if aflag { fh.seekToEndOfFile() }
+    if opts.aflag { fh.seekToEndOfFile() }
     
     /* r0ml: switched to FileHandle?
     if let ofn {
@@ -284,7 +287,7 @@ actor Stuff {
 //    var pid : pid_t = -1
 //    var ru = rusage()
     
-    if let ff = searchPath(for: args[0]) {
+    if let ff = searchPath(for: opts.args[0]) {
       
       var sigmask = sigset_t()
       var origmask = sigset_t()
@@ -307,7 +310,7 @@ actor Stuff {
       }
       
       process.launchPath = ff
-      process.arguments = Array(args.dropFirst())
+      process.arguments = Array(opts.args.dropFirst())
       process.launch()
       
       pid = process.processIdentifier
@@ -353,7 +356,7 @@ actor Stuff {
       xstatus = process.terminationStatus
 
     } else {
-      err(1, "not found: \(args[0])")
+      err(1, "not found: \(opts.args[0])")
     }
     
     //      err(errno == ENOENT ? 127 : 126, args.first! );
@@ -439,10 +442,10 @@ actor Stuff {
       let _ = await stuff.rusage_ret
 //      print("stuff rusage \(rusage_ret)")
       let exitonsig : Int32 = WIFSIGNALED(xstatus) ? xstatus & 0x7f : 0;
-      showtime(out: &fh, before: before_ts, after: &after, ru: ru);
+    showtime(out: &fh, before: before_ts, after: &after, ru: ru, options: opts);
       
       
-      if lflag {
+    if opts.lflag {
         
         await lflagPrint(&fh,
                          ru: ru,

@@ -37,7 +37,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 let magic = "%"
 
@@ -45,21 +45,22 @@ func ISMAGICNO(_ p: String ) -> Bool {
   return p.count > 1 && p.hasPrefix(magic) && p.dropFirst().first!.isNumber
 }
 
-struct applyOptions {
+struct CommandOptions {
   var debug = false
   var magic : Character = "%"
   var nargs = -1
-  var args : ArraySlice<String> = []
   var cmd : String = ""
   var arg_max : Int = 0
   var shell : String = ""
   var name : String = ""
+
+  var args : ArraySlice<String> = []
 }
 
 @main final class apply : ShellCommand {
-  var opts = applyOptions()
+  var opts = CommandOptions()
 
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
     let go = BSDGetopt("a:d0123456789")
     while let (k, v) = try go.getopt() {
       switch k {
@@ -118,9 +119,10 @@ struct applyOptions {
     }
     opts.args.removeFirst()
     opts.arg_max = sysconf(_SC_ARG_MAX)
+    return opts
   }
 
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
     var cmdbuf = ""
     var rval = 0
     var arg = opts.args

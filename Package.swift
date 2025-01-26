@@ -24,21 +24,18 @@ import Foundation
 
 let package = Package(
   name: "shell_cmds",
-  platforms: [.macOS(.v15)],
+  platforms: [.macOS(.v15), .iOS(.v15)],
   dependencies: [
-     .package(url: "https://github.com/r0ml/ShellTesting.git" , branch: "main")
-//     .package(path: "../ShellTesting")
+     .package(url: "https://github.com/r0ml/ShellTesting.git" , branch: "main"),
+//     .package(path: "../ShellTesting"),
+      .package(url: "https://github.com/r0ml/CMigration.git", branch: "main"),
+// .package(name: "CMigration", path: "../CMigration"),
   ],
-//  products: [
-//    .executable(name: "apply", targets: ["apply"])
-//  ],
-  targets: [
+
+  targets:
     // Targets are the basic building blocks of a package, defining a module or a test suite.
     // Targets can depend on other targets in this package and products from dependencies.
-    .target(name: "shared",
-            path: "Shared"),
-    ]
-    + generateTargets()
+    generateTargets()
     + generateTestTargets()
 )
 
@@ -47,7 +44,7 @@ func generateTargets() -> [Target] {
     let cd = try! FileManager.default.contentsOfDirectory(atPath: "Sources")
     print(cd)
     for i in cd {
-        let t = Target.executableTarget(name: i, dependencies: [.target(name: "shared")] )
+      let t = Target.executableTarget(name: i, dependencies: [.product(name: "CMigration", package: "CMigration")] )
         res.append(t)
     }
     return res

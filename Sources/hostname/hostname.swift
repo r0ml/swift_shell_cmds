@@ -34,14 +34,18 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 @main final class hostname : ShellCommand {
-  var args = Array<String>.SubSequence()
-  var sflag = 0
-  var dflag = 0
+  
+  struct CommandOptions {
+    var args = Array<String>.SubSequence()
+    var sflag = 0
+    var dflag = 0
+  }
 
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     
     let go = BSDGetopt("fsd")
     while let(ch, _) = try go.getopt() {
@@ -49,9 +53,9 @@ import shared
       case "f":
         break
       case "s":
-        sflag = 1
+          opts.sflag = 1
       case "d":
-        dflag = 1
+          opts.dflag = 1
       case "?":
         fallthrough
       default:
@@ -59,16 +63,17 @@ import shared
       }
     }
     
-    self.args = ArraySlice( go.remaining)
+    opts.args = ArraySlice( go.remaining)
     
     
-    if args.count > 1 || (sflag != 0 && dflag != 0) {
+    if opts.args.count > 1 || (opts.sflag != 0 && opts.dflag != 0) {
       throw CmdErr(1)
     }
+    return opts
   }
   
-  func runCommand() throws(CmdErr) {
-    if let arg = args.first {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
+    if let arg = opts.args.first {
       if sethostname(arg, Int32(arg.count)) != 0 {
         err(1, "sethostname")
       }
@@ -83,9 +88,9 @@ import shared
         
         return String(cString: px)
       }
-      if sflag != 0 {
+      if opts.sflag != 0 {
         hostname = String(hostname.prefix { $0 != "." })
-      } else if dflag != 0 {
+      } else if opts.dflag != 0 {
         if let dot = hostname.firstIndex(of: ".") {
           hostname = String(hostname.suffix(from: dot).dropFirst())
         }

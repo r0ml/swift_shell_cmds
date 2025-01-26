@@ -35,7 +35,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 extension Env {
    

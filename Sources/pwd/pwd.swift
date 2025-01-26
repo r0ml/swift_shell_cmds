@@ -34,41 +34,44 @@
  */
 
 import Foundation
-import shared 
+import CMigration 
 
 @main final class pwd : ShellCommand {
-
-var usage = "usage: pwd [-L | -P]"
-
-func getcwd_logical() -> String? {
+  
+  var usage = "usage: pwd [-L | -P]"
+  
+  func getcwd_logical() -> String? {
     var lg = stat(), phy = stat()
     let pwd = getenv("PWD")
-
+    
     if pwd != nil, let pwdStr = String(utf8String: pwd!), pwdStr.first == "/" {
-        if stat(pwdStr, &lg) == -1 || stat(".", &phy) == -1 {
-            return nil
-        }
-        if lg.st_dev == phy.st_dev && lg.st_ino == phy.st_ino {
-            return pwdStr
-        }
+      if stat(pwdStr, &lg) == -1 || stat(".", &phy) == -1 {
+        return nil
+      }
+      if lg.st_dev == phy.st_dev && lg.st_ino == phy.st_ino {
+        return pwdStr
+      }
     }
-
+    
     errno = ENOENT
     return nil
-}
-
+  }
   
-  var physical = false
+  
+  struct CommandOptions {
+    var physical = false
+  }
 
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     let go = BSDGetopt("LP")
     while let (ch, _) = try go.getopt() {
       
       switch ch {
       case "L":
-        physical = false
+          opts.physical = false
       case "P":
-        physical = true
+          opts.physical = true
       case "?":
         fallthrough
       default:
@@ -79,15 +82,16 @@ func getcwd_logical() -> String? {
     if go.remaining.count > 0 {
       throw CmdErr(1)
     }
+    return opts
   }
   
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
     var p : String?
-    if (!physical) {
+    if (!opts.physical) {
       p = getcwd_logical()
     }
     
-    if p == nil || (physical || errno == ENOENT ) {
+    if p == nil || (opts.physical || errno == ENOENT ) {
       p = String(cString: getcwd(nil, 0))
     }
     

@@ -31,7 +31,7 @@
 
 // FIXME: apparently does not get built for APPLE platforms
 import Foundation
-import shared
+import CMigration
 
 nonisolated(unsafe) var keep = false
 nonisolated(unsafe) var lockfd : Int32 = -1
@@ -54,82 +54,82 @@ func cleanup() {
 }
 
 @main final class lockf : ShellCommand {
-  var flags: Int32
-  var waitsec: Int
-  var silent = false
-//  var lockname : String!
-//  var lockfd : Int32 = -1
-  var timed_out = false
- 
-  var args : [String] = []
-  
-  required init() {
-    flags = O_CREAT | O_RDONLY
-    waitsec = -1
+  struct CommandOptions {
+    var flags: Int32 = O_CREAT | O_RDONLY
+    var waitsec: Int = -1
+    var silent = false
+    //  var lockname : String!
+    //  var lockfd : Int32 = -1
+    
+    var args : [String] = []
   }
-  
-  func parseOptions() throws(CmdErr) {
+
+  var timed_out = false
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     
     let go = BSDGetopt("sknt:w")
     while let (ch, optarg) = try go.getopt() {
       switch ch {
       case "k":
-        keep = true
+          keep = true
       case "n":
-        flags &= ~O_CREAT
+          opts.flags &= ~O_CREAT
       case "s":
-        silent = true
+          opts.silent = true
       case "t":
         var endptr: UnsafeMutablePointer<Int8>?
         let oa = optarg
-        waitsec = strtol(oa, &endptr, 0)
-        if oa.isEmpty || endptr?.pointee != 0 || waitsec < 0 {
+          opts.waitsec = strtol(oa, &endptr, 0)
+          if oa.isEmpty || endptr?.pointee != 0 || opts.waitsec < 0 {
           errx(Int(EX_USAGE), "invalid timeout \"\(oa)\"")
         }
       case "w":
-        flags = (flags & ~O_RDONLY) | O_WRONLY
+          opts.flags = (opts.flags & ~O_RDONLY) | O_WRONLY
       default:
         throw CmdErr(1)
       }
     }
     
-    args = go.remaining
+    opts.args = go.remaining
     
-    if args.count < 2 {
+    if opts.args.count < 2 {
       throw CmdErr(1)
     }
-    
+    return opts
   }
   
   
-  func runCommand() throws(CmdErr) {
-    lockname = args.removeFirst()
+  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
+    var opts = optsx
+    lockname = opts.args.removeFirst()
     
-    if waitsec > 0 {
+    if opts.waitsec > 0 {
       var act = sigaction()
       act.__sigaction_u = unsafeBitCast(timeout, to: __sigaction_u.self)
       sigemptyset(&act.sa_mask)
       act.sa_flags = 0
       sigaction(SIGALRM, &act, nil)
-      alarm(UInt32(waitsec))
+      alarm(UInt32(opts.waitsec))
     }
     
-    lockfd = acquire_lock(lockname, flags | O_NONBLOCK)
-    while lockfd == -1 && !timed_out && waitsec != 0 {
+    lockfd = acquire_lock(lockname, opts.flags | O_NONBLOCK)
+    while lockfd == -1 && !timed_out && opts.waitsec != 0 {
       if keep {
-        lockfd = acquire_lock(lockname, flags)
+        lockfd = acquire_lock(lockname, opts.flags)
       } else {
         wait_for_lock(lockname)
-        lockfd = acquire_lock(lockname, flags | O_NONBLOCK)
+        lockfd = acquire_lock(lockname, opts.flags | O_NONBLOCK)
       }
     }
     
-    if waitsec > 0 {
+    if opts.waitsec > 0 {
       alarm(0)
     }
     
     if lockfd == -1 {
-      if silent {
+      if opts.silent {
         exit(EX_TEMPFAIL)
       }
       errx(Int(EX_TEMPFAIL), "\(String(describing: lockname)): already locked")
@@ -139,7 +139,7 @@ func cleanup() {
       err(Int(EX_OSERR), "atexit failed")
     }
     
-    let status = insteadOfFork(args[0], args)
+    let status = insteadOfFork(opts.args[0], opts.args)
     
     let r = WIFEXITED(status) ? WEXITSTATUS(status) : EX_SOFTWARE
     if r != 0 { throw CmdErr(Int(r) ) }

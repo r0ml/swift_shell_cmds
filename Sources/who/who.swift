@@ -31,44 +31,44 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
-struct Options {
-  var Hflag : Bool = false     // Write column headings
-  var aflag : Bool = false     // Print all entries
-  var bflag : Bool = false     // Show date of the last reboot
-  // #ifdef __APPLE__
-  var lflag : Bool = false      // waiting to login
-  // #endif
-  var mflag : Bool = false      // Show info about current terminal
-  // #ifdef __APPLE__
-  var pflag : Bool = false      // Processes active & spawned by init
-  // #endif
-  // #ifdef __APPLE__
-  var dflag : Bool = false      // dead processes
-  // #endif
-  var qflag : Bool = false      // "Quick" mode
-  // #ifdef __APPLE__
-  var rflag : Bool = false      // run-level of the init process
-  // #endif
-  var sflag : Bool = false      // Show name, line, time
-  // #ifdef __APPLE__
-  var tflag : Bool = false      // time of change to system clock
-  // #endif
-  var Tflag : Bool = false      // Show terminal state
-  var uflag : Bool = false      // Show idle time
-  // #ifdef __APPLE__
-//  #include <get_compat.h>
-  var unix2003_std : Bool = false
-  var arg : String?
-}
 
 @main final class Who : ShellCommand {
-  var opts = Options()
-  var args = ArraySlice<String>()
-  
-  func parseOptions() throws(CmdErr) {
-    
+  struct CommandOptions {
+    var Hflag : Bool = false     // Write column headings
+    var aflag : Bool = false     // Print all entries
+    var bflag : Bool = false     // Show date of the last reboot
+    // #ifdef __APPLE__
+    var lflag : Bool = false      // waiting to login
+    // #endif
+    var mflag : Bool = false      // Show info about current terminal
+    // #ifdef __APPLE__
+    var pflag : Bool = false      // Processes active & spawned by init
+    // #endif
+    // #ifdef __APPLE__
+    var dflag : Bool = false      // dead processes
+    // #endif
+    var qflag : Bool = false      // "Quick" mode
+    // #ifdef __APPLE__
+    var rflag : Bool = false      // run-level of the init process
+    // #endif
+    var sflag : Bool = false      // Show name, line, time
+    // #ifdef __APPLE__
+    var tflag : Bool = false      // time of change to system clock
+    // #endif
+    var Tflag : Bool = false      // Show terminal state
+    var uflag : Bool = false      // Show idle time
+    // #ifdef __APPLE__
+  //  #include <get_compat.h>
+    var unix2003_std : Bool = false
+    var arg : String?
+    var args = ArraySlice<String>()
+  }
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
+
     setlocale(LC_TIME, "")
     
     // #ifdef __APPLE__
@@ -128,25 +128,26 @@ struct Options {
       }
     }
     
-    args = ArraySlice(go.remaining)
-    if args.isEmpty {
-      return
+    opts.args = ArraySlice(go.remaining)
+    if opts.args.isEmpty {
+      return opts
     }
     
     
-    if args.count >= 2, args[0] == "am", (args[1] == "i" || args[1] == "I") {
+    if opts.args.count >= 2, opts.args[0] == "am", (opts.args[1] == "i" || opts.args[1] == "I") {
       opts.mflag = true
-      args = args.dropFirst(2)
+      opts.args = opts.args.dropFirst(2)
     }
-    if args.count > 1 {
+    if opts.args.count > 1 {
       throw CmdErr(1)
     }
     
-    opts.arg = args.first
+    opts.arg = opts.args.first
+    return opts
   }
   
   
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
     if let arg = opts.arg {
 #if !os(macOS)
       if setutxdb(UTXDB_ACTIVE, arg) != 0 {
@@ -193,7 +194,7 @@ struct Options {
   func leftPad(_ s : String, _ n : Int) -> String {
     return String(repeating: " ", count: n - s.count).appending(s)
   }
-  func heading(_ o : Options) {
+  func heading(_ o : CommandOptions) {
     
     print("NAME".padding(toLength: 16, withPad: " ", startingAt: 0), terminator: " ")
     if o.Tflag {
@@ -211,7 +212,7 @@ struct Options {
   
   let d_first = nl_langinfo(D_MD_ORDER).pointee == ("d" as UnicodeScalar).value
   
-  func row(ut: inout utmpx, _ o : Options) {
+  func row(ut: inout utmpx, _ o : CommandOptions) {
     var buf = [CChar](repeating: 0, count: 80)
     //  var tty = [CChar](repeating: 0, count: Int(_PATH_DEV.count) + Int(_UTX_LINESIZE))
     var sb = stat()
@@ -304,7 +305,7 @@ struct Options {
     }
   }
   
-  func process_utmp(_ o : Options) {
+  func process_utmp(_ o : CommandOptions) {
     //    var utx: UnsafeMutablePointer<utmpx>?
     
     while let utx = getutxent() {
@@ -364,7 +365,7 @@ struct Options {
     print("# users = \(num)\n")
   }
   
-  func whoami(_ o : Options) {
+  func whoami(_ o : CommandOptions) {
     var ut = utmpx()
     //    var utx: UnsafeMutablePointer<utmpx>?
     //  var pwd: UnsafeMutablePointer<passwd>?

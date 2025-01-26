@@ -34,10 +34,10 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 extension hexdump {
-  func newsyntax() throws {
+  func newsyntax(_ opts : inout CommandOptions) throws {
     
     // See if the command was called as "hd" -- which implies "-C"
     let farg = CommandLine.arguments[0]
@@ -109,7 +109,7 @@ extension hexdump {
         }
         skip = lskip
       case "v":
-        vflag = .ALL
+          opts.vflag = .ALL
       case "x":
         add("\"%07.7_Ax\n\"")
         add("\"%07.7_ax \" 8/2 \"   %04x \" \"\\n\"")
@@ -125,7 +125,7 @@ extension hexdump {
       add("\"%07.7_ax \" 8/2 \"%04x \" \"\\n\"")
     }
     
-      self.args = ArraySlice(go.remaining)
+      opts.args = ArraySlice(go.remaining)
   }
                                    
   

@@ -35,7 +35,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 let DEF_BUF = 65536
 
@@ -106,32 +106,30 @@ let optString = "adeFkpqr"
 
   var fscript : FileHandle = FileHandle.standardOutput
   
-
-  var aflg = false
-  var Fflg = false
-  var kflg = false
-  var pflg = false
-  var qflg = false
-  var tflg = false
+  struct CommandOptions {
+    var aflg = false
+    var Fflg = false
+    var kflg = false
+    var pflg = false
+    var qflg = false
+    var tflg = false
+    
+    var tstamp_fmt = "%n@ %s [%Y-%m-%d %T]%n"
+    
+    
+    var usesleep = true
+    var rawout = false
+    var flushtime = 30
+    
+    var args = [String]()
+    var fname : String = ""
+  }
   
-  var tstamp_fmt = "%n@ %s [%Y-%m-%d %T]%n"
-  
-  var showexit = false
-  
-  var usesleep = true
-  var rawout = false
-  var flushtime = 30
-  
-  var args = [String]()
-  var fname : String = ""
-
   var obuf_list = [buf_elm]()
   
   var readstdin = true
   var start = time(nil)
 
-  required init() {}
-  
     /*
      struct termios rtt, stt;
      struct winsize win;
@@ -149,7 +147,8 @@ let optString = "adeFkpqr"
      #endif /* ENABLE_FILEMON */
      */
 
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     
 #if ENABLE_FILEMON
     fm_fd = -1;  /* Shut up stupid "may be used uninitialized" GCC
@@ -166,37 +165,37 @@ let optString = "adeFkpqr"
       //      let ch = UnicodeScalar(UInt32(chx))
       switch ch {
       case "a":
-        aflg = true
+          opts.aflg = true
       case "d":
-        usesleep = false
+          opts.usesleep = false
       case "e":  /* Default behavior, accepted for linux compat */
         break
       case "F":
-        Fflg = true
+          opts.Fflg = true
 #if ENABLE_FILEMON
       case "f":
-        fflg = true
+          opts.fflg = true
 #endif /* ENABLE_FILEMON */
       case "k":
-        kflg = true
+          opts.kflg = true
       case "p":
-        pflg = true
+          opts.pflg = true
       case "q":
-        qflg = true
+          opts.qflg = true
       case "r":
-        rawout = true
+          opts.rawout = true
       case "t":
-        flushtime = Int(atoi(optarg))
-        if (flushtime < 0) {
-          err(1, "invalid flush time \(flushtime)")
+          opts.flushtime = Int(atoi(optarg))
+          if (opts.flushtime < 0) {
+            err(1, "invalid flush time \(opts.flushtime)")
         }
       case "T":
-        tflg = true
-        pflg = true
+          opts.tflg = true
+          opts.pflg = true
         
         let oa = optarg
         if ((strchr(optarg, Int32("%".first!.asciiValue!))) != nil) {
-          tstamp_fmt = oa
+          opts.tstamp_fmt = oa
         }
       case "?":
         fallthrough
@@ -205,27 +204,28 @@ let optString = "adeFkpqr"
       }
     }
     
-    args = go.remaining
+    opts.args = go.remaining
     
-    if args.count > 0 {
-      fname = args.removeFirst()
+    if opts.args.count > 0 {
+      opts.fname = opts.args.removeFirst()
     } else {
-      fname = "typescript"
+      opts.fname = "typescript"
     }
+    return opts
   }
   
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
     var fs : FileHandle?
     do {
-      if pflg {
-        fs = FileHandle(forReadingAtPath: fname)!
+      if opts.pflg {
+        fs = FileHandle(forReadingAtPath: opts.fname)!
       } else {
-        if !FileManager.default.fileExists(atPath: fname) {
-          FileManager.default.createFile(atPath: fname, contents: nil)
+        if !FileManager.default.fileExists(atPath: opts.fname) {
+          FileManager.default.createFile(atPath: opts.fname, contents: nil)
         }
-        fs = FileHandle(forWritingAtPath: fname)!
+        fs = FileHandle(forWritingAtPath: opts.fname)!
 
-        if aflg { try fs?.seekToEnd() }
+        if opts.aflg { try fs?.seekToEnd() }
         else { try fs?.truncate(atOffset: 0) }
       }
     } catch(let e) {
@@ -234,7 +234,7 @@ let optString = "adeFkpqr"
     if let fs {
       fscript = fs
     } else {
-      err(1, "unable to open \(fname)")
+      err(1, "unable to open \(opts.fname)")
     }
     
     /*
@@ -263,8 +263,8 @@ let optString = "adeFkpqr"
     }
 #endif /* ENABLE_FILEMON */
     
-    if (pflg) {
-      playback(fscript);
+    if (opts.pflg) {
+      playback(fscript, opts);
     }
 //    var master : Int32 = 0
     
@@ -307,23 +307,25 @@ let optString = "adeFkpqr"
     }
     */
     
-    if (rawout) {
+    if (opts.rawout) {
       record(fscript, Data(), .s);
     }
     
-    if (!qflg) {
+    var showexit = false
+
+    if (!opts.qflg) {
       var tvec = time(nil);
-      print("Script started, output file is \(fname)")
-      if (!rawout) {
+      print("Script started, output file is \(opts.fname)")
+      if (!opts.rawout) {
         let c = ctime(&tvec)!
         let cc = String(cString: c)
         print("Script started on \(cc)", terminator: "", to: &fscript)
 
-        if let z = args.first {
+        if let z = opts.args.first {
           showexit = true
           print("Command: ", terminator: "", to: &fscript)
           var ff = true
-          for k in args {
+          for k in opts.args {
             let kk = ff ? "" : " "
             ff = false
             
@@ -367,7 +369,7 @@ let optString = "adeFkpqr"
         }
       }
 #endif /* ENABLE_FILEMON */
-      let r = doshell(args)
+    let r = doshell(opts.args, opts)
 //    }
 //    close(slave)
 
@@ -385,7 +387,7 @@ let optString = "adeFkpqr"
 
 //    let kk = await j.value
 //    finish();
-    done(r)
+    done(r, opts, showexit)
   }
   
   
@@ -535,7 +537,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
      */
   }
   
-  func doshell(_ av : [String]) -> Int32 {
+  func doshell(_ av : [String], _ opts : CommandOptions) -> Int32 {
     var env = ProcessInfo.processInfo.environment
     
     var shell = env["SHELL"] ?? _PATH_BSHELL
@@ -547,7 +549,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
 //    login_tty(slave);
     
 //    setenv("SCRIPT", fname, 1);
-    env["SCRIPT"] = fname
+    env["SCRIPT"] = opts.fname
     let process = Process()
     process.arguments = Array(av.dropFirst())
     process.environment = env
@@ -573,7 +575,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
     return 1
   }
   
-  func done(_ eno : Int32) {
+  func done(_ eno : Int32, _ opts : CommandOptions, _ showexit : Bool) {
     var tvec = time_t()
     
     /*
@@ -583,11 +585,11 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
      */
     
     tvec = time(nil);
-    if (rawout) {
+    if (opts.rawout) {
       record(fscript, Data(), .e);
     }
-    if (!qflg) {
-      if (!rawout) {
+    if (!opts.qflg) {
+      if (!opts.rawout) {
         if (showexit) {
           print("\nCommand exit status: \(eno)", terminator: "", to: &fscript)
         }
@@ -595,7 +597,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
         let cc = String(cString: c)
         print("\nScript done on \(cc)", terminator: "", to: &fscript)
       }
-      print("\nScript done, output file is \(fname)")
+      print("\nScript done, output file is \(opts.fname)")
       #if ENABLE_FILEMON
       if (fflg) {
         printf("Filemon done, output file is %s\n",
@@ -690,7 +692,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
     
     
     
-  func readSlave() async -> Bool {
+  func readSlave(_ opts : CommandOptions) async -> Bool {
   //    let slaveFH = FileHandle.standardInput
   //    let slaveFH = FileHandle(fileDescriptor: slave)
     
@@ -712,7 +714,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
           
         }
         
-        if (rawout) {
+        if (opts.rawout) {
           record(fscript, a, .i);
         }
         FileHandle.standardOutput.write(a) // /* masterFH */ .write(a)
@@ -749,7 +751,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
   }
   
   
-  func playback(_ fp : FileHandle) {
+  func playback(_ fp : FileHandle, _ opts : CommandOptions) {
     /*
      struct timespec tsi, tso;
      struct stamp stamp;
@@ -826,7 +828,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
       switch ScrDirection(rawValue: stampx.scr_direction) {
       case .s:
         
-        if (!qflg) {
+          if (!opts.qflg) {
           let c = ctime(&tclock)!
           let cc = String(cString: c)
           print("Script started on \(cc)", terminator: "")
@@ -840,7 +842,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
       case .e:
         
         termreset();
-        if (!qflg) {
+          if (!opts.qflg) {
           let c = ctime(&tclock)!
           let cc = String(cString: c)
           print("\nScript done on \(cc)", terminator: "")
@@ -855,7 +857,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
 
         break;
       case .o:
-        if (tflg) {
+          if (opts.tflg) {
           if (stampx.scr_len == 0) {
             continue;
           }
@@ -863,7 +865,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
             
             let bb = withUnsafeTemporaryAllocation(byteCount: 256, alignment: 1) { p in
               let k = p.baseAddress!.assumingMemoryBound(to: CChar.self)
-              let l = strftime(k, 256, tstamp_fmt,
+              let l = strftime(k, 256, opts.tstamp_fmt,
                            localtime(&tclock))
               let d = Data(bytesNoCopy: k, count: l, deallocator: .none)
               let bb = String(data: d, encoding: .ascii)
@@ -879,7 +881,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
             tsi.tv_sec -= 1;
             tsi.tv_nsec += 1000000000;
           }
-          if (usesleep) {
+          if (opts.usesleep) {
             nanosleep(&tsi, nil)
           }
           tsi = tso;

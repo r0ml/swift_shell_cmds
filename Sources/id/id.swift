@@ -34,7 +34,7 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 extension UnsafeMutablePointer<passwd> {
   var name : String {
@@ -60,48 +60,56 @@ extension UnsafeMutablePointer<group> {
 
 
 @main final class idCommand : ShellCommand {
+
+  #if os(macOS)
+  var optstring = "AFPGagnpru"
+  #else
+  var optstring = "APGMacgnpru"
+  #endif
   
   var isgroups = false
   var iswhoami = false
-  var flagCount = 0
-  
-  var args = [String]()
-  
+
+  struct CommandOptions {
+    var flagCount = 0
+    
+    var args = [String]()
+    
 #if os(macOS)
-  var Gflag = false
-  var Pflag = false
-  var gflag = false
-  var nflag = false
-  var pflag = false
-  var rflag = false
-  var uflag = false
-  var Aflag = false
-  var Fflag = false
-  var id = id_t(0)
-  
-  var optstring = "AFPGagnpru"
-  let __APPLE__ = true
+    var Gflag = false
+    var Pflag = false
+    var gflag = false
+    var nflag = false
+    var pflag = false
+    var rflag = false
+    var uflag = false
+    var Aflag = false
+    var Fflag = false
+    var id = id_t(0)
+    
+    let __APPLE__ = true
 #else
-  var Gflag = 0
-  var Mflag = 0
-  var Pflag = 0
-  var gflag = 0
-  var nflag = 0
-  var pflag = 0
-  var rflag = 0
-  var uflag = 0
-  var Aflag = 0
-  var cflag = 0
-  
-  var id = id_t(0)
-  var error : Int = 0
-  var optstring = "APGMacgnpru"
-  let __APPLE__ = false
+    var Gflag = 0
+    var Mflag = 0
+    var Pflag = 0
+    var gflag = 0
+    var nflag = 0
+    var pflag = 0
+    var rflag = 0
+    var uflag = 0
+    var Aflag = 0
+    var cflag = 0
+    
+//    var id = id_t(0)
+    var error : Int = 0
+    let __APPLE__ = false
 #endif
+  }
   
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
     //    let argc = CommandLine.argc
     //    let argv = CommandLine.unsafeArgv
+    var opts = CommandOptions()
     
     var myname = CommandLine.arguments[0]
     if let mm = myname.lastIndex(of: "/") {
@@ -109,13 +117,13 @@ extension UnsafeMutablePointer<group> {
     }
     if myname == "groups" {
       isgroups = true
-      Gflag = false
-      nflag = false
+      opts.Gflag = false
+      opts.nflag = false
     }
     else if myname == "whoami" {
       iswhoami = true
-      uflag = false
-      nflag = false
+      opts.uflag = false
+      opts.nflag = false
     }
     
     let go = BSDGetopt((isgroups || iswhoami) ? "" : optstring )
@@ -123,50 +131,50 @@ extension UnsafeMutablePointer<group> {
       switch(ch) {
 #if USE_BSM_AUDIT
       case "A":
-        Aflag = true
+          opts.Aflag = true
 #endif
 #if os(macOS)
       case "F":
-        Fflag = true
+          opts.Fflag = true
 #endif
       case "G":
-        Gflag = true
+          opts.Gflag = true
 #if !os(macOS)
       case "M":
-        Mflag = true
+          opts.Mflag = true
 #endif
       case "P":
-        Pflag = true
+          opts.Pflag = true
       case "a":
         break
 #if !os(macOS)
       case "c":
-        cflag = true
+          opts.cflag = true
 #endif
       case "g":
-        gflag = true
+          opts.gflag = true
       case "n":
-        nflag = true
+          opts.nflag = true
       case "p":
-        pflag = true
+          opts.pflag = true
       case "r":
-        rflag = true
+          opts.rflag = true
       case "u":
-        uflag = true
+          opts.uflag = true
       case "?":
         fallthrough
       default:
         throw CmdErr(1)
       }
     }
-    args = go.remaining
+    opts.args = go.remaining
     
-    if iswhoami && args.count > 0 {
+    if iswhoami && opts.args.count > 0 {
       throw CmdErr(1)
     }
     
 #if os(macOS)
-    if Aflag && args.count > 0 {
+    if opts.Aflag && opts.args.count > 0 {
       throw CmdErr(1)
     }
 #else
@@ -176,15 +184,15 @@ extension UnsafeMutablePointer<group> {
 #endif
     
 #if os(macOS)
-    flagCount = [Aflag, Fflag, Gflag, Pflag, gflag, pflag, uflag].count { $0 }
+    opts.flagCount = [opts.Aflag, opts.Fflag, opts.Gflag, opts.Pflag, opts.gflag, opts.pflag, opts.uflag].count { $0 }
 #else
     flagCount = [Aflag, Gflag, Mflag, Pflag, gflag, pflag, uflag].count { $0 }
 #endif
-    switch(flagCount) {
+    switch(opts.flagCount) {
     case 1:
       break;
     case 0:
-      if (!nflag) && (!rflag) {
+        if (!opts.nflag) && (!opts.rflag) {
         break;
       }
       /* FALLTHROUGH */
@@ -195,20 +203,21 @@ extension UnsafeMutablePointer<group> {
       throw CmdErr(1)
 #endif
     }
+    return opts
   }
 
   
-  func runCommand() throws(CmdErr) {
-    let pw = args.isEmpty ? nil : who(args.first!)
+  func runCommand(_ opts: CommandOptions) throws(CmdErr) {
+    let pw = opts.args.isEmpty ? nil : who(opts.args.first!)
     
 #if !os(macOS)
-    if (Mflag != 0 && pw != nil) {
+    if (opts.Mflag != 0 && pw != nil) {
       throw CmdErr(1)
     }
 #endif
 
   
-  forGoto(pw)
+  forGoto(pw, opts)
     
 #if os(macOS)
     if (ferror(stdout) != 0 || fflush(stdout) != 0) {
@@ -218,10 +227,10 @@ extension UnsafeMutablePointer<group> {
     exit(0);
   }
   
-  func forGoto(_ pwx : passwd?) {
+  func forGoto(_ pwx : passwd?, _ opts : CommandOptions) {
     var pw = pwx
 #if USE_BSM_AUDIT
-    if Aflag {
+    if opts.Aflag {
       auditid();
 #if !DEBUG
       return
@@ -230,14 +239,14 @@ extension UnsafeMutablePointer<group> {
 #endif
     
 #if os(macOS)
-    if Fflag {
+    if opts.Fflag {
       fullname(pw);
 #if !DEBUG
       return
 #endif
     }
 #else
-    if cflag {
+    if opts.cflag {
       error = getloginclass(loginclass, sizeof(loginclass));
       if (error != 0) {
         err(1, "loginclass");
@@ -249,9 +258,9 @@ extension UnsafeMutablePointer<group> {
     }
 #endif
     
-    if gflag {
-      let id = pw != nil ? pw!.pw_gid : (rflag ? getgid() : getegid())
-      if nflag {
+    if opts.gflag {
+      let id = pw != nil ? pw!.pw_gid : (opts.rflag ? getgid() : getegid())
+      if opts.nflag {
         let gr = getgrgid(id)
         if let gr {
           print(gr.pointee.gr_name ?? "")
@@ -267,9 +276,9 @@ extension UnsafeMutablePointer<group> {
 #endif
     }
     
-    if uflag {
-      let id = pw != nil ? pw!.pw_uid : rflag ? getuid() : geteuid();
-      if nflag {
+    if opts.uflag {
+      let id = pw != nil ? pw!.pw_uid : opts.rflag ? getuid() : geteuid();
+      if opts.nflag {
         if let pwx = getpwuid(id) {
           pw = pwx.pointee
           print(pw!.name)
@@ -285,15 +294,15 @@ extension UnsafeMutablePointer<group> {
 #endif
     }
     
-    if Gflag {
-      group(pw, nflag )
+    if opts.Gflag {
+      group(pw, opts.nflag )
 #if !DEBUG
       return
 #endif
     }
     
 #if !os(macOS)
-    if Mflag {
+    if opts.Mflag {
       maclabel();
 #if !DEBUG
       return
@@ -301,14 +310,14 @@ extension UnsafeMutablePointer<group> {
     }
 #endif
     
-    if Pflag {
+    if opts.Pflag {
       pline(pw)
 #if !DEBUG
       return
 #endif
     }
     
-    if pflag {
+    if opts.pflag {
       pretty(pw);
 #if !DEBUG
       return
@@ -316,12 +325,12 @@ extension UnsafeMutablePointer<group> {
     }
     
     
-    if flagCount == 0 {
+    if opts.flagCount == 0 {
       if let pw {
         id_print(pw, true, 0, 0);
       }
       else {
-        id = getuid();
+        let id = getuid();
         pw = getpwuid(id).pointee
         id_print(pw, false, 1, 1);
       }

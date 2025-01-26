@@ -34,14 +34,19 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 @main final class Nice : ShellCommand {
   let DEFNICE : Int32 = 10
   var niceness: Int32 = 10
-  var args = [String]()
   
-  func parseOptions() throws(CmdErr) {
+  struct CommandOptions {
+    var args = [String]()
+  }
+  
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    
+    var opts = CommandOptions()
     var ep: UnsafeMutablePointer<CChar>?
     
     
@@ -76,14 +81,15 @@ import shared
       }
     }
     
-    args = go.remaining
+    opts.args = go.remaining
     
-    if args.count == 0 {
+    if opts.args.count == 0 {
       throw CmdErr(1)
     }
+    return opts
   }
   
-  func runCommand() throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
     
     errno = 0
     niceness += getpriority(PRIO_PROCESS, 0)
@@ -93,13 +99,13 @@ import shared
       print("setpriority warning")
     }
       
-    let evpa = args.dropFirst().map { strdup($0) }
-    execvp(args[0], evpa)
+    let evpa = opts.args.dropFirst().map { strdup($0) }
+    execvp(opts.args[0], evpa)
     
     let nn = String(cString: getprogname())
     
 //     let nn = String(cString: basename(argv[0]))
-    let n = "\(args[0])"
+    let n = "\(opts.args[0])"
     let e = String(cString: strerror( errno ))
     fputs("\(nn): \(n): \(e)\n", stderr)
     exit(errno == ENOENT ? 127 : 126)

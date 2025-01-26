@@ -34,57 +34,62 @@
  */
 
 import Foundation
-import shared
+import CMigration
 
 @main final class What : ShellCommand {
-    
+  struct CommandOptions {
     var qflag = false
     var sflag = false
-    var found = false
-    var file: String?
     //    var inStream: InputStream?
-  var args = [String]()
+    var args = [String]()
+  }
   
-  func parseOptions() throws(CmdErr) {
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
+    
     let go = BSDGetopt("qs")
     while let (ch, _) = try go.getopt() {
       switch ch {
       case "q":
-        qflag = true
+          opts.qflag = true
       case "s":
-        sflag = true
+          opts.sflag = true
       default:
         throw CmdErr(1)
       }
     }
     
-    args = go.remaining
+    opts.args = go.remaining
+    return opts
   }
   
-  func runCommand() async throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
+    var file: String?
+    var found = false
+
     do {
-      if args.count == 0 {
+      if opts.args.count == 0 {
         if let fh = FileHandle(forReadingAtPath: "/dev/stdin") {
-          if try await search(sflag, qflag, fh) {
+          if try await search(opts.sflag, opts.qflag, fh) {
             found = true
           }
         }
       } else {
-        for arg in args {
+        for arg in opts.args {
           file = arg
           
           if let inStream = FileHandle(forReadingAtPath: file!) {
             
             //        inStream = InputStream(fileAtPath: file!)
-            if !qflag {
+            if !opts.qflag {
               print("\(file!):")
             }
-            if try await search(sflag, qflag, inStream) {
+            if try await search(opts.sflag, opts.qflag, inStream) {
               found = true
             }
             try? inStream.close()
           } else {
-            if !qflag {
+            if !opts.qflag {
               print("\(file!)")
             }
             continue
