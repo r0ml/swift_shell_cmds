@@ -56,14 +56,14 @@ import Foundation
       fatalError()
     }
     print(String(cString: p!))
-    if ferror(stdout) != 0 || fflush(stdout) != 0 {
+    if Darwin.ferror(Darwin.stdout) != 0 || fflush(Darwin.stdout) != 0 {
       fatalError("stdout")
     }
-    exit(0)
+    Darwin.exit(0)
   }
   
   func usage() {
-    fputs("usage: logname\n", stderr)
-    exit(1)
+    Darwin.fputs("usage: logname\n", Darwin.stderr)
+    Darwin.exit(1)
   }
 }

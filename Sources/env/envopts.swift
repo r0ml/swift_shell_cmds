@@ -73,7 +73,7 @@ extension Env {
             (Darwin.getuid() != 0 ||
              (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0) {
             if env_verbosity > 1 {
-              Darwin.fputs("#env   matched:\t'\(candidate)'\n", stderr)
+              Darwin.fputs("#env   matched:\t'\(candidate)'\n", Darwin.stderr)
             }
             return true
         }
@@ -106,8 +106,8 @@ extension Env {
         }
         
         if env_verbosity > 1 {
-          Darwin.fputs("#env Searching:\t'\(path)'\n", stderr)
-          Darwin.fputs("#env  for file:\t'\(filename)'\n", stderr)
+          Darwin.fputs("#env Searching:\t'\(path)'\n", Darwin.stderr)
+          Darwin.fputs("#env  for file:\t'\(filename)'\n", Darwin.stderr)
         }
         
         fqname = nil

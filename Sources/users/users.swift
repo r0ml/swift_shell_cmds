@@ -45,8 +45,8 @@ import Foundation
     
     setutxent()
     
-    while let ut = getutxent() {
-      if ut.pointee.ut_type == USER_PROCESS {
+    while let ut = Darwin.getutxent() {
+      if ut.pointee.ut_type == Darwin.USER_PROCESS {
         withUnsafeBytes(of: ut.pointee.ut_user) { u in
           let j = u.bindMemory(to: CChar.self)
           let  m = String(cString: j.baseAddress!)
@@ -54,7 +54,7 @@ import Foundation
         }
       }
     }
-    endutxent()
+    Darwin.endutxent()
     
     //  let last = names.removeLast()
     var first = true
@@ -67,6 +67,6 @@ import Foundation
     }
     print("")
     
-    exit(0)
+    Darwin.exit(0)
   }
 }

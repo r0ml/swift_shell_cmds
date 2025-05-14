@@ -49,52 +49,18 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
   return str.replacingOccurrences(of: match, with: replstr)
 }
 
-/*
- // These all point to the same thing:
- // an array of strings which will be passed to the
- // subprocess as its argument list
- 
- var av: [String]? // mostly identical to bxp -- although probably bxp-1 (includes the command)
-var bxp: [String]? // the beginning of xxp
-var ep: [String]?
-var endxp: [String]?  // the end of xxp
-var xp: [String]?  // the current pointer in the building of xxp
- */
- 
-/*
- // These all point to the same thing:
- // the current argument being parsed
-var argp: String? // the pointer to the beginning of the current argument
-var bbp: String?  // the pointer to the beginning of the buffer containing arguments
-var ebp: String? // the end of the buffer containing arguments
-var p: String? // the current position of the end of the current argument
- */
-
-// var replstr: String?
-// var eofstr: String?
-
-// var count: Int = 0
-// var rval: Int = 0
-// var cnt: Int = 0
-// var jfound: Int = 0
-// var curprocs: Int = 0
-
-
-
-// var childerr: Int32 = 0
-
 @main final class Xargs : ShellCommand {
   let unix2003 = true
   var pad9314053: Int = MemoryLayout<UnsafePointer<CChar>>.size
-  let NOPID: pid_t = 0
+  let NOPID: Darwin.pid_t = 0
   
-  var childpids: Set<pid_t> = []
+  var childpids: Set<Darwin.pid_t> = []
   var jbxp : [String] = []
   var kbxp : [String] = []
   var rval = 0
   
   class CommandOptions {
-    var arg_max: Int = Int(sysconf(_SC_ARG_MAX))
+    var arg_max: Int = Int(Darwin.sysconf(Darwin._SC_ARG_MAX))
     var Jflag = false
     var Iflag = false
     var Lflag = 0
@@ -114,7 +80,7 @@ var p: String? // the current position of the end of the current argument
     // in Swift, I can just build a command line -- however long it is.
     //      var nline: Int = -1 // Int(sysconf(_SC_ARG_MAX)) - Int(MAXPATHLEN)
     var linelen: Int = -1
-    var rl: rlimit = rlimit()
+    var rl: rlimit = Darwin.rlimit()
     var replstr: String?
     var eofstr: String?
     var oflag = false
@@ -122,7 +88,7 @@ var p: String? // the current position of the end of the current argument
     
     var args : [String] = []
     
-    var inp : UnsafeMutablePointer<FILE>! = stdin
+    var inp : UnsafeMutablePointer<FILE>! = Darwin.stdin
   }
   
   enum PromptCases {
@@ -168,18 +134,18 @@ var p: String? // the current position of the end of the current argument
       option("input-file", /* "f" , */ .required_argument),
     ]
     
-    setlocale(LC_ALL, "")
+    Darwin.setlocale(Darwin.LC_ALL, "")
     
-    opts.nline = opts.arg_max - Int(MAXPATHLEN)
+    opts.nline = opts.arg_max - Int(Darwin.MAXPATHLEN)
     
     
     
-    var ep = environ
+    var ep = Darwin.environ
     
     let go = BSDGetopt_long(optstr, long_options)
     
     while let epp = ep.pointee {
-      opts.nline -= strlen(epp) + 1 + MemoryLayout<UnsafeMutablePointer<Int8>?>.size
+      opts.nline -= Darwin.strlen(epp) + 1 + MemoryLayout<UnsafeMutablePointer<Int8>?>.size
       ep = ep.advanced(by: 1)
     }
     opts.nline -= pad9314053
@@ -338,7 +304,7 @@ var p: String? // the current position of the end of the current argument
     // Constructs the next argument from stdin
 
     while true {
-      let ch = getc(opts.inp)
+      let ch = Darwin.getc(opts.inp)
 
       if ch == EOF {
         if insingle || indouble {
@@ -415,7 +381,7 @@ var p: String? // the current position of the end of the current argument
           break
         }
         if !insingle && !indouble {
-          let ch = getc(opts.inp)
+          let ch = Darwin.getc(opts.inp)
           if ch == EOF {
             throw CmdErr(1, "backslash at EOF")
           }
@@ -462,7 +428,7 @@ var p: String? // the current position of the end of the current argument
     var rr = 0
     for var tmpLast in avj {
       if rr < repls, let replstr = opts.replstr, tmpLast.contains(replstr) {
-          tmpLast = strnsubst(str: tmpLast, match: replstr, replstr: inpline)
+        tmpLast = strnsubst(str: tmpLast, match: replstr, replstr: inpline)
           rr += 1
         }
       tmp.append(tmpLast)
@@ -507,7 +473,7 @@ var p: String? // the current position of the end of the current argument
     }
 
     if opts.oflag {
-      inpath = _PATH_TTY
+      inpath = Darwin._PATH_TTY
     }
     
     if posix_spawn_file_actions_init(&file_actions) != 0 {
@@ -531,7 +497,7 @@ var p: String? // the current position of the end of the current argument
     let xy = (args.map { strdup($0.cString(using: .utf8)) }) + [UnsafeMutablePointer(bitPattern: 0)]
     defer { xy.forEach { free($0) } }
 
-    rc = posix_spawnp(&pid, args[0], &file_actions, nil, xy, environ)
+    rc = Darwin.posix_spawnp(&pid, args[0], &file_actions, nil, xy, Darwin.environ)
     
     if rc != 0 {
       waitchildren(jbxp[0], true, opts)
@@ -680,25 +646,25 @@ var p: String? // the current position of the end of the current argument
   
   
   func prompt() -> PromptCases {
-    var cre = regex_t()
-    var rsize: size_t = 0
+    var cre = Darwin.regex_t()
+    var rsize: Darwin.size_t = 0
     var match: Int32 = 0
     
-    let ttyfp = fopen(_PATH_TTY, "r")
+    let ttyfp = Darwin.fopen(_PATH_TTY, "r")
     if ttyfp != nil {
       return .two
     }
-    fputs("?...", stderr)
-    fflush(stderr)
-    let response = fgetln(ttyfp, &rsize)
-    if response == nil || regcomp(&cre, nl_langinfo(YESEXPR), REG_EXTENDED) != 0 {
-      fclose(ttyfp)
+    Darwin.fputs("?...", Darwin.stderr)
+    fflush(Darwin.stderr)
+    let response = Darwin.fgetln(ttyfp, &rsize)
+    if response == nil || Darwin.regcomp(&cre, Darwin.nl_langinfo(Darwin.YESEXPR), Darwin.REG_EXTENDED) != 0 {
+      Darwin.fclose(ttyfp)
       return .zero
     }
     response![Int(rsize) - 1] = 0
-    match = regexec(&cre, response, 0, nil, 0)
-    fclose(ttyfp)
-    regfree(&cre)
+    match = Darwin.regexec(&cre, response, 0, nil, 0)
+    Darwin.fclose(ttyfp)
+    Darwin.regfree(&cre)
     return match == 0 ? .one : .zero
   }
   
@@ -706,12 +672,11 @@ var p: String? // the current position of the end of the current argument
 
   func xexit(_ name: String, _ exit_code: Int, _ opts : CommandOptions) throws {
     waitchildren(name, true, opts)
-    exit(Int32(exit_code))
+    Darwin.exit(Int32(exit_code))
   }
   
   func waitchildren(_ name: String, _ waitl: Bool, _ opts : CommandOptions) {
     var waitall = waitl
-//    var pid: pid_t
     var cause_exit : Int32 = 0
     
     while let (pid, status) = Optional(xwait( waitall || childpids.count >= opts.maxprocs)) {
@@ -724,11 +689,11 @@ var p: String? // the current position of the end of the current argument
  */
       if pid <= 0 {
         if (cause_exit != 0) {
-          exit(cause_exit)
+          Darwin.exit(cause_exit)
         }
-        if (pid == -1 && errno != ECHILD) {
-          fputs("waitpid", stderr)
-          exit(1)
+        if (pid == -1 && errno != Darwin.ECHILD) {
+          Darwin.fputs("waitpid", Darwin.stderr)
+          Darwin.exit(1)
         }
         return
       }
@@ -737,11 +702,11 @@ var p: String? // the current position of the end of the current argument
       if status & 0x7f != 0x7f && status & 0x7f != 0 { // (WIFSIGNALED(status) != 0) {
         waitall = true
         cause_exit = 1
-        fputs("\(name): terminated with signal \(status & 0x7f); aborting", stderr)
+        Darwin.fputs("\(name): terminated with signal \(status & 0x7f); aborting", Darwin.stderr)
       } else if status >> 8 == 255 {
         waitall = true
         cause_exit = 1
-        fputs("\(name): exited with status 255; aborting", stderr)
+        Darwin.fputs("\(name): exited with status 255; aborting", Darwin.stderr)
       } else if (status >> 8) != 0 {
         rval = 1
       }

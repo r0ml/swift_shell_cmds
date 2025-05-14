@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXAggregateTarget section */
-		FCBA14FD14A144EC00AA698B /* All_OSX */ = {
+		FCBA14FD14A144EC00AA698B /* all_commands */ = {
 			isa = PBXAggregateTarget;
-			buildConfigurationList = FCBA14FE14A144EC00AA698B /* Build configuration list for PBXAggregateTarget "All_OSX" */;
+			buildConfigurationList = FCBA14FE14A144EC00AA698B /* Build configuration list for PBXAggregateTarget "all_commands" */;
 			buildPhases = (
 			);
 			dependencies = (
@@ -57,7 +57,7 @@
 				FCBA169D14A146D000AA698B /* PBXTargetDependency */,
 				FCBA169F14A146D000AA698B /* PBXTargetDependency */,
 			);
-			name = All_OSX;
+			name = all_commands;
 			productName = executables;
 		};
 /* End PBXAggregateTarget section */
@@ -4231,7 +4231,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				FCBA14FD14A144EC00AA698B /* All_OSX */,
+				FCBA14FD14A144EC00AA698B /* all_commands */,
 				FCBA149814A141FF00AA698B /* apply */,
 				E763BAB62C3DD91E00649ACB /* applyTest */,
 				FCBA14AE14A1422D00AA698B /* basename */,
@@ -8179,7 +8179,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		FCBA14FE14A144EC00AA698B /* Build configuration list for PBXAggregateTarget "All_OSX" */ = {
+		FCBA14FE14A144EC00AA698B /* Build configuration list for PBXAggregateTarget "all_commands" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				FCBA14FF14A144EC00AA698B /* Release */,

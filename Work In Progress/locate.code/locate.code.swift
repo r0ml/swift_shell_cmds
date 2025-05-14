@@ -63,7 +63,7 @@ func bgindex(_ x: UnsafePointer<CChar>) -> Int {
 #endif
 
 func usage() {
-    fputs("usage: locate.code common_bigrams < list > squozen_list\n", stderr)
+  Darwin.fputs("usage: locate.code common_bigrams < list > squozen_list\n", Darwin.stderr)
     exit(1)
 }
 

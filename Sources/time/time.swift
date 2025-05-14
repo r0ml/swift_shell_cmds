@@ -61,19 +61,19 @@ func siginfo(_ sig: Int32) {
 actor Stuff {
 //  var pid : pid_t = -1
   var status : Int32 = 0
-  var ru = rusage()
+  var ru = Darwin.rusage()
   var rusage_ret : Int32 = 0
-  var ruinfo = rusage_info_v4()
+  var ruinfo = Darwin.rusage_info_v4()
 
-  func w4(_ pid : pid_t) -> Int32 {
-    return wait4(pid, &status, 0, &ru)
+  func w4(_ pid : Darwin.pid_t) -> Int32 {
+    return Darwin.wait4(pid, &status, 0, &ru)
   }
 
   func lflagSetup(_ pid : pid_t) -> Int32 {
     withUnsafeMutableBytes(of: &ruinfo) {p in
       let qq = p.baseAddress
       let zz = qq!.assumingMemoryBound(to: rusage_info_t?.self)
-      rusage_ret = proc_pid_rusage(pid, RUSAGE_INFO_V4, zz)
+      rusage_ret = Darwin.proc_pid_rusage(pid, RUSAGE_INFO_V4, zz)
     }
     return rusage_ret
   }
@@ -96,8 +96,8 @@ actor Stuff {
   
   var xstatus : Int32 = 0
   var fh : FileHandle = FileHandle.standardOutput
-  var before_ts = timespec()
-  var after = timespec()
+  var before_ts = Darwin.timespec()
+  var after = Darwin.timespec()
   
   var pid : pid_t = -1
 
@@ -108,11 +108,11 @@ actor Stuff {
    */
   func getstathz() -> Int {
     
-    var mib = [CTL_KERN, KERN_CLOCKRATE]
+    var mib = [Darwin.CTL_KERN, Darwin.KERN_CLOCKRATE]
     return mib.withUnsafeMutableBufferPointer { mibp in
       var size = MemoryLayout<clockinfo>.size
-      var clockrate = clockinfo()
-      if sysctl(mibp.baseAddress, 2, &clockrate, &size, nil, 0) == -1 {
+      var clockrate = Darwin.clockinfo()
+      if Darwin.sysctl(mibp.baseAddress, 2, &clockrate, &size, nil, 0) == -1 {
         err(1, "sysctl kern.clockrate")
       }
       return Int(clockrate.stathz)
@@ -201,7 +201,7 @@ actor Stuff {
      */
     
     var opts = CommandOptions()
-    setlocale(LC_NUMERIC, "")
+    Darwin.setlocale(Darwin.LC_NUMERIC, "")
     opts.decimal_point = localeconv().pointee.decimal_point[0]
     
     let go = BSDGetopt("ahlo:p")
@@ -241,15 +241,15 @@ actor Stuff {
      * Block SIGCHLD so that the check for `child_running` doesn't miss the
      * handler before calling `sigsuspend` and blocking forever.
      */
-    sigaddset(&sigmask, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &sigmask, &origmask);
+     Darwin.sigaddset(&sigmask, Darwin.SIGCHLD);
+     Darwin.sigprocmask(Darwin.SIG_BLOCK, &sigmask, &origmask);
     
     /*
      * Ensure child signals are handled by the parent prior to fork; otherwise,
      * they could be missed between the child forking and calling `sigsuspend`.
      */
      */
-    signal(SIGCHLD, child_handler);
+    Darwin.signal(Darwin.SIGCHLD, child_handler);
     /*
     sigemptyset(&suspmask);
     
@@ -462,24 +462,24 @@ actor Stuff {
        * However, avoid actually dumping core from the current process.
        */
       if exitonsig != 0 {
-        signal(exitonsig, SIG_DFL)
+        Darwin.signal(exitonsig, Darwin.SIG_DFL)
         //      if (j == SIG_ERR) {
         //        warn("signal")
         //      } else {
-        var rl = rlimit()
+        var rl = Darwin.rlimit()
         rl.rlim_max = 0
         rl.rlim_cur = 0
-        if (setrlimit(RLIMIT_CORE, &rl) == -1) {
+        if (Darwin.setrlimit(RLIMIT_CORE, &rl) == -1) {
           warn("setrlimit")
         }
-        kill(getpid(), exitonsig);
+        Darwin.kill(Darwin.getpid(), exitonsig);
         //      }
       }
       
-      exit (WIFEXITED(xstatus) ? WEXITSTATUS(xstatus) : EXIT_FAILURE)
+    Darwin.exit (WIFEXITED(xstatus) ? WEXITSTATUS(xstatus) : Darwin.EXIT_FAILURE)
   }
   
-  func lflagPrint(_ fh : inout FileHandle, ru : rusage, rusage_ret : Int32, ruinfo : rusage_info_v4 ) {
+  func lflagPrint(_ fh : inout FileHandle, ru : Darwin.rusage, rusage_ret : Int32, ruinfo : Darwin.rusage_info_v4 ) {
     let hz = getstathz()
     
     let kk = hz * (ru.ru_utime.tv_sec + ru.ru_stime.tv_sec)

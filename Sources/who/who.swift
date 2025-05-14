@@ -69,7 +69,7 @@ import CMigration
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
 
-    setlocale(LC_TIME, "")
+    Darwin.setlocale(Darwin.LC_TIME, "")
     
     // #ifdef __APPLE__
     // let unix2003_std = true //  COMPAT_MODE("bin/who", "unix2003")
@@ -150,7 +150,7 @@ import CMigration
   func runCommand(_ opts : CommandOptions) throws(CmdErr) {
     if let arg = opts.arg {
 #if !os(macOS)
-      if setutxdb(UTXDB_ACTIVE, arg) != 0 {
+      if Darwin.setutxdb(UTXDB_ACTIVE, arg) != 0 {
         throw .opterr(1, arg)
       }
 #else
@@ -178,15 +178,15 @@ import CMigration
       }
     }
     
-    endutxent()
+    Darwin.endutxent()
     
 #if os(macOS)
-    if ferror(stdout) != 0 || fflush(stdout) != 0 {
+    if Darwin.ferror(Darwin.stdout) != 0 || fflush(Darwin.stdout) != 0 {
       throw CmdErr(1, "stdout")
     }
 #endif
     
-    exit(0)
+    Darwin.exit(0)
   }
   
   var usage = "usage: who [-abdHlmpqrstTu] [am I] [file]"
@@ -210,16 +210,16 @@ import CMigration
     print("FROM".padding(toLength: 16, withPad: " ", startingAt: 0), terminator: "\n")
   }
   
-  let d_first = nl_langinfo(D_MD_ORDER).pointee == ("d" as UnicodeScalar).value
+  let d_first = Darwin.nl_langinfo(Darwin.D_MD_ORDER).pointee == ("d" as UnicodeScalar).value
   
-  func row(ut: inout utmpx, _ o : CommandOptions) {
+  func row(ut: inout Darwin.utmpx, _ o : CommandOptions) {
     var buf = [CChar](repeating: 0, count: 80)
     //  var tty = [CChar](repeating: 0, count: Int(_PATH_DEV.count) + Int(_UTX_LINESIZE))
-    var sb = stat()
-    var idle: time_t = 0
-    var t: time_t = 0
+    var sb = Darwin.stat()
+    var idle: Darwin.time_t = 0
+    var t: Darwin.time_t = 0
     //    var d_first = -1
-    var tm: UnsafeMutablePointer<tm>?
+    var tm: UnsafeMutablePointer<Darwin.tm>?
     var login_pidstr : String = "???"
     
     var state = "?"
@@ -227,9 +227,10 @@ import CMigration
     if o.Tflag || o.uflag {
       withUnsafeBytes(of: ut.ut_line) { u in
         let tty = "\(_PATH_DEV)\(String(bytes:u, encoding: .utf8) ?? "???")"
+        // FIXME: Darwin.stat is ambiguous
         if stat(tty, &sb) == 0 {
-          state = sb.st_mode & (S_IWOTH|S_IWGRP) != 0 ? "+" : "-"
-          idle = time(nil) - sb.st_mtimespec.tv_sec
+          state = sb.st_mode & (Darwin.S_IWOTH|Darwin.S_IWGRP) != 0 ? "+" : "-"
+          idle = Darwin.time(nil) - sb.st_mtimespec.tv_sec
         }
       }
       if o.unix2003_std && !o.Tflag {
@@ -257,9 +258,9 @@ import CMigration
     if o.Tflag {
       print(String(format: "%c ", state), terminator: "")
     }
-    if ut.ut_type == BOOT_TIME {
+    if ut.ut_type == Darwin.BOOT_TIME {
       print("system boot".padding(toLength: 12, withPad: " ", startingAt: 0), terminator: " ")
-    } else if ut.ut_type == LOGIN_PROCESS {
+    } else if ut.ut_type == Darwin.LOGIN_PROCESS {
       print("LOGIN".padding(toLength: 12, withPad: " ", startingAt: 12), terminator: " ")
     } else {
       withUnsafeBytes(of: ut.ut_line) { u in
@@ -269,8 +270,8 @@ import CMigration
       }
     }
     t = ut.ut_tv.tv_sec
-    tm = localtime(&t)
-    strftime(&buf, buf.count, d_first ? "%e %b %R" : "%b %e %R", tm)
+    tm = Darwin.localtime(&t)
+    Darwin.strftime(&buf, buf.count, d_first ? "%e %b %R" : "%b %e %R", tm)
     print( String(cString: buf, encoding: .nonLossyASCII)!.padding(toLength: 12, withPad: " ", startingAt: 0), terminator: " ")
     if o.uflag {
       if idle < 60 {
@@ -308,7 +309,7 @@ import CMigration
   func process_utmp(_ o : CommandOptions) {
     //    var utx: UnsafeMutablePointer<utmpx>?
     
-    while let utx = getutxent() {
+    while let utx = Darwin.getutxent() {
       if o.aflag {
         row(ut: &utx.pointee, o)
       } else if !o.bflag && utx.pointee.ut_type == USER_PROCESS {
@@ -338,7 +339,7 @@ import CMigration
     let ncols = ttywidth()
     var num = 0
     
-    while let utx = getutxent() {
+    while let utx = Darwin.getutxent() {
       // FIXME: it's ut_name in Xcode, but ut_user in SPM!
       // but since it is the first element of the struct, just go with the struct
       let utnx = UnsafeRawPointer(utx).assumingMemoryBound(to: CChar.self)
@@ -373,7 +374,7 @@ import CMigration
     var tty: String // UnsafePointer<Int8>?
     
     
-    if let ttyx = ttyname(STDIN_FILENO) {
+    if let ttyx = Darwin.ttyname(STDIN_FILENO) {
       tty = String(cString: ttyx)
       if tty.hasPrefix(_PATH_DEV) { //  strncmp(tty, _PATH_DEV, strlen(_PATH_DEV) - 1) == 0 {
         tty = String(tty.dropFirst(_PATH_DEV.count)) //   += strlen(_PATH_DEV) - 1
@@ -383,7 +384,7 @@ import CMigration
     }
     
     let _ = tty.withCString { ttyc in
-      strlcpy(&ut.ut_line, ttyc, strlen(ttyc))
+      Darwin.strlcpy(&ut.ut_line, ttyc, strlen(ttyc))
     }
     
     if let utx = getutxline(&ut), utx.pointee.ut_type == USER_PROCESS {
@@ -399,9 +400,9 @@ import CMigration
     }
     let _ = name.withCString { n in
       //    strlcpy(&ut.ut_name, n, strlen(n))
-      strlcpy(&ut, n, strlen(n))
+      Darwin.strlcpy(&ut, n, strlen(n))
     }
-    gettimeofday(&ut.ut_tv, nil)
+    Darwin.gettimeofday(&ut.ut_tv, nil)
     row(ut: &ut, o)
   }
   
@@ -411,16 +412,16 @@ import CMigration
     //    var cols: UnsafeMutablePointer<Int8>?
     var ep: UnsafeMutablePointer<Int8>?
     
-    if let cols = getenv("COLUMNS"), cols.pointee != 0 {
-      errno = 0
-      let width = strtol(cols, &ep, 10)
-      if errno != 0 || width <= 0 || width > Int.max || ep == cols ||  ep?.pointee != 0 {
-        fputs("invalid COLUMNS environment variable ignored\n", stderr)
+    if let cols = Darwin.getenv("COLUMNS"), cols.pointee != 0 {
+      Darwin.errno = 0
+      let width = Darwin.strtol(cols, &ep, 10)
+      if Darwin.errno != 0 || width <= 0 || width > Int.max || ep == cols ||  ep?.pointee != 0 {
+        Darwin.fputs("invalid COLUMNS environment variable ignored\n", Darwin.stderr)
       } else {
         return Int(width)
       }
     }
-    if ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) != -1 {
+    if Darwin.ioctl(Darwin.STDOUT_FILENO, Darwin.TIOCGWINSZ, &ws) != -1 {
       return Int(ws.ws_col)
     }
     

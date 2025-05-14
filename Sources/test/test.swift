@@ -33,7 +33,7 @@ func error(_ msg : String, _ v : [String] ... ) {
 
 
 func eaccess(_ path : String, _ mode : Int32) -> Int32 {
-  return faccessat(AT_FDCWD, path, mode, AT_EACCESS)
+  return Darwin.faccessat(Darwin.AT_FDCWD, path, mode, Darwin.AT_EACCESS)
 }
 
 #elseif os(Linux)
@@ -559,7 +559,7 @@ class test {
   func getn(_ ss: String) -> Int {
     return ss.withCString { s in
       var p: UnsafeMutablePointer<CChar>?
-      let r: Int = strtol(s, &p, 10)
+      let r: Int = Darwin.strtol(s, &p, 10)
       
       if p == nil || s == p! {
         error("\(s): bad number")
@@ -570,7 +570,7 @@ class test {
                 "\(s): out of range")
       }
       
-      while isspace(Int32(p!.pointee)) != 0 {
+      while Darwin.isspace(Int32(p!.pointee)) != 0 {
         p = p!.successor()
       }
       
@@ -586,7 +586,7 @@ class test {
     let rr = ss.withCString {s in
       var p: UnsafeMutablePointer<CChar>?
       errno = 0
-      let r = strtoimax(s, &p, 10)
+      let r = Darwin.strtoimax(s, &p, 10)
       
       if p == nil || s == p! {
         error("\(s): bad number")
@@ -597,7 +597,7 @@ class test {
                 "\(s): out of range")
       }
       
-      while isspace(Int32(p!.pointee)) != 0 {
+      while Darwin.isspace(Int32(p!.pointee)) != 0 {
         p = p!.successor()
       }
       
@@ -625,8 +625,8 @@ class test {
   }
   
   func newerf(_ f1: String, _ f2: String) -> Int {
-    var b1 = stat()
-    var b2 = stat()
+    var b1 = Darwin.stat()
+    var b2 = Darwin.stat()
     
     if stat(f1, &b1) != 0 || stat(f2, &b2) != 0 {
       return 0
@@ -647,8 +647,8 @@ class test {
   }
   
   func equalf(_ f1: String, _ f2: String) -> Bool {
-    var b1 = stat()
-    var b2 = stat()
+    var b1 = Darwin.stat()
+    var b2 = Darwin.stat()
     
     return (stat(f1, &b1) == 0 &&
             stat(f2, &b2) == 0 &&

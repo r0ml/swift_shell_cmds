@@ -54,8 +54,8 @@ func reportRequest(_ signo: Int32) {
     let argc = CommandLine.argc
     let argv = CommandLine.arguments
     
-    var timeToSleep = timespec()
-    var timeSlept = timespec()
+    var timeToSleep = Darwin.timespec()
+    var timeSlept = Darwin.timespec()
     var d: Double = 0.0
     var original: time_t = 0
     var buf = [Character](repeating: " ", count: 2)
@@ -72,7 +72,7 @@ func reportRequest(_ signo: Int32) {
     withUnsafeMutablePointer(to: &d) { dp in
       withUnsafeMutablePointer(to: &buf) { bufp in
         withVaList([dp, bufp]) { va in
-          if vsscanf(argv.last!, "%lf%1s", va) != 1 {
+          if Darwin.vsscanf(argv.last!, "%lf%1s", va) != 1 {
             usage()
           }
         }
@@ -90,7 +90,7 @@ func reportRequest(_ signo: Int32) {
     original = timeToSleep.tv_sec
     timeToSleep.tv_nsec = Int(1e9 * (d - Double(timeToSleep.tv_sec)))
     
-      signal(SIGINFO, { reportRequest($0) } )
+    Darwin.signal(Darwin.SIGINFO, { reportRequest($0) } )
     
     while nanosleep(&timeToSleep, &timeSlept) != 0 {
       if reportRequested {
@@ -106,6 +106,6 @@ func reportRequest(_ signo: Int32) {
   func usage() {
     var fh = FileHandle.standardError
     print("usage: sleep seconds", to: &fh )
-    exit(1)
+    Darwin.exit(1)
   }
 }

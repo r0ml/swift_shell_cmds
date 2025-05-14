@@ -84,7 +84,7 @@ import Foundation
   }
   
     func usage() {
-      fputs("usage: realpath [-q] [path ...]\n", stderr)
+      Darwin.fputs("usage: realpath [-q] [path ...]\n", Darwin.stderr)
       exit(1)
     }
     }

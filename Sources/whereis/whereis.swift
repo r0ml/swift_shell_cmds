@@ -228,21 +228,21 @@ func colonify(_ cpp: [String]) -> String {
       
       var printed = 0
       if !opts.opt_q {
-        fputs("\(name):", stdout)
+        Darwin.fputs("\(name):", Darwin.stdout)
         printed += 1
       }
       if let bin {
         if printed > 0 {
-          fputs(" ", stdout)
+          Darwin.fputs(" ", Darwin.stdout)
         }
-        fputs(bin, stdout)
+        Darwin.fputs(bin, Darwin.stdout)
         printed += 1
       }
       if let man {
         if printed > 0 {
-          fputs(" ", stdout)
+          Darwin.fputs(" ", Darwin.stdout)
         }
-        fputs(man, stdout)
+        Darwin.fputs(man, Darwin.stdout)
         printed += 1
       }
       
@@ -258,7 +258,7 @@ func colonify(_ cpp: [String]) -> String {
        */
       
       if printed > 0 {
-        fputs("\n", stdout)
+        Darwin.fputs("\n", Darwin.stdout)
       }
     }
     
@@ -268,7 +268,7 @@ func colonify(_ cpp: [String]) -> String {
      }
      */
     
-    exit(0)
+    Darwin.exit(0)
   }
   
   func do_optB(_ name : String, _ opts : inout CommandOptions) -> String? {

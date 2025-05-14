@@ -107,8 +107,8 @@ import CMigration
 //     let nn = String(cString: basename(argv[0]))
     let n = "\(opts.args[0])"
     let e = String(cString: strerror( errno ))
-    fputs("\(nn): \(n): \(e)\n", stderr)
-    exit(errno == ENOENT ? 127 : 126)
+    Darwin.fputs("\(nn): \(n): \(e)\n", Darwin.stderr)
+    Darwin.exit(Darwin.errno == Darwin.ENOENT ? 127 : 126)
   }
   
   var usage = "usage: nice [-n increment] utility [argument ...]"

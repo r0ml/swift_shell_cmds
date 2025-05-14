@@ -68,11 +68,11 @@ import CMigration
     let len = buf2.count
     var fd: Int32
     repeat {
-      fd = open(tempname, O_RDWR|O_CREAT|O_TRUNC|O_SYNC|O_EXCL, 0644)
+      fd = Darwin.open(tempname, Darwin.O_RDWR|Darwin.O_CREAT|Darwin.O_TRUNC|Darwin.O_SYNC|Darwin.O_EXCL, 0644)
       if fd == -1 {
         switch errno {
-        case EEXIST:
-          if unlink(tempname) == -1 {
+          case Darwin.EEXIST:
+            if Darwin.unlink(tempname) == -1 {
             warn("unlink(\(tempname))")
             return nil
           }
@@ -88,41 +88,41 @@ import CMigration
       if write(fd, &pidx, MemoryLayout<pid_t>.size) != MemoryLayout<pid_t>.size {
         print("write(\(tempname),\(pid))")
         close(fd)
-        if unlink(tempname) == -1 {
+        if Darwin.unlink(tempname) == -1 {
           print("unlink(\(tempname))")
         }
         return nil
       }
     } else {
-      if write(fd, buf2, len) != len {
+      if Darwin.write(fd, buf2, len) != len {
         print("write(\(tempname),\(pid))")
-        close(fd)
-        if unlink(tempname) == -1 {
+        Darwin.close(fd)
+        if Darwin.unlink(tempname) == -1 {
           print("unlink(\(tempname))")
         }
         return nil
       }
     }
-    close(fd)
+    Darwin.close(fd)
     return tempname
   }
   
-  func p_exists(pid: pid_t) -> Bool {
+  func p_exists(pid: Darwin.pid_t) -> Bool {
     print("\(Pname): process \(pid) is ")
     if pid <= 0 {
       print("invalid")
       return false
     }
-    if kill(pid, 0) == -1 {
+    if Darwin.kill(pid, 0) == -1 {
       switch errno {
-      case ESRCH:
+        case Darwin.ESRCH:
         print("dead \(pid)")
         return false
-      case EPERM:
+        case Darwin.EPERM:
         print("alive")
         return true
       default:
-        print("state unknown: \(String(cString: strerror(errno)))")
+          print("state unknown: \(String(cString: Darwin.strerror(errno)))")
         return true
       }
     }
@@ -130,9 +130,9 @@ import CMigration
     return true
   }
   
-  func cklock(_ file: String, _ st: inout stat?, _ uucpstyle: Bool) -> Bool {
-    let fd = open(file, O_RDONLY)
-    var pid: pid_t = 0
+  func cklock(_ file: String, _ st: inout Darwin.stat?, _ uucpstyle: Bool) -> Bool {
+    let fd = Darwin.open(file, O_RDONLY)
+    var pid: Darwin.pid_t = 0
     
     print("\(Pname): checking extant lock <\(file)>")
     if fd == -1 {
@@ -142,7 +142,7 @@ import CMigration
       return true
     }
     
-    if st != nil && fstat(fd, &st!) == -1 {
+    if st != nil && Darwin.fstat(fd, &st!) == -1 {
       warn("stat(\(file))")
       close(fd)
       return true
@@ -152,11 +152,11 @@ import CMigration
     var buf = Data()
     
     if uucpstyle {
-      let len = read(fd, &pid, MemoryLayout<pid_t>.size)
+      let len = Darwin.read(fd, &pid, MemoryLayout<pid_t>.size)
       blx = len != MemoryLayout<pid_t>.size
     } else {
       withUnsafeTemporaryAllocation(byteCount: Int(BUFSIZ), alignment: 1) { p in
-        let len = read(fd, p.baseAddress!, Int(BUFSIZ) )
+        let len = Darwin.read(fd, p.baseAddress!, Int(BUFSIZ) )
         if len > 0 {
           buf = Data(bytes: p.baseAddress!, count: len)
         }
@@ -203,6 +203,7 @@ import CMigration
     
     if nx == nil {
       var sttmp = stat()
+      // FIXME: Darwin.stat is ambiguouos
       if stat(tmp, &sttmp) == -1 {
         warn("stat(\(tmp))")
         nx = true
@@ -217,12 +218,12 @@ import CMigration
     
     if let nx, !nx {
       let tmp2 = "\(tmp)-2"
-      if unlink(tmp2) == -1 {
+      if Darwin.unlink(tmp2) == -1 {
         warn("unlink(\(tmp2))")
       }
     }
 
-    if unlink(tmp) == -1 {
+    if Darwin.unlink(tmp) == -1 {
       warn("unlink\(tmp))")
     }
 
@@ -237,7 +238,7 @@ import CMigration
       return true
     }
     
-    var stlock = stat(), sttmp = stat(), stlock2 = stat()
+    var stlock = Darwin.stat(), sttmp = Darwin.stat(), stlock2 = Darwin.stat()
 
     var s = Optional(stlock)
     if (cklock(file, &s, uucpstyle)) {
@@ -254,7 +255,7 @@ import CMigration
          * file to protect it against multiple removals
          */
         let tmp2 = "\(tmp)-2"
-        if unlink(tmp2) == -1 && errno != ENOENT {
+    if Darwin.unlink(tmp2) == -1 && Darwin.errno != Darwin.ENOENT {
           warn("unlink(\(tmp2))")
           return true
         }
@@ -270,11 +271,12 @@ import CMigration
             return true
           }
         }
-        if link(file, tmp2) == -1 {
+    if Darwin.link(file, tmp2) == -1 {
           /* someone took our temp name! */
           warn("link(\(file), \(tmp2))")
           return false
         }
+    // FIXME: Darwin.stat is ambiguous
         if (stat(file, &stlock2) == -1) {
           warn("stat(\(file))")
           return false
@@ -309,7 +311,7 @@ import CMigration
   func bad_usage() {
     var fp = FileHandle.standardError
     print("\(Pname): USAGE: \(Pname) [-du] [-p PID] -f file", to: &fp)
-    exit(LOCK_FAIL)
+    Darwin.exit(LOCK_FAIL)
   }
   
   
@@ -332,13 +334,13 @@ import CMigration
           Debug = true
         case "p":
           if arg.count > 2 {
-             pid = pid_t(arg.dropFirst(2) ) ?? 0
+            pid = Darwin.pid_t(arg.dropFirst(2) ) ?? 0
           } else {
             if args.isEmpty {
               bad_usage()
             }
             let z = args.removeFirst()
-            pid = pid_t(z) ?? 0
+            pid = Darwin.pid_t(z) ?? 0
           }
           only_check = false // wants one
         case "f":
@@ -362,7 +364,7 @@ import CMigration
     }
     
     if only_check {
-      var s : stat? = nil
+      var s : Darwin.stat? = nil
       return cklock(file, &s, uucpstyle) ? LOCK_GOOD : LOCK_BAD
     }
     

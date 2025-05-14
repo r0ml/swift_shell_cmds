@@ -282,11 +282,11 @@ import CMigration
 
     if let fmt {
       guard let t = strptime(p, fmt, lt) else {
-        fputs("Failed conversion of ``\(p)'' using format ``\(fmt)''\n", stderr)
+        Darwin.fputs("Failed conversion of ``\(p)'' using format ``\(fmt)''\n", Darwin.stderr)
         throw badformat
       }
       if t.pointee != 0 {
-        fputs("Warning: Ignoring \(strlen(t)) extraneous characters in date string \(t)\n", stderr)
+        Darwin.fputs("Warning: Ignoring \(strlen(t)) extraneous characters in date string \(t)\n", Darwin.stderr)
       }
     } else {
       var t = p

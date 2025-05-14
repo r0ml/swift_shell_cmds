@@ -89,7 +89,7 @@ import os
         // splitSpaces(optarg, &optind)
       case "u":
         if env_verbosity != 0 {
-          Darwin.fputs("#env unset:\(optarg)\n", stderr)
+          Darwin.fputs("#env unset:\(optarg)\n", Darwin.stderr)
         }
           opts.rtrn = unsetenv(optarg)
           if opts.rtrn == -1 {
@@ -98,7 +98,7 @@ import os
       case "v":
         env_verbosity += 1
         if env_verbosity > 1 {
-          Darwin.fputs("#env verbosity now at \(env_verbosity)\n", stderr)
+          Darwin.fputs("#env verbosity now at \(env_verbosity)\n", Darwin.stderr)
         }
       case "?":
         fallthrough
@@ -110,7 +110,7 @@ import os
     if want_clear != 0 {
       environ = [:]
       if env_verbosity != 0 {
-        Darwin.fputs("#env clearing environ\n", stderr)
+        Darwin.fputs("#env clearing environ\n", Darwin.stderr)
       }
     }
     
@@ -123,7 +123,7 @@ import os
     for argv in opts.aa {
       if let p = argv.firstIndex(of: "=") {
         if env_verbosity != 0 {
-          Darwin.fputs("#env setenv:\(argv)\n", stderr)
+          Darwin.fputs("#env setenv:\(argv)\n", Darwin.stderr)
         }
         let key = String(argv[..<p])
         let value = String(argv[argv.index(after: p)...])
@@ -155,9 +155,9 @@ import os
         argv = search_paths(altpath, argv)
       }
       if env_verbosity != 0 {
-        Darwin.fputs("#env executing:\(argv)\n", stderr)
+        Darwin.fputs("#env executing:\(argv)\n", Darwin.stderr)
         for (argc, parg) in opts.aa.dropFirst().enumerated() {
-          Darwin.fputs("#env    arg[\(argc)]=\(parg)\n", stderr)
+          Darwin.fputs("#env    arg[\(argc)]=\(parg)\n", Darwin.stderr)
         }
         if env_verbosity > 1 {
           Darwin.sleep(1)

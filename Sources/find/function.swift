@@ -510,8 +510,8 @@ extension find {
         return false
       }
       
-      fflush(stdout)
-      fflush(stderr)
+      fflush(Darwin.stdout)
+      fflush(Darwin.stderr)
       
       
       

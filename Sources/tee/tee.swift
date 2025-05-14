@@ -36,7 +36,7 @@
 import Foundation
 import CMigration
 
-let DEFFILEMODE = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH
+let DEFFILEMODE = Darwin.S_IRUSR|Darwin.S_IWUSR|Darwin.S_IRGRP|Darwin.S_IWGRP|Darwin.S_IROTH|Darwin.S_IWOTH
 
 
 @main final class tee : ShellCommand {
@@ -70,7 +70,7 @@ let DEFFILEMODE = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH
           opts.append = true
         break
       case "i":
-        signal(SIGINT, SIG_IGN)
+          Darwin.signal(Darwin.SIGINT, Darwin.SIG_IGN)
         break
       case "?":
         fallthrough
@@ -89,9 +89,9 @@ let DEFFILEMODE = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH
     add(STDOUT_FILENO, "stdout")
     
     for arg in opts.args {
-      let fd = open(arg, opts.append ?
-                    O_WRONLY|O_CREAT|O_APPEND :
-                      O_WRONLY|O_CREAT|O_TRUNC, DEFFILEMODE)
+      let fd = Darwin.open(arg, opts.append ?
+                           Darwin.O_WRONLY|Darwin.O_CREAT|Darwin.O_APPEND :
+                            Darwin.O_WRONLY|Darwin.O_CREAT|Darwin.O_TRUNC, DEFFILEMODE)
       if fd < 0 {
         // warn(arg)
         throw CmdErr(1, arg)
@@ -103,7 +103,7 @@ let DEFFILEMODE = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH
     
    try withUnsafeMutablePointer(to: &buf) { (bufp) throws(CmdErr) in
       while true {
-        let rval = read(STDIN_FILENO, bufp, BSIZE)
+        let rval = Darwin.read(Darwin.STDIN_FILENO, bufp, BSIZE)
         if rval == 0 { break }
         if rval < 0 {
           err(1, "read")
@@ -113,7 +113,7 @@ let DEFFILEMODE = S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH
           
           var bp = bufp
           repeat {
-            let wval = write(p.fd, bp, n)
+            let wval = Darwin.write(p.fd, bp, n)
             if wval == -1 {
               throw CmdErr(1, p.name)
 //              warn( p.name)

@@ -251,7 +251,7 @@ let CLOCK_UPTIME = CLOCK_UPTIME_RAW
       
       setutxent()
       var nusers = 0
-      while let utmp = getutxent() {
+      while let utmp = Darwin.getutxent() {
 /*        struct addrinfo hints, *res;
         struct sockaddr_storage ss;
         struct sockaddr *sa = (struct sockaddr *)&ss;

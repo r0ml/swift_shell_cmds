@@ -41,11 +41,11 @@ func usage() {
 // #define S_ISREG(m)      (((m) & S_IFMT) == S_IFREG)     /* regular file */
 
 func S_ISREG(_ m : mode_t) -> Bool {
-  return (m & S_IFMT) == S_IFREG
+  return (m & Darwin.S_IFMT) == Darwin.S_IFREG
 }
 
 func isThere(candidate: String, silent: Bool) -> Bool {
-    var fin = stat()
+  var fin = Darwin.stat()
 
     if access(candidate, X_OK) == 0 && stat(candidate, &fin) == 0 && S_ISREG(fin.st_mode) && (getuid() != 0 || (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0) {
         if !silent {
@@ -117,8 +117,8 @@ func printMatches(path: String, filename: String, allpaths: Bool ) -> Bool {
     }
     
     for a in opts.args {
-      if a.count >= FILENAME_MAX || !printMatches(path: path, filename: a, allpaths: opts.allpaths) {
-        throw CmdErr(Int(EXIT_FAILURE))
+      if a.count >= Darwin.FILENAME_MAX || !printMatches(path: path, filename: a, allpaths: opts.allpaths) {
+        throw CmdErr(Int(Darwin.EXIT_FAILURE))
       }
     }
   }
