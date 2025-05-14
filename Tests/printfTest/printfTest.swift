@@ -19,7 +19,7 @@
 
 import ShellTesting
 
-struct printfTest : ShellTest {
+@Suite(.serialized) struct printfTest : ShellTest {
   let cmd = "printf"
   let suiteBundle = "shell_cmds_printfTest"
 

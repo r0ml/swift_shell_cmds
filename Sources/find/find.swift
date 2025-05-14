@@ -40,15 +40,15 @@ import Foundation
 import CMigration
 
 indirect enum P_un {
-  case g_data(_ a : gid_t)
-  case i_data(_ a : ino_t)
-  case m_data(_ a : mode_t)
+  case g_data(_ a : Darwin.gid_t)
+  case i_data(_ a : Darwin.ino_t)
+  case m_data(_ a : Darwin.mode_t)
   case fl_flags(_ a : UInt32, _ b : UInt32)
-  case l_data(_ a : nlink_t)
+  case l_data(_ a : Darwin.nlink_t)
   case d_data(Int16)
-  case o_data(off_t)
-  case t_data(timespec)
-  case u_data(uid_t)
+  case o_data(Darwin.off_t)
+  case t_data(Darwin.timespec)
+  case u_data(Darwin.uid_t)
   case mt_data(Int16)
   
   // need the indirect for this one.
@@ -57,7 +57,7 @@ indirect enum P_un {
   
   case a_data(String, String)
   case c_data(String)
-  case re_data(regex_t)
+  case re_data(Darwin.regex_t)
 }
 
 
@@ -66,7 +66,7 @@ indirect enum P_un {
 class ex {
   var e_argv : [String] = []  /* argv array */
   var e_orig : [String] = []   /* original strings */
-  var e_argmax = Int(_POSIX_ARG_MAX)
+  var e_argmax = Int(Darwin._POSIX_ARG_MAX)
 //  var e_len : [Int] = []    /* allocated length */
 //  var e_pbnum : Int32 = 0    /* base num. of args. used */
 //  var e_pbnum : Int32 = 0    /* base num. of args. used */
@@ -84,7 +84,7 @@ class ex {
 }*/
 
 struct MyFTSENT {
-  var e : FTSENT
+  var e : Darwin.FTSENT
   var nam : String
 }
 
@@ -233,7 +233,6 @@ extension find {
     }
     
     var planx = paren_squish(plan)
-    //  plan = ArraySlice<PLAN>(planx)
     planx = not_squish(planx)
     planx = or_squish(planx)
     return planx
@@ -259,7 +258,7 @@ extension find {
     var e: Int
     var myPaths: [String] = []
     var nonSearchableDirFound : Int32 = 0
-    var statInfo = stat()
+    var statInfo = Darwin.stat()
     
     myPaths = add_path(array: nil, newPath: nil)
     for path in paths {
@@ -284,13 +283,13 @@ extension find {
     
     let mp = myPaths.map { strdup($0) }
     
-    tree = fts_open(mp, ftsoptions, ((opts.issort != 0) ? find_compare : nil))
+    tree = Darwin.fts_open(mp, ftsoptions, ((opts.issort != 0) ? find_compare : nil))
     if tree == nil {
       err(1, "ftsopen")
     }
     
     exitstatus = nonSearchableDirFound
-    while let entryx = fts_read(tree) {
+    while let entryx = Darwin.fts_read(tree) {
       errno = 0
       let entryz = entryx.pointee
       let fts_path = String(cString: entryz.fts_path)
@@ -299,36 +298,36 @@ extension find {
       // it is a string longer than 1.  passing this struct as an argument will cause the name to get lost.
       // so, before the memory beyond the defined end of the struct is tampered with, grab the fts_name from
       // the struct.
-      let p = UnsafeRawPointer(entryx).advanced(by: MemoryLayout.offset(of: \FTSENT.fts_name)! )
+      let p = UnsafeRawPointer(entryx).advanced(by: MemoryLayout.offset(of: \Darwin.FTSENT.fts_name)! )
       let ftsName = String(data: Data(bytes: p, count: Int(entryz.fts_namelen)), encoding: .utf8)!
       
       if maxdepth != -1 && entryz.fts_level >= maxdepth {
-        if fts_set(tree, entryx, FTS_SKIP) != 0 {
+        if Darwin.fts_set(tree, entryx, Darwin.FTS_SKIP) != 0 {
           err(1, "\(fts_path)")
         }
       }
       
       switch Int32(entryz.fts_info) {
-      case FTS_D:
+        case Darwin.FTS_D:
           if (isdepth != 0) {
           continue
         }
-      case FTS_DP:
+        case Darwin.FTS_DP:
           if (isdepth == 0) {
           continue
         }
-      case FTS_DNR, FTS_NS:
-          if (ignore_readdir_race != 0) && entryz.fts_errno == ENOENT && entryz.fts_level > 0 {
+        case Darwin.FTS_DNR, Darwin.FTS_NS:
+          if (ignore_readdir_race != 0) && entryz.fts_errno == Darwin.ENOENT && entryz.fts_level > 0 {
           continue
         }
         fallthrough
-      case FTS_ERR:
+        case Darwin.FTS_ERR:
         fflush(stdout)
         warnx("\(fts_path): \(String(cString: strerror(entryz.fts_errno)))")
         exitstatus = 1
         continue
-      case FTS_W:
-          if ftsoptions & FTS_WHITEOUT != 0 {
+        case Darwin.FTS_W:
+          if ftsoptions & Darwin.FTS_WHITEOUT != 0 {
           break
         }
         continue
@@ -337,7 +336,7 @@ extension find {
       }
       
       if (opts.isxargs != 0) && fts_path.contains(where: { " \t\n\\'\"".contains($0) }) {
-        fflush(stdout)
+        fflush(Darwin.stdout)
         warnx("\(fts_path): illegal path")
         exitstatus = 1
         continue
@@ -358,13 +357,13 @@ extension find {
     
     finish_execplus()
     
-    if e != 0 && ((ignore_readdir_race == 0) || e != ENOENT) {
+    if e != 0 && ((ignore_readdir_race == 0) || e != Darwin.ENOENT) {
       // FIXME: it's the errc
       //    errc(1, e, "fts_read")
       err(1, "fts_read")
       
     }
-    fts_close(tree)
+    Darwin.fts_close(tree)
     return exitstatus
   }
 }

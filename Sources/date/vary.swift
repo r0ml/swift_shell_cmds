@@ -32,25 +32,6 @@ import Foundation
 
 extension Date {
 
-
-
-  /*
-   func adjhour(_ t: inout tm, _ type: Character, _ val: Int, _ mk: Int) -> Int {
-   var ret: time_t = 0
-
-   while true {
-   ret = mktime(&t)
-   if ret == -1 && t.tm_year > 68 && t.tm_year < 138 {
-   adjhour(&t, type == "-" ? type : "+", 1, 0)
-   } else {
-   break
-   }
-   }
-
-   return ret
-   }
-   */
-
   func domktime(_ t: inout tm, _ type: Character) -> Int {
     var ret: time_t = 0
 
@@ -67,8 +48,6 @@ extension Date {
   }
 
   func transf(_ t: [trans], _ arg: String) -> Int {
-    //    var f: Int = 0
-
     for f in 0..<t.count {
       if t[f].str.lowercased().hasPrefix(arg.lowercased()) || t[f].str.lowercased() == arg.lowercased() {
         return t[f].val
@@ -79,34 +58,6 @@ extension Date {
   }
 
   typealias Vary = [String]
-  /*{
-   var arg: String
-   var next: vary?
-   }*/
-  /*
-   func vary_append(_ v: vary?, _ arg: String) -> vary {
-   var result: vary
-   var nextp: inout vary?
-
-   if let v = v {
-   result = v
-   var temp = v
-   while let next = temp.next {
-   temp = next
-   }
-   nextp = temp.next
-   } else {
-   nextp = result
-   }
-
-   if let newVary = vary(arg: arg, next: nil) {
-   nextp = newVary
-   }
-
-   return result
-   }
-   */
-
 
   func daysinmonth(_ t: tm) -> Int {
     let year: Int = Int(t.tm_year) + 1900

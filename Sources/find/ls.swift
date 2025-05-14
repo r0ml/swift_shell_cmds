@@ -36,7 +36,7 @@
 import Foundation
 
 extension find {
-  func printlong(name: String, accpath: String, sb: stat) {
+  func printlong(name: String, accpath: String, sb: Darwin.stat) {
     //    var modep = [CChar](repeating: 0, count: 15)
     
     print(String(format: "%6ju %8lld ", sb.st_ino, sb.st_blocks), terminator: "")
@@ -51,14 +51,14 @@ extension find {
                  user_from_uid(sb.st_uid, 0), MAXLOGNAME - 1,
                  group_from_gid(sb.st_gid, 0)), terminator: "")
     
-    if (sb.st_mode & S_IFMT) == S_IFCHR || (sb.st_mode & S_IFMT) == S_IFBLK {
+    if (sb.st_mode & Darwin.S_IFMT) == Darwin.S_IFCHR || (sb.st_mode & Darwin.S_IFMT) == Darwin.S_IFBLK {
       print(String(format: "%#8jx ", sb.st_rdev), terminator: "")
     } else {
       print(String(format: "%8lld ", sb.st_size), terminator: "")
     }
     printtime(sb.st_mtime)
     print(name, terminator: "")
-    if (sb.st_mode & S_IFMT) == S_IFLNK {
+    if (sb.st_mode & Darwin.S_IFMT) == S_IFLNK {
       printlink(accpath)
     }
     print("")
@@ -74,7 +74,7 @@ extension find {
       d_first = 1
     }
     if lnow == 0 {
-      lnow = time(nil)
+      lnow = Darwin.time(nil)
     }
     
     let SIXMONTHS = ((365 / 2) * 86400)
@@ -84,20 +84,20 @@ extension find {
       format = d_first != 0 ? "%e %b  %Y " : "%b %e  %Y "
     }
     var fftime = ftime
-    if let tm = localtime(&fftime) {
-      strftime(&longstring, longstring.count, format, tm)
+    if let tm = Darwin.localtime(&fftime) {
+      Darwin.strftime(&longstring, longstring.count, format, tm)
     } else {
-      strlcpy(&longstring, "bad date val ", longstring.count)
+      Darwin.strlcpy(&longstring, "bad date val ", longstring.count)
     }
-    fputs(String(cString: longstring), stdout)
+    Darwin.fputs(String(cString: longstring), stdout)
   }
   
   func printlink(_ name: String) {
     //    var path = [CChar](repeating: 0, count: MAXPATHLEN)
     
-    withUnsafeTemporaryAllocation(byteCount: Int(MAXPATHLEN), alignment: 1) { p in
+    withUnsafeTemporaryAllocation(byteCount: Int(Darwin.MAXPATHLEN), alignment: 1) { p in
       let pp = p.assumingMemoryBound(to: CChar.self).baseAddress!
-      let lnklen = readlink(name, pp, Int(MAXPATHLEN) - 1)
+      let lnklen = readlink(name, pp, Int(Darwin.MAXPATHLEN) - 1)
       if lnklen == -1 {
         print(name, terminator: "")
         return

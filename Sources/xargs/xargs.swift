@@ -176,7 +176,6 @@ var p: String? // the current position of the end of the current argument
     
     var ep = environ
     
-    // FIXME: convert to getopt_long
     let go = BSDGetopt_long(optstr, long_options)
     
     while let epp = ep.pointee {

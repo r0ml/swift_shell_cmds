@@ -39,7 +39,7 @@ import Foundation
     var args = CommandLine.arguments
     args.removeFirst() // this is the executable name
     var nflag = false
-    let posix = getenv("POSIXLY_CORRECT") != nil || getenv("POSIX_PEDANTIC") != nil
+    let posix = Darwin.getenv("POSIXLY_CORRECT") != nil || Darwin.getenv("POSIX_PEDANTIC") != nil
     
     if !posix && args[0] == "-n" {
       nflag = true
@@ -49,7 +49,7 @@ import Foundation
     var firstTime = true
     for arg in args {
       if !firstTime {
-        putchar(32)
+        Darwin.putchar(32)
       } else {
         firstTime = false
       }
@@ -64,38 +64,23 @@ import Foundation
     }
     
     if !nflag {
-      putchar(10)
+      Darwin.putchar(10)
     }
     
-    
-    /*
-     for _ in 0..<argLen {
-     cur = printOneChar(cur: cur!, posix: posix, bytesLenOut: &bytesLen)
-     }
-     
-     if lastArg && nflag == 0 {
-     putchar(10)
-     } else if !lastArg && !ignoreArg {
-     putchar(32)
-     }
-     
-     fflush(stdout)
-     */
-    
     fflush(stdout)
-    exit(0)
+    Darwin.exit(0)
   }
   
   static func printEscapeChar(cur: inout String, posix: Bool) {
     if cur.isEmpty {
-      putchar(92)
+      Darwin.putchar(92)
       return
     }
     
     let z =  cur.removeFirst()
     if z == "c" {
       fflush(stdout)
-      exit(0)
+      Darwin.exit(0)
     }
     
     if !posix {
@@ -104,21 +89,21 @@ import Foundation
 
     switch z {
           case "a":
-              putchar(7)
+        Darwin.putchar(7)
           case "b":
-              putchar(8)
+        Darwin.putchar(8)
           case "f":
-              putchar(12)
+        Darwin.putchar(12)
           case "n":
-              putchar(10)
+        Darwin.putchar(10)
           case "r":
-              putchar(13)
+        Darwin.putchar(13)
           case "t":
-              putchar(9)
+        Darwin.putchar(9)
           case "v":
-              putchar(11)
+        Darwin.putchar(11)
           case "\\":
-              putchar(92)
+        Darwin.putchar(92)
           case "0":
               var j = 0, num = 0
       while true {
@@ -136,7 +121,7 @@ import Foundation
           break
         }
       }
-              putchar(Int32(num))
+        Darwin.putchar(Int32(num))
           default:
       print( z, terminator: "" )
           }

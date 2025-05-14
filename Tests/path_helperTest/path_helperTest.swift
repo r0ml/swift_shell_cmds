@@ -28,7 +28,7 @@ import ShellTesting
     let tdx = "\(td)/empty.XXXXXXXX"
     try FileManager.default.createDirectory(atPath: tdx, withIntermediateDirectories: true)
     
-    let ex = "PATH=\"\"; export PATH;\n"
+    let ex = "PATH=\"\"; export PATH;\nMANPATH=\":\"; export MANPATH;\n"
     try await run(output: ex, env: ["PATH":"", "PATH_HELPER_ROOT":tdx, "MANPATH":""] )
   }
 
@@ -58,6 +58,7 @@ MANPATH="c:d:"; export MANPATH;
     try await run(output: res, env: ["PATH":"a:b", "PATH_HELPER_ROOT":tdx, "MANPATH":"c:d"] )
   }
   
+  // FIXME: doesn't pass when run from command line, but passes when run from XCode
   @Test("combine defaults and add-ons in that order") func combine() async throws {
     let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)
     let tdx = "\(td)/combine.XXXXXXXX"
@@ -72,6 +73,7 @@ MANPATH="c:d:"; export MANPATH;
     try await run(output: res, env: [ "PATH_HELPER_ROOT":tdx, "PATH":"" ] )
   }
   
+  // FIXME: doesn't pass when run from command line, but passes when run from XCode
   @Test("read add-ons in correct order") func order() async throws {
     let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)
     let tdx = "\(td)/order.XXXXXXXX"

@@ -34,7 +34,7 @@ import ShellTesting
   let cmd = "basename"
   let suiteBundle = "shell_cmds_basenameTest"
   
-  @Test(arguments: [("/usr/bin", "bin"), ("/usr", "usr"), ("/", "/") , ("///", "/"), ("/usr//", "usr"), ("//usr//bin", "bin"), ("usr", "usr"), ("usr/bin", "bin")])
+  @Test(.serialized, arguments: [("/usr/bin", "bin"), ("/usr", "usr"), ("/", "/") , ("///", "/"), ("/usr//", "usr"), ("//usr//bin", "bin"), ("usr", "usr"), ("usr/bin", "bin")])
   func testBasic(_ i : String, _ o : String) async throws {
     try await run(output: o+"\n", args: i)
 

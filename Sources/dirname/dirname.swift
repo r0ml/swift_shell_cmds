@@ -60,7 +60,7 @@ import CMigration
     for v in opts.args {
       v.withCString { vv in
         let vvv = UnsafeMutablePointer(mutating: vv)
-        if let p = dirname(vvv) {
+        if let p = Darwin.dirname(vvv) {
           print( String(cString: p) )
         }
       }

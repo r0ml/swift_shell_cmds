@@ -56,5 +56,5 @@ func queryuser(_ argv: [String]) -> Bool {
   } else {
     print("\n")
   }
-  return rpmatch(resp) != 0
+  return Darwin.rpmatch(resp) != 0
 }

@@ -94,7 +94,7 @@ struct CommandOptions {
     let n = mm.reduce(0, { max($0, Int($1.output.1)!)})
 
     let tmpShell = ProcessInfo.processInfo.environment["SHELL"]
-    opts.shell = tmpShell ?? _PATH_BSHELL
+    opts.shell = tmpShell ?? Darwin._PATH_BSHELL
     let slashp = opts.shell.lastIndex(of: "/")
     opts.name = slashp != nil ? String(opts.shell[opts.shell.index(after: slashp!)...]) : opts.shell
 
@@ -118,7 +118,7 @@ struct CommandOptions {
       opts.nargs = n
     }
     opts.args.removeFirst()
-    opts.arg_max = sysconf(_SC_ARG_MAX)
+    opts.arg_max = Darwin.sysconf(Darwin._SC_ARG_MAX)
     return opts
   }
 

@@ -31,7 +31,7 @@
 
 import ShellTesting
 
-@Suite("mktemp") class mktempTest : ShellTest {
+@Suite("mktemp", .serialized) class mktempTest : ShellTest {
   let cmd = "mktemp"
   let suiteBundle = "shell_cmds_mktempTest"
   

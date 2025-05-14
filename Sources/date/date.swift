@@ -102,8 +102,7 @@ import CMigration
   
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
-    var sb: stat = stat()
-    //    var i: Int = 0
+    var sb: Darwin.stat! = Darwin.stat()
 
     unix2003_std = true // compat_mode("bin/date", "unix2003")
 
@@ -149,9 +148,15 @@ import CMigration
         case "r":
           opts.rflag = true
           var tmp: UnsafeMutablePointer<CChar>?
-          tval = time_t(strtoq(optarg, &tmp, 0))
+          tval = Darwin.time_t(Darwin.strtoq(optarg, &tmp, 0))
           if tmp!.pointee != 0 {
-            if stat(optarg, &sb) == 0 {
+            let sr  = optarg.withCString { oo in
+              // FIXME: Darwin.stat won't compile because there is ambiguity between
+              // the type `stat` and the function `stat`
+              // https://github.com/swiftlang/swift/issues/57418
+              stat(oo, &sb)
+            }
+            if sr == 0 {
               // FIXME:  st_mtim  for non-Apple platforms
               tval = sb.st_mtimespec.tv_sec
             } else {
@@ -159,7 +164,7 @@ import CMigration
             }
           }
         case "u":
-          setenv("TZ", "UTC0", 1)
+          Darwin.setenv("TZ", "UTC0", 1)
         case "v":
           opts.v?.append(optarg)
         default:
@@ -170,7 +175,7 @@ import CMigration
     opts.argv = go.remaining
 
 
-    if !opts.rflag && time(&tval) == -1 {
+    if !opts.rflag && Darwin.time(&tval) == -1 {
       err(1, "time")
     }
 
@@ -206,7 +211,7 @@ import CMigration
 
   func runCommand(_ opts: CommandOptions) throws(CmdErr) {
 
-    var lt = localtime(&tval).pointee
+    var lt = Darwin.localtime(&tval).pointee
     if let v = opts.v {
       if let badv = vary_apply(v, &lt) {
         throw CmdErr(1, "\(badv): Cannot apply date adjustment")
@@ -218,7 +223,7 @@ import CMigration
     }
 
     if opts.format == rfc2822_format {
-      setlocale(LC_TIME, "C")
+      Darwin.setlocale(LC_TIME, "C")
     }
 
     strftime(&buf, buf.count, opts.format, &lt)
@@ -265,11 +270,11 @@ import CMigration
   }
 
   func setthetime(_ fmt: String?, _ p: String, _ jflag: Bool) throws(CmdErr) {
-    var utx = utmpx()
-    var tv = timeval()
+    var utx = Darwin.utmpx()
+    var tv = Darwin.timeval()
     var century: Int32
 
-    guard let lt = localtime(&tval) else {
+    guard let lt = Darwin.localtime(&tval) else {
       throw CmdErr(1, "invalid time")
     }
 
@@ -367,24 +372,24 @@ import CMigration
 
     if !jflag {
       utx.ut_type = Int16(OLD_TIME)
-      memset(&utx.ut_id, 0, MemoryLayout.size(ofValue: utx.ut_id))
-      gettimeofday(&utx.ut_tv, nil)
-      pututxline(&utx)
+      Darwin.memset(&utx.ut_id, 0, MemoryLayout.size(ofValue: utx.ut_id))
+      Darwin.gettimeofday(&utx.ut_tv, nil)
+      Darwin.pututxline(&utx)
       tv.tv_sec = tval
       tv.tv_usec = 0
       if settimeofday(&tv, nil) != 0 {
         err(1, "settimeofday (timeval)")
       }
       utx.ut_type = Int16(NEW_TIME)
-      gettimeofday(&utx.ut_tv, nil)
-      pututxline(&utx)
+      Darwin.gettimeofday(&utx.ut_tv, nil)
+      Darwin.pututxline(&utx)
 
       var ll = "???"
-      if let p = getlogin() { ll = String(cString: p) }
+      if let p = Darwin.getlogin() { ll = String(cString: p) }
 
 
       // FIXME: is this right?
-      ll.withCString {  withVaList([$0]) {    vsyslog(LOG_NOTICE, "date set by %s", $0 )  } }
+      ll.withCString {  withVaList([$0]) { Darwin.vsyslog(LOG_NOTICE, "date set by %s", $0 )  } }
     }
   }
 

@@ -63,16 +63,17 @@ extension Env {
      * This is copied almost verbatim from FreeBSD's usr.bin/which/which.c.
      */
     func is_there(_ candidate: String) -> Bool {
-        var fin = stat()
+      var fin = Darwin.stat()
         
         /* XXX work around access(2) false positives for superuser */
         if access(candidate, X_OK) == 0 &&
+            // FIXME: Darwin.stat is ambiguous
             stat(candidate, &fin) == 0 &&
             S_ISREG(fin.st_mode) &&
-            (getuid() != 0 ||
+            (Darwin.getuid() != 0 ||
              (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0) {
             if env_verbosity > 1 {
-                fputs("#env   matched:\t'\(candidate)'\n", stderr)
+              Darwin.fputs("#env   matched:\t'\(candidate)'\n", stderr)
             }
             return true
         }
@@ -105,8 +106,8 @@ extension Env {
         }
         
         if env_verbosity > 1 {
-            fputs("#env Searching:\t'\(path)'\n", stderr)
-            fputs("#env  for file:\t'\(filename)'\n", stderr)
+          Darwin.fputs("#env Searching:\t'\(path)'\n", stderr)
+          Darwin.fputs("#env  for file:\t'\(filename)'\n", stderr)
         }
         
         fqname = nil
@@ -116,9 +117,6 @@ extension Env {
                 d = "."
             }
             let candidate = "\(d)/\(filename)"
-            //        if snprintf(&candidate, Int(PATH_MAX), "%s/%s", d, filename) >= Int(PATH_MAX) {
-            //            continue
-            //        }
             if is_there(candidate) {
                 fqname = candidate
                 break
@@ -126,7 +124,7 @@ extension Env {
         }
         
         if fqname == nil {
-            errno = ENOENT
+          errno = Darwin.ENOENT
             err(127, filename)
         }
         return fqname!

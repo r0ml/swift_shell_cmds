@@ -87,7 +87,7 @@ final class hexdumpTest : ShellTest {
     //    #expect(j2 != nil && !j2!.isEmpty)
   }
   
-  @Test(arguments: 0...7, ["-s", "-vs"]) func v_flag(_ i : Int, _ f : String) async throws {
+  @Test(.serialized, arguments: 0...7, ["-s", "-vs"]) func v_flag(_ i : Int, _ f : String) async throws {
     let res1 = try inFile("d_hexdump_c.in")
     for i in 0...7 {
       let p = ShellProcess(cmd, f, "\(i)", res1)

@@ -60,7 +60,7 @@ var exitstatus : Int32 = 0
 
   // FIXME: these should really be CommandOptions
   var ftsoptions : Int32 = 0
-  var regexp_flags = REG_BASIC
+  var regexp_flags = Darwin.REG_BASIC
   var mindepth : Int32 = -1
   var maxdepth : Int32 = -1
   var isdepth : Int32 = 0
@@ -81,7 +81,7 @@ var exitstatus : Int32 = 0
   // from function.swift
   let FIND_SIZE : Int64 = 512
   var divsize = 1
-  var curdev = dev_t()  /* need a guaranteed illegal dev value */
+  var curdev = Darwin.dev_t()  /* need a guaranteed illegal dev value */
   var first = true
   var lastexecplus : [PLAN] = []
 
@@ -98,9 +98,9 @@ var exitstatus : Int32 = 0
     var opts = CommandOptions()
     var Hflag, Lflag : Bool
     
-    setlocale(LC_ALL, "")
+    Darwin.setlocale(LC_ALL, "")
     
-    time(&now) /* initialize the time-of-day */
+    Darwin.time(&now) /* initialize the time-of-day */
     
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
     unix2003_compat = true // COMPAT_MODE("bin/find", "unix2003")
@@ -110,14 +110,14 @@ var exitstatus : Int32 = 0
     Hflag = false
     Lflag = false
     
-    var ftsoptions = FTS_NOSTAT | FTS_PHYSICAL
+    var ftsoptions = Darwin.FTS_NOSTAT | Darwin.FTS_PHYSICAL
     
     let go = BSDGetopt("EHLPXdf:sx")
     while let (ch, optarg) = try go.getopt() {
       
       switch (ch) {
       case "E":
-          regexp_flags |= REG_EXTENDED
+          regexp_flags |= Darwin.REG_EXTENDED
       case "H":
           Hflag = true
           Lflag = false
@@ -136,7 +136,7 @@ var exitstatus : Int32 = 0
       case "s":
           opts.issort = 1
       case "x":
-          ftsoptions |= FTS_XDEV
+          ftsoptions |= Darwin.FTS_XDEV
       case "?":
         fallthrough
       default:
@@ -147,11 +147,11 @@ var exitstatus : Int32 = 0
     opts.args = ArraySlice(go.remaining)
     
     if (Hflag) {
-      ftsoptions |= FTS_COMFOLLOW
+      ftsoptions |= Darwin.FTS_COMFOLLOW
     }
     if (Lflag) {
-      ftsoptions &= ~FTS_PHYSICAL
-      ftsoptions |= FTS_LOGICAL
+      ftsoptions &= ~Darwin.FTS_PHYSICAL
+      ftsoptions |= Darwin.FTS_LOGICAL
     }
     
     /*
@@ -187,7 +187,7 @@ var exitstatus : Int32 = 0
     // ???
     let dotfd = open(".", O_RDONLY | O_CLOEXEC, 0)
     if dotfd < 0 {
-      ftsoptions |= FTS_NOCHDIR
+      ftsoptions |= Darwin.FTS_NOCHDIR
     }
     
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)

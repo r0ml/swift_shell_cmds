@@ -62,7 +62,7 @@ import CMigration
       }
     }
 
-    opts.args = go.remaining // (optind..<argc).map { String(cString: argv[Int($0)]!) }
+    opts.args = go.remaining
 
     if opts.args.count < 1 {
       throw CmdErr(1)

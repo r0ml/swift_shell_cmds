@@ -37,6 +37,6 @@ import Foundation
 
 @main struct False {
   static func main() {
-    exit(1)
+    Darwin.exit(1)
   }
 }

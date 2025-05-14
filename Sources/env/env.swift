@@ -89,7 +89,7 @@ import os
         // splitSpaces(optarg, &optind)
       case "u":
         if env_verbosity != 0 {
-          fputs("#env unset:\(optarg)\n", stderr)
+          Darwin.fputs("#env unset:\(optarg)\n", stderr)
         }
           opts.rtrn = unsetenv(optarg)
           if opts.rtrn == -1 {
@@ -98,7 +98,7 @@ import os
       case "v":
         env_verbosity += 1
         if env_verbosity > 1 {
-          fputs("#env verbosity now at \(env_verbosity)\n", stderr)
+          Darwin.fputs("#env verbosity now at \(env_verbosity)\n", stderr)
         }
       case "?":
         fallthrough
@@ -110,7 +110,7 @@ import os
     if want_clear != 0 {
       environ = [:]
       if env_verbosity != 0 {
-        fputs("#env clearing environ\n", stderr)
+        Darwin.fputs("#env clearing environ\n", stderr)
       }
     }
     
@@ -123,13 +123,13 @@ import os
     for argv in opts.aa {
       if let p = argv.firstIndex(of: "=") {
         if env_verbosity != 0 {
-          fputs("#env setenv:\(argv)\n", stderr)
+          Darwin.fputs("#env setenv:\(argv)\n", stderr)
         }
         let key = String(argv[..<p])
         let value = String(argv[argv.index(after: p)...])
         rtrn = setenv(key, value, 1)
         if rtrn == -1 {
-          err(Int(EXIT_FAILURE), "setenv \(key)")
+          err(Int(Darwin.EXIT_FAILURE), "setenv \(key)")
         }
       }
     }
@@ -140,7 +140,7 @@ import os
       }
       
 #if os(macOS)
-      if ferror(stdout) != 0 || fflush(stdout) != 0 {
+      if Darwin.ferror(stdout) != 0 || fflush(stdout) != 0 {
         err(1, "stdout")
       }
 #endif
@@ -155,18 +155,18 @@ import os
         argv = search_paths(altpath, argv)
       }
       if env_verbosity != 0 {
-        fputs("#env executing:\(argv)\n", stderr)
+        Darwin.fputs("#env executing:\(argv)\n", stderr)
         for (argc, parg) in opts.aa.dropFirst().enumerated() {
-          fputs("#env    arg[\(argc)]=\(parg)\n", stderr)
+          Darwin.fputs("#env    arg[\(argc)]=\(parg)\n", stderr)
         }
         if env_verbosity > 1 {
-          sleep(1)
+          Darwin.sleep(1)
         }
       }
       
 //      execvp(argv, CommandLine.unsafeArgv.advanced(by: Int(optind)))
-      let az = opts.aa.map { $0.withCString { strdup($0) } } + [UnsafeMutablePointer<CChar>.init(bitPattern: 0)]
-        execvp(argv, az )
+      let az = opts.aa.map { $0.withCString { Darwin.strdup($0) } } + [UnsafeMutablePointer<CChar>.init(bitPattern: 0)]
+      Darwin.execvp(argv, az )
       err( (errno == ENOENT ? ExitCode.EXIT_ENOENT : ExitCode.EXIT_CANNOT_INVOKE).rawValue, argv)
       
     }

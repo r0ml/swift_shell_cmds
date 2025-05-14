@@ -1076,7 +1076,7 @@ extension find {
   func c_newer(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
     var fn_or_tspec: String
     var new: PLAN
-    var sb = stat()
+    var sb = Darwin.stat()
     var error: Int32
     
     fn_or_tspec = nextarg(option: option, argvp: &argvp)
@@ -1088,7 +1088,7 @@ extension find {
     
     
     if ((option.flags & F_TIME2_T) != 0) {
-      var td = timespec()
+      var td = Darwin.timespec()
       fn_or_tspec.withCString { p in
         // FIXME: get_date not implemented (it's a yacc file)
         fatalError("get_date not implemented")
@@ -1108,7 +1108,7 @@ extension find {
       // be lstat not stat
       error = lstat(fn_or_tspec, &sb)
 #else
-      if ((ftsoptions & FTS_PHYSICAL) != 0) {
+      if ((ftsoptions & Darwin.FTS_PHYSICAL) != 0) {
         error = lstat(fn_or_tspec, &sb)
       }
       else {
@@ -1145,11 +1145,11 @@ extension find {
    *  of the getgrnam() 9.2.1 [POSIX.1] function returns NULL.
    */
   func f_nogroup(plan: PLAN, entry: MyFTSENT) -> Bool {
-    return group_from_gid(entry.e.fts_statp.pointee.st_gid, 1) == nil
+    return Darwin.group_from_gid(entry.e.fts_statp.pointee.st_gid, 1) == nil
   }
   
   func c_nogroup(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
-    ftsoptions &= ~FTS_NOSTAT
+    ftsoptions &= ~Darwin.FTS_NOSTAT
     
     return PLAN(option)
   }
@@ -1165,7 +1165,7 @@ extension find {
   }
   
   func c_nouser(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
-    ftsoptions &= ~FTS_NOSTAT
+    ftsoptions &= ~Darwin.FTS_NOSTAT
     
     return PLAN(option)
   }
@@ -1178,7 +1178,7 @@ extension find {
    */
   func f_path(plan: PLAN, entry: MyFTSENT) -> Bool {
     if case let .c_data(cd) = plan.p_un {
-      return (fnmatch(cd, entry.e.fts_path,
+      return (Darwin.fnmatch(cd, entry.e.fts_path,
                       ((plan.flags & F_IGNCASE) != 0) ? FNM_CASEFOLD : 0) == 0)
     }
     fatalError("badly formed plan")
@@ -1197,7 +1197,7 @@ extension find {
   func f_perm(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
     if case let .m_data(md) = plan.p_un {
       let mode = entry.e.fts_statp.pointee.st_mode &
-      (S_ISUID|S_ISGID|S_ISTXT|S_IRWXU|S_IRWXG|S_IRWXO)
+      (Darwin.S_ISUID|Darwin.S_ISGID|Darwin.S_ISTXT|Darwin.S_IRWXU|Darwin.S_IRWXG|Darwin.S_IRWXO)
       if ((plan.flags & F_ATLEAST) != 0) {
         return (md | mode) == mode
       }
@@ -1224,10 +1224,10 @@ extension find {
   func c_perm(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
     var perm: String
     var new: PLAN
-    var set: UnsafeMutablePointer<mode_t>?
+    var set: UnsafeMutablePointer<Darwin.mode_t>?
     
     perm = nextarg(option: option, argvp: &argvp)
-    ftsoptions &= ~FTS_NOSTAT
+    ftsoptions &= ~Darwin.FTS_NOSTAT
     
     new = PLAN(option)
     
@@ -1235,7 +1235,7 @@ extension find {
       new.flags |= F_ATLEAST
       perm.removeFirst()
     } else if perm.hasPrefix("+") {
-      set = setmode((String(perm.dropFirst()))).assumingMemoryBound(to: mode_t.self)
+      set = Darwin.setmode((String(perm.dropFirst()))).assumingMemoryBound(to: Darwin.mode_t.self)
       if set != nil {
         new.flags |= F_ANY
         perm.removeFirst()
@@ -1243,18 +1243,18 @@ extension find {
       }
     }
     
-    set = setmode(perm).assumingMemoryBound(to: mode_t.self)
+    set = Darwin.setmode(perm).assumingMemoryBound(to: Darwin.mode_t.self)
     if set == nil {
       errx(1, "\(option.name): \(perm): illegal mode string")
     }
     
     new.p_un = .m_data(getmode(set, 0))
-    free(set)
+    Darwin.free(set)
     return new
   }
   
   func f_print(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
-    puts(entry.e.fts_path)
+    Darwin.puts(entry.e.fts_path)
     return true
   }
   
@@ -1265,8 +1265,8 @@ extension find {
   }
   
   func f_print0(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
-    fputs(entry.e.fts_path, stdout)
-    fputc(0, stdout)
+    Darwin.fputs(entry.e.fts_path, stdout)
+    Darwin.fputc(0, stdout)
     return true
   }
   
@@ -1282,7 +1282,7 @@ extension find {
   func f_regex(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
     var str: String
     var len: Int
-    var pmatch = regmatch_t()
+    var pmatch = Darwin.regmatch_t()
     var errcode: Int32
     var matched = false
     
@@ -1292,11 +1292,11 @@ extension find {
       pmatch.rm_so = 0
       pmatch.rm_eo = regoff_t(len)
       
-      errcode = regexec(&pre, str, 1, &pmatch, REG_STARTEND)
+      errcode = Darwin.regexec(&pre, str, 1, &pmatch, REG_STARTEND)
       
-      if errcode != 0 && errcode != REG_NOMATCH {
+      if errcode != 0 && errcode != Darwin.REG_NOMATCH {
         withUnsafeTemporaryAllocation(byteCount: Int(LINE_MAX), alignment: 1) { errbuf in
-          regerror(errcode, &pre, errbuf.baseAddress, errbuf.count)
+          Darwin.regerror(errcode, &pre, errbuf.baseAddress, errbuf.count)
           let rx = plan.flags & F_IGNCASE != 0 ? "-iregex" : "-regex"
           let errstr = String(cString: errbuf.assumingMemoryBound(to: CChar.self).baseAddress!)
           errx(1, "\(rx): \(errstr)")
@@ -1317,7 +1317,7 @@ extension find {
   func c_regex(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
     var new: PLAN
     var pattern: String
-    var pre = regex_t()
+    var pre = Darwin.regex_t()
     var errcode: Int32
     
     //    pre = malloc(MemoryLayout<regex_t>.size).assumingMemoryBound(to: regex_t.self)
@@ -1412,10 +1412,10 @@ extension find {
   
   func f_type(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
     if case let .m_data(md) = plan.p_un {
-      if md == S_IFDIR {
-        return entry.e.fts_info == FTS_D || entry.e.fts_info == FTS_DC || entry.e.fts_info == FTS_DNR || entry.e.fts_info == FTS_DOT || entry.e.fts_info == FTS_DP
+      if md == Darwin.S_IFDIR {
+        return entry.e.fts_info == Darwin.FTS_D || entry.e.fts_info == Darwin.FTS_DC || entry.e.fts_info == Darwin.FTS_DNR || entry.e.fts_info == Darwin.FTS_DOT || entry.e.fts_info == Darwin.FTS_DP
       } else {
-        return (entry.e.fts_statp.pointee.st_mode & S_IFMT) == md
+        return (entry.e.fts_statp.pointee.st_mode & Darwin.S_IFMT) == md
       }
     }
     fatalError("badly formed plan")
@@ -1425,28 +1425,28 @@ extension find {
   func c_type(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
     var typestring: String
     var new: PLAN
-    var mask = mode_t()
+    var mask = Darwin.mode_t()
     
     typestring = nextarg(option: option, argvp: &argvp)
     if typestring != "d" {
-      ftsoptions &= ~FTS_NOSTAT
+      ftsoptions &= ~Darwin.FTS_NOSTAT
     }
     
     switch typestring {
     case "b":
-      mask = S_IFBLK
+        mask = Darwin.S_IFBLK
     case "c":
-      mask = S_IFCHR
+        mask = Darwin.S_IFCHR
     case "d":
-      mask = S_IFDIR
+        mask = Darwin.S_IFDIR
     case "f":
-      mask = S_IFREG
+        mask = Darwin.S_IFREG
     case "l":
-      mask = S_IFLNK
+        mask = Darwin.S_IFLNK
     case "p":
-      mask = S_IFIFO
+        mask = Darwin.S_IFIFO
     case "s":
-      mask = S_IFSOCK
+        mask = Darwin.S_IFSOCK
     default:
       errx(1, "\(option.name): \(typestring): unknown type")
     }
@@ -1471,7 +1471,7 @@ extension find {
     var uid: uid_t
     
     username = nextarg(option: option, argvp: &argvp)
-    ftsoptions &= ~FTS_NOSTAT
+    ftsoptions &= ~Darwin.FTS_NOSTAT
     
     new = PLAN(option)
     p = getpwnam(username)
@@ -1495,7 +1495,7 @@ extension find {
   }
   
   func c_xdev(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
-    ftsoptions |= FTS_XDEV
+    ftsoptions |= Darwin.FTS_XDEV
     return PLAN(option)
   }
   
