@@ -31,10 +31,14 @@ int (*const builtinfunc[])(int, char **) = {
 	jobscmd,
   // FIXME: find this
 //	killcmd,
+  echocmd,
+  
 	localcmd,
   
   // FIXME: find this
 //	printfcmd,
+  echocmd,
+  
 	pwdcmd,
 	readcmd,
 	returncmd,
@@ -44,6 +48,8 @@ int (*const builtinfunc[])(int, char **) = {
   
   // FIXME: find this
 //	testcmd,
+  echocmd,
+  
 	timescmd,
 	trapcmd,
 	truecmd,
