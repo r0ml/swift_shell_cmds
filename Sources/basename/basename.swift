@@ -43,7 +43,6 @@ import CMigration
     var suffix: String?
   }
 
-
   // the actual main function, with the commandline arguments passed in so that testing
   // can invoke the main with mocked command line arguments
   func parseOptions() throws(CmdErr) -> CommandOptions {
@@ -95,6 +94,9 @@ import CMigration
     return String(p.dropLast(suffix.count))
   }
 
-  var usage : String = "usage: basename string [suffix]\n       basename [-a] [-s suffix] string [...]"
+  var usage : String = """
+usage: basename string [suffix]
+       basename [-a] [-s suffix] string [...]
+"""
 
 }

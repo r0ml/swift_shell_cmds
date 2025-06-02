@@ -154,7 +154,6 @@
 		E7E33DDB2D30EB8400478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DDA2D30EB8400478AF2 /* ShellTesting */; };
 		E7E33DDD2D30EB8800478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DDC2D30EB8800478AF2 /* ShellTesting */; };
 		E7E5A1982BEC32B2002EC4B4 /* apply.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E5A1972BEC32B2002EC4B4 /* apply.swift */; };
-		E7E5A19A2BEC85DE002EC4B4 /* chroot.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E5A1992BEC85DE002EC4B4 /* chroot.swift */; };
 		E7E5A19C2BEC8821002EC4B4 /* yes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E5A19B2BEC8821002EC4B4 /* yes.swift */; };
 		E7E5A19E2BEC8A01002EC4B4 /* false.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E5A19D2BEC8A01002EC4B4 /* false.swift */; };
 		E7E5A1A02BEC8A10002EC4B4 /* getopt.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7E5A19F2BEC8A10002EC4B4 /* getopt.swift */; };
@@ -230,7 +229,6 @@
 		FCBA031A14B507B60030BEB3 /* killall.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = FCBA139414A141A300AA698B /* killall.1 */; };
 		FCBA14ED14A1444E00AA698B /* apply.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = FCBA134614A141A300AA698B /* apply.1 */; };
 		FCBA14EF14A1446B00AA698B /* basename.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = FCBA134A14A141A300AA698B /* basename.1 */; };
-		FCBA14F214A1448F00AA698B /* chroot.8 in CopyFiles */ = {isa = PBXBuildFile; fileRef = FCBA134F14A141A300AA698B /* chroot.8 */; };
 		FCBA14F314A1449A00AA698B /* date.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = FCBA135314A141A300AA698B /* date.1 */; };
 		FCBA14F814A144CB00AA698B /* dirname.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = FCBA134C14A141A300AA698B /* dirname.1 */; };
 		FCBA14F914A144D000AA698B /* echo.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = FCBA135E14A141A300AA698B /* echo.1 */; };
@@ -906,7 +904,6 @@
 			dstPath = share/man/man8;
 			dstSubfolderSpec = 0;
 			files = (
-				FCBA14F214A1448F00AA698B /* chroot.8 in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
@@ -1303,7 +1300,6 @@
 		C686857B154725700025D623 /* systime.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = systime.1; sourceTree = "<group>"; };
 		CE799E6224B3982200E73238 /* doInstall.sh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = doInstall.sh; sourceTree = "<group>"; };
 		E7020DD82CA07E4800641953 /* allTests.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = allTests.xctestplan; sourceTree = "<group>"; };
-		E7020DE72CA1F83800641953 /* fastfind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = fastfind.swift; sourceTree = "<group>"; };
 		E7031E7C2BDA8E16009DBAAE /* basename.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = basename.swift; sourceTree = "<group>"; };
 		E7031E812BDAE1E1009DBAAE /* dirname.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = dirname.swift; sourceTree = "<group>"; };
 		E70AEB4D2C35DC8200196BD4 /* whereis.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = whereis.xctestplan; sourceTree = "<group>"; };
@@ -1352,7 +1348,6 @@
 		E7A46F952C1909E100AB34F5 /* hexdumpTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = hexdumpTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7A46F972C1909E200AB34F5 /* hexdumpTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hexdumpTest.swift; sourceTree = "<group>"; };
 		E7C4B68E2CE3D2A1003B031E /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		E7C4B6902CE3DDB5003B031E /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		E7D361F02C0D0390003756C2 /* basenameTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = basenameTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7D361F22C0D0390003756C2 /* basenameTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = basenameTest.swift; sourceTree = "<group>"; };
 		E7D361F82C0D03D5003756C2 /* basename.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = basename.xctestplan; sourceTree = "<group>"; };
@@ -1360,7 +1355,6 @@
 		E7DF6BC02C005C19000F6D03 /* xargsTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = xargsTest.swift; sourceTree = "<group>"; };
 		E7DF6BC62C006017000F6D03 /* xargs.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = xargs.xctestplan; sourceTree = "<group>"; };
 		E7E5A1972BEC32B2002EC4B4 /* apply.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = apply.swift; sourceTree = "<group>"; };
-		E7E5A1992BEC85DE002EC4B4 /* chroot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = chroot.swift; sourceTree = "<group>"; };
 		E7E5A19B2BEC8821002EC4B4 /* yes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = yes.swift; sourceTree = "<group>"; };
 		E7E5A19D2BEC8A01002EC4B4 /* false.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = false.swift; sourceTree = "<group>"; };
 		E7E5A19F2BEC8A10002EC4B4 /* getopt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = getopt.swift; sourceTree = "<group>"; };
@@ -1369,7 +1363,6 @@
 		E7E5A1A52BEC8A3D002EC4B4 /* jot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = jot.swift; sourceTree = "<group>"; };
 		E7E5A1A72BEC8A4A002EC4B4 /* kill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = kill.swift; sourceTree = "<group>"; };
 		E7E5A1A92BEC8A59002EC4B4 /* killall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = killall.swift; sourceTree = "<group>"; };
-		E7E5A1AB2BEC8A67002EC4B4 /* lastcomm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = lastcomm.swift; sourceTree = "<group>"; };
 		E7E5A1AD2BEC8A7C002EC4B4 /* lockf.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = lockf.swift; sourceTree = "<group>"; };
 		E7E5A1AF2BEC8A87002EC4B4 /* logname.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = logname.swift; sourceTree = "<group>"; };
 		E7E5A1B12BEC8A92002EC4B4 /* mktemp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = mktemp.swift; sourceTree = "<group>"; };
@@ -1385,7 +1378,6 @@
 		E7E5A1C52BEC8B02002EC4B4 /* seq.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = seq.swift; sourceTree = "<group>"; };
 		E7E5A1C72BEC8B15002EC4B4 /* shlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = shlock.swift; sourceTree = "<group>"; };
 		E7E5A1C92BEC8B1F002EC4B4 /* sleep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = sleep.swift; sourceTree = "<group>"; };
-		E7E5A1CB2BEC8B35002EC4B4 /* systime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = systime.swift; sourceTree = "<group>"; };
 		E7E5A1CD2BEC8B3D002EC4B4 /* tee.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = tee.swift; sourceTree = "<group>"; };
 		E7E5A1CF2BEC8B48002EC4B4 /* test.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = test.swift; sourceTree = "<group>"; };
 		E7E5A1D12BEC8B54002EC4B4 /* time.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = time.swift; sourceTree = "<group>"; };
@@ -1397,14 +1389,6 @@
 		E7E5A1DE2BEC8BB6002EC4B4 /* which.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = which.swift; sourceTree = "<group>"; };
 		E7E5A1E02BEC8BBF002EC4B4 /* who.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = who.swift; sourceTree = "<group>"; };
 		E7E5A1E42BEC8BE1002EC4B4 /* xargs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = xargs.swift; sourceTree = "<group>"; };
-		E7E5A1E62BEC8BFB002EC4B4 /* fmt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = fmt.swift; sourceTree = "<group>"; };
-		E7E5A1E82BEC8C03002EC4B4 /* pr_time.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = pr_time.swift; sourceTree = "<group>"; };
-		E7E5A1EA2BEC8C11002EC4B4 /* proc_compare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = proc_compare.swift; sourceTree = "<group>"; };
-		E7E5A1EC2BEC8C1A002EC4B4 /* w.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = w.swift; sourceTree = "<group>"; };
-		E7E5A1F02BEC8C58002EC4B4 /* locate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = locate.swift; sourceTree = "<group>"; };
-		E7E5A1F22BEC8C5F002EC4B4 /* util.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = util.swift; sourceTree = "<group>"; };
-		E7E5A1F42BEC8C6E002EC4B4 /* locate.code.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = locate.code.swift; sourceTree = "<group>"; };
-		E7E5A1F62BEC8C79002EC4B4 /* locate.bigram.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = locate.bigram.swift; sourceTree = "<group>"; };
 		E7E5A1F82BEC8C94002EC4B4 /* conv.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = conv.swift; sourceTree = "<group>"; };
 		E7E5A1FA2BEC8C9B002EC4B4 /* display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = display.swift; sourceTree = "<group>"; };
 		E7E5A1FC2BEC8CA5002EC4B4 /* hexdump.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = hexdump.swift; sourceTree = "<group>"; };
@@ -1423,9 +1407,6 @@
 		E7E5A2162BEC8D48002EC4B4 /* echo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = echo.swift; sourceTree = "<group>"; };
 		E7E5A2182BEC8D54002EC4B4 /* vary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = vary.swift; sourceTree = "<group>"; };
 		E7E5A21A2BEC8D5A002EC4B4 /* date.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = date.swift; sourceTree = "<group>"; };
-		E7EBF7A02CA36A0700AFAB94 /* xo.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = xo.h; sourceTree = "<group>"; };
-		E7EBF7A12CA36A9300AFAB94 /* xo.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = xo.c; sourceTree = "<group>"; };
-		E7EBF7A32CA36A9900AFAB94 /* w-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "w-Bridging-Header.h"; sourceTree = "<group>"; };
 		E7EC84CA2C4621A30098A4EB /* reniceTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = reniceTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7EC84D52C4621BB0098A4EB /* seqTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = seqTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7EC84E02C4622410098A4EB /* killallTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = killallTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1446,7 +1427,6 @@
 		FCBA134614A141A300AA698B /* apply.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = apply.1; sourceTree = "<group>"; };
 		FCBA134A14A141A300AA698B /* basename.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = basename.1; sourceTree = "<group>"; };
 		FCBA134C14A141A300AA698B /* dirname.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = dirname.1; sourceTree = "<group>"; };
-		FCBA134F14A141A300AA698B /* chroot.8 */ = {isa = PBXFileReference; lastKnownFileType = text; path = chroot.8; sourceTree = "<group>"; };
 		FCBA135314A141A300AA698B /* date.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = date.1; sourceTree = "<group>"; };
 		FCBA135E14A141A300AA698B /* echo.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = echo.1; sourceTree = "<group>"; };
 		FCBA136214A141A300AA698B /* env.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = env.1; sourceTree = "<group>"; };
@@ -2040,50 +2020,12 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		E7020DD62CA05C2C00641953 /* Work In Progress */ = {
-			isa = PBXGroup;
-			children = (
-				E7C4B6902CE3DDB5003B031E /* README.md */,
-				E7020DE32CA1ECE000641953 /* chroot */,
-				E7178A412C9FBD0400D67968 /* lastcomm */,
-				E7EBF7A82CA36F7D00AFAB94 /* locate.code */,
-				E7EBF7A72CA36F7100AFAB94 /* locate.bigram */,
-				E7EBF7A62CA36F6900AFAB94 /* locate */,
-				E7178AA22C9FC2B400D67968 /* systime */,
-				E7020DE42CA1ED5A00641953 /* w */,
-			);
-			path = "Work In Progress";
-			sourceTree = "<group>";
-		};
 		E7020DDD2CA1EBD400641953 /* lockf */ = {
 			isa = PBXGroup;
 			children = (
 				E7E5A1AD2BEC8A7C002EC4B4 /* lockf.swift */,
 			);
 			path = lockf;
-			sourceTree = "<group>";
-		};
-		E7020DE32CA1ECE000641953 /* chroot */ = {
-			isa = PBXGroup;
-			children = (
-				FCBA134F14A141A300AA698B /* chroot.8 */,
-				E7E5A1992BEC85DE002EC4B4 /* chroot.swift */,
-			);
-			path = chroot;
-			sourceTree = "<group>";
-		};
-		E7020DE42CA1ED5A00641953 /* w */ = {
-			isa = PBXGroup;
-			children = (
-				E7E5A1E62BEC8BFB002EC4B4 /* fmt.swift */,
-				E7E5A1E82BEC8C03002EC4B4 /* pr_time.swift */,
-				E7E5A1EA2BEC8C11002EC4B4 /* proc_compare.swift */,
-				E7E5A1EC2BEC8C1A002EC4B4 /* w.swift */,
-				E7EBF7A02CA36A0700AFAB94 /* xo.h */,
-				E7EBF7A12CA36A9300AFAB94 /* xo.c */,
-				E7EBF7A32CA36A9900AFAB94 /* w-Bridging-Header.h */,
-			);
-			path = w;
 			sourceTree = "<group>";
 		};
 		E71789112C9D959800D67968 /* applyTest */ = {
@@ -2333,14 +2275,6 @@
 				E7E5A1A92BEC8A59002EC4B4 /* killall.swift */,
 			);
 			path = killall;
-			sourceTree = "<group>";
-		};
-		E7178A412C9FBD0400D67968 /* lastcomm */ = {
-			isa = PBXGroup;
-			children = (
-				E7E5A1AB2BEC8A67002EC4B4 /* lastcomm.swift */,
-			);
-			path = lastcomm;
 			sourceTree = "<group>";
 		};
 		E7178A432C9FBD3500D67968 /* logname */ = {
@@ -2599,14 +2533,6 @@
 			path = tee;
 			sourceTree = "<group>";
 		};
-		E7178AA22C9FC2B400D67968 /* systime */ = {
-			isa = PBXGroup;
-			children = (
-				E7E5A1CB2BEC8B35002EC4B4 /* systime.swift */,
-			);
-			path = systime;
-			sourceTree = "<group>";
-		};
 		E7178AA32C9FC2BC00D67968 /* sleep */ = {
 			isa = PBXGroup;
 			children = (
@@ -2733,32 +2659,6 @@
 			path = Manuals;
 			sourceTree = "<group>";
 		};
-		E7EBF7A62CA36F6900AFAB94 /* locate */ = {
-			isa = PBXGroup;
-			children = (
-				E7020DE72CA1F83800641953 /* fastfind.swift */,
-				E7E5A1F02BEC8C58002EC4B4 /* locate.swift */,
-				E7E5A1F22BEC8C5F002EC4B4 /* util.swift */,
-			);
-			path = locate;
-			sourceTree = "<group>";
-		};
-		E7EBF7A72CA36F7100AFAB94 /* locate.bigram */ = {
-			isa = PBXGroup;
-			children = (
-				E7E5A1F62BEC8C79002EC4B4 /* locate.bigram.swift */,
-			);
-			path = locate.bigram;
-			sourceTree = "<group>";
-		};
-		E7EBF7A82CA36F7D00AFAB94 /* locate.code */ = {
-			isa = PBXGroup;
-			children = (
-				E7E5A1F42BEC8C6E002EC4B4 /* locate.code.swift */,
-			);
-			path = locate.code;
-			sourceTree = "<group>";
-		};
 		E7F2F93F2C9DE8AA005DC4F2 /* dirnameTest */ = {
 			isa = PBXGroup;
 			children = (
@@ -2801,7 +2701,6 @@
 				E7020DD82CA07E4800641953 /* allTests.xctestplan */,
 				CE799E6224B3982200E73238 /* doInstall.sh */,
 				E7A1CD5B2C9A9DC300A95D6D /* Package.swift */,
-				E7020DD62CA05C2C00641953 /* Work In Progress */,
 				E717892C2C9DC62900D67968 /* Sources */,
 				E71789152C9DAF2000D67968 /* Tests */,
 				E7C4B6912CE3E0BB003B031E /* Manuals */,
@@ -4662,7 +4561,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7E5A19A2BEC85DE002EC4B4 /* chroot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

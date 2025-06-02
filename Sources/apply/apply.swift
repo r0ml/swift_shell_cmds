@@ -36,7 +36,8 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
+// import Foundation
+import Darwin
 import CMigration
 
 let magic = "%"

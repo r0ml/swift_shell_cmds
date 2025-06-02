@@ -51,4 +51,3 @@ Once the repository is checked out, it can be built, tests can be run, and comma
 
 Alternatively, one can use   `swift build` or `swift test` from the command line.  In this case, the commands are built into the directory .build.  One can then run the shell script `doInstall.sh` to copy the commands and man pages to `/opt/local`.
 
-The files in the directory `Work In Progress` are just that.  They are not (yet) included in building or testing.  
