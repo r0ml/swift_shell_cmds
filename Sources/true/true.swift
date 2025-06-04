@@ -33,10 +33,10 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
+import Darwin
 
 @main struct True {
   static func main() {
-    exit(0)
+    Darwin.exit(0)
   }
 }

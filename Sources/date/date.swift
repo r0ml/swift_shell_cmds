@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import os
 import CMigration
 
@@ -227,7 +226,8 @@ import CMigration
     }
 
     strftime(&buf, buf.count, opts.format, &lt)
-    printdate(String(cString: buf, encoding: .utf8) ?? "???")
+    let k = String(platformString: buf)
+    printdate(k)
   }
 
 

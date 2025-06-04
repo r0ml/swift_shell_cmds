@@ -7,7 +7,6 @@
  * into the public domain and is thus not subject to any copyright.
  */
 
-import Foundation
 import CMigration
 
 @main final class Getopt : ShellCommand {

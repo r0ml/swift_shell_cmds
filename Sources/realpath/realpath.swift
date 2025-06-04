@@ -33,8 +33,7 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
-
+import CMigration 
 @main class realpath {
   var qflag = 0
   var rval = 0

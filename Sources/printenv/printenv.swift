@@ -33,11 +33,11 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
+import CMigration
 
 @main class printenv {
   static func main() {
-    let env = ProcessInfo.processInfo.environment.sorted(by:  { $0.0 < $1.0 })
+    let env = getenv().sorted(by:  { $0.0 < $1.0 })
     for (key, value) in env {
       print("\(key)=\(value)")
     }

@@ -31,11 +31,8 @@
  *
  */
 
-import Foundation
-
 // Swift doesn't have a direct equivalent to C's getopt_long function, so the command line argument parsing will need to be done manually. Also, Swift doesn't have a direct equivalent to C's mkdtemp and mkstemp functions, so we'll need to use the FileManager class to create temporary directories and files. Here's a rough translation of the C code to Swift:
 
-import Foundation
 import CMigration
 
 @main final class mktemp : ShellCommand {
@@ -80,7 +77,7 @@ import CMigration
       case "p", "tmpdir":
           opts.tmpdir = optarg
           if opts.tmpdir == nil || opts.tmpdir!.isEmpty {
-            opts.tmpdir = ProcessInfo.processInfo.environment["TMPDIR"]
+            opts.tmpdir = getenv("TMPDIR")
         }
           opts.prefer_tmpdir = false
       case "q", "quiet":
@@ -112,7 +109,7 @@ import CMigration
     }
     
     if opts.tflag {
-      let envtmp = ProcessInfo.processInfo.environment["TMPDIR"]
+      let envtmp = getenv("TMPDIR")
       if opts.prefer_tmpdir || opts.tmpdir == nil {
         opts.tmpdir = envtmp
       }

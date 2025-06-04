@@ -33,8 +33,8 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
+import SystemPackage
 
     extension hexdump {
 
@@ -263,7 +263,9 @@ import CMigration
                     }
                     bzero(curp!.advanced(by: nread), need)
                     eaddress = address + Int64(nread)
-                    return String(data: Data(bytes: curp!, count: nread), encoding: .ascii)
+                  let k = curp!.bindMemory(to: UInt8.self, capacity: nread)
+                  let j = UnsafeBufferPointer(start:k, count: nread)
+                  return String(decoding: j, as: Unicode.ASCII.self)
                 }
                 n = fread(curp!.advanced(by: nread), 1 /* was sizeof(u_char) */,
                           length == -1 ? need : min(length, need), stdin)
@@ -284,7 +286,9 @@ import CMigration
                     if opts.vflag == .DUP || opts.vflag == .FIRST {
                       opts.vflag = .WAIT
                         }
-                        return String(data: Data(bytes: curp!, count: blocksize), encoding: .ascii)
+                    let k = curp!.bindMemory(to: UInt8.self, capacity: blocksize)
+                    let j = UnsafeBufferPointer(start:k, count: blocksize)
+                    return String(decoding: j, as: Unicode.ASCII.self)
                     }
                   if opts.vflag == .WAIT {
                         Swift.print("*")

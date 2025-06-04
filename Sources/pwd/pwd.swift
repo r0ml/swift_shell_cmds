@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration 
 
 @main final class pwd : ShellCommand {
@@ -42,9 +41,9 @@ import CMigration
   
   func getcwd_logical() -> String? {
     var lg = stat(), phy = stat()
-    let pwd = getenv("PWD")
+    let pwdStr = getenv("PWD")
     
-    if pwd != nil, let pwdStr = String(utf8String: pwd!), pwdStr.first == "/" {
+    if let pwdStr, pwdStr.first == "/" {
       if stat(pwdStr, &lg) == -1 || stat(".", &phy) == -1 {
         return nil
       }

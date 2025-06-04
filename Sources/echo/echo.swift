@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
+import CMigration
 
 @main struct Echo {
   static func main() {

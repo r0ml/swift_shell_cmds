@@ -36,8 +36,8 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
+import CoreFoundation
 
 #if SHELL
 @_cdecl("printfcmd") public func printfcmd(_ argc : Int32, _ argv : UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> Int32 {
@@ -59,7 +59,7 @@ class printf : ShellCommand {
     var args : ArraySlice<String> = []
   }
 
-  var encoding : String.Encoding
+//  var encoding : String.Encoding
 
   //  var myargv : ArraySlice<String> = []
 //  var myargc : Int
@@ -69,11 +69,11 @@ class printf : ShellCommand {
 setlocale(LC_ALL, "")
 #endif
 
-    let d = ProcessInfo.processInfo.environment["LC_ALL"] ?? ProcessInfo.processInfo.environment["LANG"] ?? "en_US.UTF8"
-    let e = d.split(separator: ".").last ?? "UTF8"
-    let a = CFStringConvertIANACharSetNameToEncoding( e as CFString)
-    let b = CFStringConvertEncodingToNSStringEncoding(a)
-    encoding = String.Encoding(rawValue: b)
+//    let d = getenv("LC_ALL") ?? getenv("LANG") ?? "en_US.UTF8"
+//    let e = d.split(separator: ".").last ?? "UTF8"
+//    let a = CFStringConvertIANACharSetNameToEncoding( e as CFString)
+//    let b = CFStringConvertEncodingToNSStringEncoding(a)
+//    encoding = String.Encoding(rawValue: b)
   }
   
 
@@ -205,21 +205,22 @@ setlocale(LC_ALL, "")
     func PF(_ f : String, _ _func: CVarArg) {
       if havewidth {
         if haveprec {
-          print(String(format: f, fieldwidth, precision, _func), terminator: "")
+          print(cFormat(f, fieldwidth, precision, _func), terminator: "")
         } else {
-          print(String(format: f, fieldwidth, _func), terminator: "")
+          print(cFormat(f, fieldwidth, _func), terminator: "")
         }
       } else if haveprec {
-        print(String(format: f, precision, _func), terminator: "")
+        print(cFormat(f, precision, _func), terminator: "")
       } else {
         
         switch _func {
-        case is String:
+/*        case is String:
         let _ = (_func as! String).withCString { s in
           withVaList([s]) { p in
             vprintf(f, p)
           }
         }
+ */
         default:
           let _ = withVaList([_func]) { p in
               vprintf(f, p)
@@ -369,7 +370,7 @@ setlocale(LC_ALL, "")
       if p.count == 1 && p.first == "\0" {
         print(p.first!, terminator: "")
       } else {
-        PF(String(start), p)
+        p.withCString { PF(String(start), $0 ) }
       }
       
       if getout != 0 {
@@ -382,7 +383,7 @@ setlocale(LC_ALL, "")
       }
     case "s":
       let p = getstr(&opts)
-      PF(String(start), p)
+        p.withCString { PF(String(start), $0) }
     case "d", "i", "o", "u", "x", "X":
       var f: String?
 //      var val: Int = 0

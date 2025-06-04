@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 @main class killCommand {
@@ -83,7 +82,7 @@ import CMigration
         print_signum(numsig)
         return 0
       }
-      printsignals(FileHandle.standardOutput)
+      printsignals(FileDescriptor.standardOutput)
       return 0
     }
     
@@ -200,10 +199,10 @@ import CMigration
   
   func nosig(_ s : String) {
     warnx("unknown signal \(s); valid signals:")
-    printsignals(FileHandle.standardError)
+    printsignals(FileDescriptor.standardError)
   }
   
-  func printsignals(_ fpx : FileHandle) {
+  func printsignals(_ fpx : FileDescriptor) {
     var fp = fpx
     print(signames.dropFirst().joined(separator: " ").uppercased(), to: &fp)
   }

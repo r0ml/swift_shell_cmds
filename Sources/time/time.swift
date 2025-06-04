@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 let PRIu64 = "u"
@@ -95,7 +94,7 @@ actor Stuff {
   }
   
   var xstatus : Int32 = 0
-  var fh : FileHandle = FileHandle.standardOutput
+  var fh : FileDescriptor = FileDescriptor.standardOutput
   var before_ts = Darwin.timespec()
   var after = Darwin.timespec()
   
@@ -119,7 +118,7 @@ actor Stuff {
     }
   }
   
-  func humantime(out: FileHandle, sec: Int, centisec: Int, options opts : CommandOptions) {
+  func humantime(out: inout FileDescriptor, sec: Int, centisec: Int, options opts : CommandOptions) {
     let days = sec / (60 * 60 * 24)
     let secx = sec % (60 * 60 * 24)
     let hrs = secx / (60 * 60)
@@ -137,10 +136,10 @@ actor Stuff {
     if mins != 0 {
       out.write("\(mins)m")
     }
-    out.write("\(secz)\(opts.decimal_point)\(String(format: "%02d", centisec))s")
+    out.write("\(secz)\(opts.decimal_point)\(cFormat("%02d", centisec))s")
   }
   
-  func showtime(out: inout FileHandle, before: timespec, after: inout timespec, ru: rusage, options opts: CommandOptions) {
+  func showtime(out: inout FileDescriptor, before: timespec, after: inout timespec, ru: rusage, options opts: CommandOptions) {
     
     after.tv_sec -= before.tv_sec
     after.tv_nsec -= before.tv_nsec
@@ -150,33 +149,22 @@ actor Stuff {
     }
     
     if opts.pflag {
-      print(String(format: "real %jd%c%02ld",
-                   after.tv_sec, opts.decimal_point, after.tv_nsec/10000000), to: &out)
-      print(String(format: "user %jd%c%02ld",
-                   ru.ru_utime.tv_sec, opts.decimal_point,
-                   ru.ru_utime.tv_usec/10000), to: &out)
-      print(String(format: "sys %jd%c%02ld",
-                   ru.ru_stime.tv_sec, opts.decimal_point,
-                   ru.ru_stime.tv_usec/10000), to: &out)
+      print(cFormat("real %jd%c%02ld", after.tv_sec, opts.decimal_point, after.tv_nsec/10000000), to: &out)
+      print(cFormat("user %jd%c%02ld", ru.ru_utime.tv_sec, opts.decimal_point, ru.ru_utime.tv_usec/10000), to: &out)
+      print(cFormat("sys %jd%c%02ld", ru.ru_stime.tv_sec, opts.decimal_point, ru.ru_stime.tv_usec/10000), to: &out)
     } else if opts.hflag {
-      humantime(out: out, sec: Int(after.tv_sec), centisec: Int(after.tv_nsec/10000000), options: opts)
+      humantime(out: &out, sec: Int(after.tv_sec), centisec: Int(after.tv_nsec/10000000), options: opts)
       print(" real\t", terminator: "", to: &out)
-      humantime(out: out, sec: Int(ru.ru_utime.tv_sec), centisec: Int(ru.ru_utime.tv_usec)/10000, options: opts)
+      humantime(out: &out, sec: Int(ru.ru_utime.tv_sec), centisec: Int(ru.ru_utime.tv_usec)/10000, options: opts)
       
       print(" user\t", terminator: "", to: &out)
       
-      humantime(out: out, sec: Int(ru.ru_stime.tv_sec), centisec: Int(ru.ru_stime.tv_usec)/10000, options: opts)
+      humantime(out: &out, sec: Int(ru.ru_stime.tv_sec), centisec: Int(ru.ru_stime.tv_usec)/10000, options: opts)
       print(" sys\n", to: &out)
     } else {
-      print(String(format: "%9jd%c%02ld real ",
-                   after.tv_sec, opts.decimal_point,
-                   after.tv_nsec/10000000), terminator: "", to: &out)
-      print(String(format: "%9jd%c%02ld user ",
-                   ru.ru_utime.tv_sec, opts.decimal_point,
-                   ru.ru_utime.tv_usec/10000), terminator: "", to: &out)
-      print(String(format: "%9jd%c%02ld sys",
-                   ru.ru_stime.tv_sec, opts.decimal_point,
-                   ru.ru_stime.tv_usec/10000), to: &out)
+      print(cFormat("%9jd%c%02ld real ", after.tv_sec, opts.decimal_point, after.tv_nsec/10000000), terminator: "", to: &out)
+      print(cFormat("%9jd%c%02ld user ", ru.ru_utime.tv_sec, opts.decimal_point, ru.ru_utime.tv_usec/10000), terminator: "", to: &out)
+      print(cFormat("%9jd%c%02ld sys",  ru.ru_stime.tv_sec, opts.decimal_point, ru.ru_stime.tv_usec/10000), to: &out)
     }
   }
   
@@ -257,7 +245,7 @@ actor Stuff {
     */
     if let ofn = opts.ofn {
       if !FileManager.default.fileExists(atPath: ofn) {
-        FileManager.default.createFile(atPath: ofn, contents: Data() )
+        FileManager.default.createFile(atPath: ofn, contents: [UInt8]() )
       }
       fh = FileHandle(forWritingAtPath: ofn)!
     } else {
@@ -479,7 +467,7 @@ actor Stuff {
     Darwin.exit (WIFEXITED(xstatus) ? WEXITSTATUS(xstatus) : Darwin.EXIT_FAILURE)
   }
   
-  func lflagPrint(_ fh : inout FileHandle, ru : Darwin.rusage, rusage_ret : Int32, ruinfo : Darwin.rusage_info_v4 ) {
+  func lflagPrint(_ fh : inout FileDescriptor, ru : Darwin.rusage, rusage_ret : Int32, ruinfo : Darwin.rusage_info_v4 ) {
     let hz = getstathz()
     
     let kk = hz * (ru.ru_utime.tv_sec + ru.ru_stime.tv_sec)
@@ -494,52 +482,34 @@ actor Stuff {
       ticks = 1
     }
     
-    print(String(format: "%20ld  %@",
-                 ru.ru_maxrss, "maximum resident set size"), to: &fh)
-    print(String(format: "%20ld  %@",
-                 ru.ru_ixrss / ticks, "average shared memory size"), to: &fh)
-    print(String(format: "%20ld  %@",
-                 ru.ru_idrss / ticks, "average unshared data size"), to: &fh)
+    print(cFormat("%20ld  maximum resident set size", ru.ru_maxrss), to: &fh)
+    print(cFormat("%20ld  average shared memory size", ru.ru_ixrss / ticks), to: &fh)
+    print(cFormat("%20ld  average unshared data size", ru.ru_idrss / ticks), to: &fh)
     
-    print(String(format: "%20ld  %@",
-                 ru.ru_isrss / ticks, "average unshared stack size"), to: &fh)
+    print(cFormat("%20ld  average unshared stack size", ru.ru_isrss / ticks), to: &fh)
     
-    print(String(format: "%20ld  %@",
-                 ru.ru_minflt, "page reclaims"), to: &fh)
-    print(String(format: "%20ld  %@",
-                 ru.ru_majflt, "page faults"), to: &fh)
-    print(String(format: "%20ld  %@",
-                 ru.ru_nswap, "swaps"), to: &fh)
-    print(String(format: "%20ld  %@",
-                 ru.ru_inblock, "block input operations"), to: &fh)
-    print(String(format: "%20ld  %@",
-                 ru.ru_oublock, "block output operations"), to: &fh)
-    print(String(format: "%20ld  %@",
-                 ru.ru_msgsnd, "messages sent"), to: &fh)
-    print(String(format: "%20ld  %@",
-                 ru.ru_msgrcv, "messages received"), to: &fh)
-    print(String(format: "%20ld  %@",
-                 ru.ru_nsignals, "signals received"), to: &fh)
-    print(String(format: "%20ld  %@",
-                 ru.ru_nvcsw, "voluntary context switches"), to: &fh)
-    print(String(format: "%20ld  %@",
-                 ru.ru_nivcsw, "involuntary context switches"), to: &fh)
+    print(cFormat("%20ld  page reclaims", ru.ru_minflt), to: &fh)
+    print(cFormat("%20ld  page faults", ru.ru_majflt), to: &fh)
+    print(cFormat("%20ld  swaps", ru.ru_nswap), to: &fh)
+    print(cFormat("%20ld  block input operations", ru.ru_inblock), to: &fh)
+    print(cFormat("%20ld  block output operations", ru.ru_oublock), to: &fh)
+    print(cFormat("%20ld  messages sent", ru.ru_msgsnd), to: &fh)
+    print(cFormat("%20ld  messages received", ru.ru_msgrcv), to: &fh)
+    print(cFormat("%20ld  signals received", ru.ru_nsignals), to: &fh)
+    print(cFormat("%20ld  voluntary context switches", ru.ru_nvcsw), to: &fh)
+    print(cFormat("%20ld  involuntary context switches", ru.ru_nivcsw), to: &fh)
     
     if (rusage_ret >= 0) {
       
       if (ruinfo.ri_instructions > 0) {
-        print(String(format: "%20\(PRIu64)  %@", ruinfo.ri_instructions,
-                     "instructions retired"), to: &fh)
+        print(cFormat("%20\(PRIu64)  instructions retired", ruinfo.ri_instructions), to: &fh)
       }
       
       if (ruinfo.ri_cycles > 0) {
-        print(String(format: "%20\(PRIu64)  %@", ruinfo.ri_cycles,
-                     "cycles elapsed"), to: &fh)
+        print(cFormat("%20\(PRIu64)  cycles elapsed", ruinfo.ri_cycles), to: &fh)
       }
       if (ruinfo.ri_lifetime_max_phys_footprint > 0) {
-        print(String(format: "%20\(PRIu64)  %@",
-                     ruinfo.ri_lifetime_max_phys_footprint,
-                     "peak memory footprint"), to: &fh)
+        print(cFormat("%20\(PRIu64)  peak memory footprint", ruinfo.ri_lifetime_max_phys_footprint), to: &fh)
       }
     }
   }

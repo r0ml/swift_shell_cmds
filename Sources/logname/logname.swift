@@ -33,13 +33,13 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
+import CMigration
 
 @main class logname {
   required init() {}
   static func main() {
     let z = Self().main()
-    exit(z)
+    Darwin.exit(z)
   }
   
   func main() -> Int32 {
@@ -51,7 +51,7 @@ import Foundation
     if argc != 1 {
       usage()
     }
-    p = getlogin()
+    p = Darwin.getlogin()
     if p == nil {
       fatalError()
     }

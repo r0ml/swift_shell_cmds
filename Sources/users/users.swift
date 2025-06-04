@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
+import Darwin
 
 @main struct Users {
   static func main() {

@@ -12,7 +12,7 @@
  * This program is in the Public Domain.
  */
 
-import Foundation
+import CMigration
 
 #if os(macOS) || os(iOS)
 func mtim(_ x : stat) -> timespec {

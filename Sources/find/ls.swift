@@ -33,28 +33,31 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
+import CMigration
 
 extension find {
   func printlong(name: String, accpath: String, sb: Darwin.stat) {
     //    var modep = [CChar](repeating: 0, count: 15)
     
-    print(String(format: "%6ju %8lld ", sb.st_ino, sb.st_blocks), terminator: "")
+    print(cFormat("%6ju %8lld ", sb.st_ino, sb.st_blocks), terminator: "")
     
     let modep = withUnsafeTemporaryAllocation(byteCount: 15, alignment: 1) {p in
       let pp = p.assumingMemoryBound(to: CChar.self).baseAddress!
       strmode(Int32(sb.st_mode), pp)
       return String(cString: pp)
     }
-    print(String(format: "%s %3ju %-*s %-*s ", modep, sb.st_nlink,
-                 MAXLOGNAME - 1,
-                 user_from_uid(sb.st_uid, 0), MAXLOGNAME - 1,
-                 group_from_gid(sb.st_gid, 0)), terminator: "")
-    
+    print(
+      modep.withCString { a in
+        cFormat("%s %3ju %-*s %-*s ", a, sb.st_nlink,
+                MAXLOGNAME - 1,
+                user_from_uid(sb.st_uid, 0), MAXLOGNAME - 1,
+                group_from_gid(sb.st_gid, 0))
+      }
+    , terminator: "")
     if (sb.st_mode & Darwin.S_IFMT) == Darwin.S_IFCHR || (sb.st_mode & Darwin.S_IFMT) == Darwin.S_IFBLK {
-      print(String(format: "%#8jx ", sb.st_rdev), terminator: "")
+      print(cFormat("%#8jx ", sb.st_rdev), terminator: "")
     } else {
-      print(String(format: "%8lld ", sb.st_size), terminator: "")
+      print(cFormat("%8lld ", sb.st_size), terminator: "")
     }
     printtime(sb.st_mtime)
     print(name, terminator: "")
@@ -103,7 +106,7 @@ extension find {
         return
       }
       p[Int(lnklen)] = 0
-      print(String(format: " -> %s", String(cString: pp)), terminator: "")
+      print(cFormat(" -> %s", pp), terminator: "")
     }
   }
 }

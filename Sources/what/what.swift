@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 @main final class What : ShellCommand {
@@ -99,7 +98,7 @@ import CMigration
     } catch let e as CmdErr {
       throw e
     } catch {
-      let z = error.localizedDescription
+      let z = String(describing: error)
       throw CmdErr(2, z)
     }
     exit(found ? 0 : 1)
@@ -107,7 +106,7 @@ import CMigration
   
     var usage = "usage: what [-qs] [file ...]"
     
-    func search(_ one: Bool, _ quiet: Bool, _ inStream: FileHandle) async throws -> Bool {
+    func search(_ one: Bool, _ quiet: Bool, _ inStream: FileDescriptor) async throws -> Bool {
       var found = false
 //      var c: Int
 

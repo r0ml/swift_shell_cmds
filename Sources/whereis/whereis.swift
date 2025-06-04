@@ -37,7 +37,6 @@
  */
 
 // FIXME: deal with #ifndef __APPLE__ stuff
-import Foundation
 import CMigration
 
 let NO_BIN_FOUND : Int32 = 1
@@ -53,7 +52,7 @@ let MANWHEREISMATCH = "^.* [(]source: (.*)[)]$"
 // typealias ccharp = UnsafePointer<CChar>
 
 func decolonify(_ s: String) -> [String] {
-  return s.components(separatedBy: ":")
+  return s.split(separator: ":").map { String($0) }
 }
 
 /*
@@ -299,45 +298,48 @@ func colonify(_ cpp: [String]) -> String {
     opts.unusual = opts.unusual | NO_MAN_FOUND
     let cp = opts.opt_a ? ["-a","-w", name] : ["-S1:8:6", "-w", name]
 //    let cpx = cp + ["-M", colonify(mandirs ?? [])]
-    let (_, man, _) = try! captureStdoutLaunch("/usr/bin/man", cp)
-    return man
+    let res = try! ProcessRunner.run(command: "/usr/bin/man", arguments: cp)
+    return res.stdout
   }
   
   
   /// Returns the output of running `executable` with `args`. Throws an error if the process exits indicating failure.
-  @discardableResult
-  func captureStdoutLaunch(_ executable: String, _ args: [String], _ input : String? = nil ) throws -> (Int32, String?, String?) {
-    let process = Process()
-    let output = Pipe()
-    let stderr = Pipe()
-    
-    let inputs : Pipe? = if input != nil { Pipe() } else { nil }
-    
-    let execu = executable
+//  @discardableResult
+//  func captureStdoutLaunch(_ executable: String, _ args: [String], _ input : String? = nil ) throws -> (Int32, String?, String?) {
     
     
     
-    process.launchPath = execu
-    process.arguments = args
-    process.standardOutput = output
-    process.standardInput = inputs
-    process.standardError = stderr
-    process.launch()
+//    let res = try ProcessRunner.run(command: executable, arguments: args)
     
-    if let inputs, let input {
-      Task.detached {
-        inputs.fileHandleForWriting.write( input.data(using: .utf8) ?? Data() )
-        try? inputs.fileHandleForWriting.close()
-      }
-    }
+//    let process = Process()
+//    let output = Pipe()
+//    let stderr = Pipe()
+//    let inputs : Pipe? = if input != nil { Pipe() } else { nil }
+//    let execu = executable
+//    process.launchPath = execu
+//    process.arguments = args
+//    process.standardOutput = output
+//    process.standardInput = inputs
+//    process.standardError = stderr
+//    process.launch()
     
-    process.waitUntilExit()
+//    if let inputs, let input {
+//      Task.detached {
+//        if let k = input.data(using: .utf8) {
+//          inputs.fileHandleForWriting.write( k )
+//        }
+//        try? inputs.fileHandleForWriting.close()
+//      }
+//    }
     
-    let k1 = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .ascii)
-    let k2 = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .ascii)
-    return (process.terminationStatus, k1, k2)
+//    process.waitUntilExit()
+    
+//    let k1 = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .ascii)
+//    let k2 = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .ascii)
+//    return (process.terminationStatus, k1, k2)
+    
 
-  }
+//      }
   
   /*
    * Provide defaults for all options and directory lists.
@@ -384,7 +386,7 @@ func colonify(_ cpp: [String]) -> String {
 
       opts.bindirs = decolonify(b)
       opts.bindirs?.append(PATH_LIBEXEC)
-          if let path = ProcessInfo.processInfo.environment["PATH"] {
+          if let path = getenv("PATH") {
               // don't destroy the original environment...
             opts.bindirs?.append(contentsOf: decolonify(path))
           }
@@ -396,13 +398,13 @@ func colonify(_ cpp: [String]) -> String {
       /* How to query the current manpath. */
       let MANPATHCMD = ["manpath","-q"]
       do {
-        let (_, bb, _) = try captureStdoutLaunch("/usr/bin/manpath", MANPATHCMD)
-        var b = Substring(bb!)
+        let res = try ProcessRunner.run(command: "/usr/bin/manpath", arguments: MANPATHCMD)
+        var b = Substring(res.stdout)
         if let x = b.lastIndex(of: "\n") {
           b = b[b.startIndex..<x]
         }
         opts.mandirs = decolonify(String(b))
-      } catch(let e) {
+      } catch {
         err( Int(EX_OSERR), "cannot execute manpath command")
       }
     }

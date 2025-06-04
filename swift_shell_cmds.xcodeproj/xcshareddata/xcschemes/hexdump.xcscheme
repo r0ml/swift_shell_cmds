@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "1600"
+   LastUpgradeVersion = "1640"
    version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
@@ -81,7 +81,7 @@
       </MacroExpansion>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-bn"
+            argument = "-c"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
@@ -90,10 +90,10 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "1"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/r0ml/Repositories/r0ml_shell_cmds/Tests/hexdumpTest/Resources/d_hexdump_a.in"
+            argument = "/Users/r0ml/AppleOpenSource/swift_shell_cmds/Tests/hexdumpTest/Resources/d_hexdump_b.in"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

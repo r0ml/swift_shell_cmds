@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 @main final class basename : ShellCommand {

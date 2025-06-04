@@ -38,7 +38,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 struct Flags : OptionSet {
@@ -238,10 +237,10 @@ let optString = "abiKmnoprsUv"
    * long option does not exist.  Our aliases take precedence.
    */
   func scan_env(_ opt : String) -> String? {
-    let k = ProcessInfo.processInfo.environment
+//    let k = ProcessInfo.processInfo.environment
     if let a = env_opts[opt],
-       let z = k[a] { return z }
-    return k["UNAME_\(opt)"]
+       let z = getenv(a) { return z }
+    return getenv("UNAME_\(opt)")
   }
   
 }

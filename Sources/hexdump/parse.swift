@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 let nl = Int32(Character("\n").asciiValue!)
@@ -45,11 +44,11 @@ extension hexdump {
     //   var fp: UnsafeMutablePointer<FILE>?
     // var ch: Int32
     
-    let buf = try String(contentsOfFile: name, encoding: .utf8).components(separatedBy: "\n")
+    let buf = try readFileAsString(at: name).split(separator: "\n")
     for ln in buf {
-      let k = ln.trimmingCharacters(in: [" "])
+      let k = ln.trimming([" "])
       if k.isEmpty || k.first == "#" { continue }
-      add(ln)
+      add(String(ln) )
     }
   }
   

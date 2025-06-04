@@ -36,19 +36,19 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
+import CMigration
 
 /*
  * brace_subst --
  *  Replace occurrences of {} in s1 with s2 and return the result string.
  */
 func brace_subst(_ orig: String, _ path: String) -> String {
-  return orig.replacingOccurrences(of: "{}", with: path)
+  return orig.replacing("{}", with: path)
 }
 
 func queryuser(_ argv: [String]) -> Bool {
     var resp = ""
-  var se = FileHandle.standardError
+  var se = FileDescriptor.standardError
   print("\"\(argv.joined(separator: " "))\"? ", terminator: "", to: &se)
     resp = readLine() ?? ""
   if let x = (resp.firstIndex { $0 == "\n" }) {

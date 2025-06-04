@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 import os
 
@@ -41,7 +40,7 @@ import os
     // from envopts.swift
     var env_verbosity : Int = 0
  
-    var environ: [String:String] = ProcessInfo.processInfo.environment
+    var environ: [String:String] = getenv()
 
     var usage = "usage: env [-0iv] [-P utilpath] [-S string] [-u name]\n[name=value ...] [utility [argument ...]]"
 

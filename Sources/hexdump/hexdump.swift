@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 /*
@@ -189,7 +188,7 @@ final class hexdump : ShellCommand {
       } catch let e as CmdErr {
         throw e
       } catch(let e) {
-        err(1, e.localizedDescription)
+        err(1, String(describing: e))
       }
     } else {
       try oldsyntax(&opts)

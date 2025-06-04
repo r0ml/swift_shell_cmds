@@ -33,8 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
-
 @main struct Yes {
   
   static func main() {

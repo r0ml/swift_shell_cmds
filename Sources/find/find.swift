@@ -36,7 +36,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 indirect enum P_un {
@@ -194,12 +193,17 @@ struct PLAN {
     //  let ss1 = String(cString: s1?.pointee.fts_name)
     //  let ss2 = String(cString: s2?.pointee.fts_name)
     
-    let cc = ss1.compare(ss2)
+    if ss1 > ss2 { return -1 }
+    else if ss1 < ss2 { return 1 }
+    else { return 0 }
+      
+      /*let cc = ss1.compare(ss2)
     switch cc {
     case .orderedSame: return 0
     case .orderedAscending: return 1
     case .orderedDescending: return -1
     }
+       */
     
   }
   /*
@@ -299,7 +303,10 @@ extension find {
       // so, before the memory beyond the defined end of the struct is tampered with, grab the fts_name from
       // the struct.
       let p = UnsafeRawPointer(entryx).advanced(by: MemoryLayout.offset(of: \Darwin.FTSENT.fts_name)! )
-      let ftsName = String(data: Data(bytes: p, count: Int(entryz.fts_namelen)), encoding: .utf8)!
+      
+      let pp = UnsafeBufferPointer(start: p.assumingMemoryBound(to: UInt8.self), count: Int(entryz.fts_namelen))
+      
+      let ftsName = String(decoding: pp, as: UTF8.self)
       
       if maxdepth != -1 && entryz.fts_level >= maxdepth {
         if Darwin.fts_set(tree, entryx, Darwin.FTS_SKIP) != 0 {

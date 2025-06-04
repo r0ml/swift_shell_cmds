@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 @main class renice {
@@ -147,7 +146,7 @@ import CMigration
   }
   
   func usage() {
-    var fh = FileHandle.standardError
+    var fh = FileDescriptor.standardError
     print("usage: renice priority [[-p] pid ...] [[-g] pgrp ...] [[-u] user ...]", to: &fh)
     print("       renice -n increment [[-p] pid ...] [[-g] pgrp ...] [[-u] user ...]", to: &fh)
     exit(1)

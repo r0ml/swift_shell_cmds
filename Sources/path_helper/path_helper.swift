@@ -25,7 +25,6 @@
  * @APPLE_LICENSE_HEADER_END@
  */
 
-import Foundation
 import CMigration
 
 @main final class path_helper : ShellCommand {
@@ -54,7 +53,7 @@ import CMigration
       return
     }
     
-    var match = path!.range(of: segment)
+    var match = path!.firstRange(of: segment)
     while let range = match {
       if (path!.startIndex == range.lowerBound || path![path!.index(before: range.lowerBound)] == ":") &&
           ( path!.index(range.lowerBound, offsetBy: seglen) == path!.endIndex ||
@@ -63,7 +62,12 @@ import CMigration
       {
         return
       }
-      match = path!.range(of: segment, options: [], range: range.upperBound..<path!.endIndex, locale: nil)
+      
+      // FIXME: this is a Kludge to find multiple segments
+      match = (path![path!.startIndex..<range.lowerBound]
+      + String(repeating: " ", count: path![range.lowerBound..<range.upperBound].count)
+      +         path![range.upperBound...])
+      .firstRange(of: segment)
     }
     
     //    let size = pathlen + seglen + 2
@@ -99,7 +103,7 @@ import CMigration
     var result : String? = ""
     var dirpathv: [String?] = [defaults_path, dir_path]
     
-    if let root = ProcessInfo.processInfo.environment["PATH_HELPER_ROOT"] {
+    if let root = getenv("PATH_HELPER_ROOT") {
       dirpathv[0] = root + defaults_path
       dirpathv[1] = root + dir_path
     }
@@ -147,10 +151,10 @@ import CMigration
     
     
     // merge in any existing custom PATH elements
-    if let str = ProcessInfo.processInfo.environment[env_var] {
-      let strx = str.components(separatedBy: ":")
+    if let str = getenv(env_var) {
+      let strx = str.split(separator: ":")
       for ss in strx {
-        append_path_segment(path: &result, segment: ss)
+        append_path_segment(path: &result, segment: String(ss) )
       }
     }
     return result
@@ -161,7 +165,7 @@ import CMigration
     var opts = CommandOptions()
     
     // default to csh style, if $SHELL ends with "csh".
-    if let shell = ProcessInfo.processInfo.environment["SHELL"] {
+    if let shell = getenv("SHELL") {
       if shell.contains(/csh/) {
         opts.style = .csh
       }
@@ -192,7 +196,7 @@ import CMigration
     var manpath: String?
     
     // only adjust manpath if already set
-    let doManpath = ProcessInfo.processInfo.environment["MANPATH"] != nil
+    let doManpath = getenv("MANPATH") != nil
     if doManpath {
       manpath = construct_path("MANPATH", "/etc/manpaths", "/etc/manpaths.d")
     }
@@ -254,12 +258,14 @@ func find_compare(s1: UnsafeMutablePointer<UnsafePointer<FTSENT>?>?, s2: UnsafeM
   //  let ss1 = String(cString: s1?.pointee.fts_name)
   //  let ss2 = String(cString: s2?.pointee.fts_name)
   
-  let cc = ss1.compare(ss2)
-  switch cc {
-  case .orderedSame: return 0
-  case .orderedAscending: return -1
-  case .orderedDescending: return 1
-  }
+  if ss1 > ss2 { return -1 }
+  else if ss1 < ss2 { return 1 }
+  else { return 0 }
+//  switch cc {
+//  case .orderedSame: return 0
+//  case .orderedAscending: return -1
+//  case .orderedDescending: return 1
+//  }
   
 }
 

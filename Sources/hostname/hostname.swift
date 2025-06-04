@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 @main final class hostname : ShellCommand {
@@ -78,7 +77,7 @@ import CMigration
         err(1, "sethostname")
       }
     } else {
-      var hostnamed = Data(count: Int(MAXHOSTNAMELEN))
+      var hostnamed = Array<UInt8>(repeating: 0, count: Int(MAXHOSTNAMELEN))
       var hostname = hostnamed.withUnsafeMutableBytes { p in
         let px = p.baseAddress!.assumingMemoryBound(to: CChar.self)
         if gethostname(px, Int(MAXHOSTNAMELEN)) != 0 {

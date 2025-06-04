@@ -36,8 +36,6 @@
  * SUCH DAMAGE.
  */
 
-// import Foundation
-import Darwin
 import CMigration
 
 let magic = "%"
@@ -94,7 +92,7 @@ struct CommandOptions {
     let mm = p.matches(of: /%([1-9])/)
     let n = mm.reduce(0, { max($0, Int($1.output.1)!)})
 
-    let tmpShell = ProcessInfo.processInfo.environment["SHELL"]
+    let tmpShell = getenv("SHELL")
     opts.shell = tmpShell ?? Darwin._PATH_BSHELL
     let slashp = opts.shell.lastIndex(of: "/")
     opts.name = slashp != nil ? String(opts.shell[opts.shell.index(after: slashp!)...]) : opts.shell
@@ -169,12 +167,24 @@ struct CommandOptions {
 
   /// Execute a shell `command` using passed `shell` and `use_name`  arguments.
   func execShell(_ command: String, _ useShell: String, _ useName: String) -> Int {
+    do {
+      let _ = try ProcessRunner.run(command: useShell, arguments: ["-c", command])
+    } catch let e as Errno {
+      return Int(e.rawValue)
+    } catch(let e) {
+      print(e)
+      return -1
+    }
+
+    /*
     let task = Process()
     task.launchPath = useShell
     task.arguments = ["-c", command]
     task.launch()
     task.waitUntilExit()
     return Int(task.terminationStatus)
+     */
+    return 0
   }
 
   var usage : String = "usage: apply [-a magic] [-d] [-0123456789] command arguments ..."

@@ -36,7 +36,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 /*

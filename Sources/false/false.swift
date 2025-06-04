@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
+import Darwin
 
 @main struct False {
   static func main() {

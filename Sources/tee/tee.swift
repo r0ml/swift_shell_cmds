@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 let DEFFILEMODE = Darwin.S_IRUSR|Darwin.S_IWUSR|Darwin.S_IRGRP|Darwin.S_IWGRP|Darwin.S_IROTH|Darwin.S_IWOTH

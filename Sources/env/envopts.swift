@@ -34,7 +34,6 @@
  * official policies, either expressed or implied, of the FreeBSD Project.
  */
 
-import Foundation
 import CMigration
 
 extension Env {
@@ -111,7 +110,7 @@ extension Env {
         }
         
         fqname = nil
-        while let pathComponent = path.components(separatedBy: ":").first {
+        while let pathComponent = path.split(separator: ":").first {
             var d = pathComponent
             if d.isEmpty {
                 d = "."

@@ -30,7 +30,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 func usage() {
@@ -111,7 +110,8 @@ func printMatches(path: String, filename: String, allpaths: Bool ) -> Bool {
   }
   
   func runCommand(_ opts : CommandOptions) throws(CmdErr) {
-    guard let path = ProcessInfo.processInfo.environment["PATH"]
+//    guard let path = ProcessInfo.processInfo.environment["PATH"]
+    guard let path = getenv("PATH")
     else {
       throw CmdErr(1, "no PATH")
     }

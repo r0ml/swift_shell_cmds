@@ -30,9 +30,7 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
-
 
 @main final class Who : ShellCommand {
   struct CommandOptions {
@@ -192,28 +190,33 @@ import CMigration
   var usage = "usage: who [-abdHlmpqrstTu] [am I] [file]"
   
   func leftPad(_ s : String, _ n : Int) -> String {
-    return String(repeating: " ", count: n - s.count).appending(s)
+    return String(repeating: " ", count: n - s.count) + s
   }
+
+  func rightPad(_ s : String, _ n : Int) -> String {
+    return s + String(repeating: " ", count: n - s.count)
+  }
+  
   func heading(_ o : CommandOptions) {
     
-    print("NAME".padding(toLength: 16, withPad: " ", startingAt: 0), terminator: " ")
+    print(rightPad("NAME", 16), terminator: " ")
     if o.Tflag {
       print("S ", terminator: "")
     }
-    print("\("LINE".padding(toLength: 12, withPad: " ", startingAt: 0)) \("TIME".padding(toLength: 12, withPad: " ", startingAt: 0)) ", terminator: "")
+    print("\(rightPad("LINE", 12)) \(rightPad("TIME",12)) ", terminator: "")
     if o.uflag {
       print("IDLE  ", terminator: "")
     }
     if o.unix2003_std && o.uflag && !o.Tflag {
       print("     PID ", terminator: "")
     }
-    print("FROM".padding(toLength: 16, withPad: " ", startingAt: 0), terminator: "\n")
+    print(rightPad("FROM", 16), terminator: "\n")
   }
   
   let d_first = Darwin.nl_langinfo(Darwin.D_MD_ORDER).pointee == ("d" as UnicodeScalar).value
   
   func row(ut: inout Darwin.utmpx, _ o : CommandOptions) {
-    var buf = [CChar](repeating: 0, count: 80)
+    var buf = [UInt8](repeating: 0, count: 80)
     //  var tty = [CChar](repeating: 0, count: Int(_PATH_DEV.count) + Int(_UTX_LINESIZE))
     var sb = Darwin.stat()
     var idle: Darwin.time_t = 0
@@ -226,7 +229,7 @@ import CMigration
     idle = 0
     if o.Tflag || o.uflag {
       withUnsafeBytes(of: ut.ut_line) { u in
-        let tty = "\(_PATH_DEV)\(String(bytes:u, encoding: .utf8) ?? "???")"
+        let tty = "\(_PATH_DEV)\(String(decoding:u, as: UTF8.self))"
         // FIXME: Darwin.stat is ambiguous
         if stat(tty, &sb) == 0 {
           state = sb.st_mode & (Darwin.S_IWOTH|Darwin.S_IWGRP) != 0 ? "+" : "-"
@@ -235,7 +238,7 @@ import CMigration
       }
       if o.unix2003_std && !o.Tflag {
         if ut.ut_pid != 0 {
-          login_pidstr = String(format: "%8d", ut.ut_pid)
+          login_pidstr = cFormat("%8d", ut.ut_pid)
         } else {
           login_pidstr = "       ?"
         }
@@ -249,35 +252,36 @@ import CMigration
       // FIXME: why is this ut_name in XCode, but ut_user in swift build?
       //      withUnsafeBytes(of: ut.ut_name) { u in
       withUnsafeBytes(of: ut) { u in
-        let j = Array(u.bindMemory(to: CChar.self))
-        let  m = String(cString: j, encoding: .nonLossyASCII)!
+        let j = Array(u.bindMemory(to: UInt8.self))
+        let  m = String(decoding: j, as: ISOLatin1.self)
         //     let m = String(bytes: u, encoding: .utf8) ?? "???"
-        print( m.padding(toLength: 16, withPad: " ", startingAt: 0), terminator: " ")
+        print( rightPad(m, 16), terminator: " ")
       }
     }
     if o.Tflag {
-      print(String(format: "%c ", state), terminator: "")
+      print(cFormat("%c ", state), terminator: "")
     }
     if ut.ut_type == Darwin.BOOT_TIME {
-      print("system boot".padding(toLength: 12, withPad: " ", startingAt: 0), terminator: " ")
+      print(rightPad("system boot", 12), terminator: " ")
     } else if ut.ut_type == Darwin.LOGIN_PROCESS {
-      print("LOGIN".padding(toLength: 12, withPad: " ", startingAt: 12), terminator: " ")
+      print(rightPad("LOGIN", 12), terminator: " ")
     } else {
       withUnsafeBytes(of: ut.ut_line) { u in
-        let j = Array(u.bindMemory(to: CChar.self))
-        let m = String(cString: j, encoding: .nonLossyASCII)!
-        print( m.padding(toLength: 12, withPad: " ", startingAt: 0), terminator: " ")
+        let j = Array(u.bindMemory(to: UInt8.self))
+        let m = String(decoding: j, as: ISOLatin1.self)
+        print( rightPad(m, 12), terminator: " ")
       }
     }
     t = ut.ut_tv.tv_sec
     tm = Darwin.localtime(&t)
     Darwin.strftime(&buf, buf.count, d_first ? "%e %b %R" : "%b %e %R", tm)
-    print( String(cString: buf, encoding: .nonLossyASCII)!.padding(toLength: 12, withPad: " ", startingAt: 0), terminator: " ")
+    let bbuf = UnsafeBufferPointer(start: buf, count: Int(buf.count))
+    print( rightPad(String(decoding: bbuf, as: ISOLatin1.self), 12), terminator: " ")
     if o.uflag {
       if idle < 60 {
         print("  .   ", terminator: "")
       } else if idle < 24 * 60 * 60 {
-        print(String(format: "%02d:%02d ", Int(idle / 60 / 60), Int(idle / 60 % 60)), terminator: "")
+        print(cFormat("%02d:%02d ", Int(idle / 60 / 60), Int(idle / 60 % 60)), terminator: "")
       } else {
         print(" old  ", terminator: "")
       }
@@ -287,7 +291,7 @@ import CMigration
     }
     if ut.ut_host.0 != 0 {
       withUnsafeBytes(of: ut.ut_host) { a in
-        print("(\(String(bytes:a, encoding: .utf8) ?? "???" ))", terminator: "")
+        print("(\(String(decoding:a, as: UTF8.self))", terminator: "")
       }
     }
     if o.dflag && ut.ut_type == DEAD_PROCESS {
@@ -314,7 +318,7 @@ import CMigration
         row(ut: &utx.pointee, o)
       } else if !o.bflag && utx.pointee.ut_type == USER_PROCESS {
         withUnsafeBytes(of: utx.pointee.ut_line) { uu in
-          if ttystat(String(bytes: uu, encoding: .utf8) ?? "???") == 0 {
+          if ttystat(String(decoding: uu, as: UTF8.self)) == 0 {
             if !o.rflag && !o.lflag && !o.dflag {
               row(ut: &utx.pointee, o)
             }
@@ -349,7 +353,7 @@ import CMigration
       }
       //      withUnsafeBytes(of: utx.pointee.ut_name) { n in
       withUnsafeBytes(of: utx.pointee) { n in
-        print(  (String(bytes: n, encoding: .utf8) ?? "???").padding(toLength: 16, withPad: " ", startingAt: 0))
+        print(  rightPad(String(decoding: n, as: UTF8.self), 16) )
       }
       if col < ncols / (16 + 1) {
         col += 1

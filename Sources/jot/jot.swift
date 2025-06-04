@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 /* Defaults */
@@ -335,7 +334,7 @@ let HAVE_REPS = 8
         print(opts.format, terminator: "")
       } else if opts.longdata && opts.nosign {
         if x <= Double(UInt.max) && x >= 0 {
-          print(String(format: opts.format, UInt(x)), terminator: "")
+          print(cFormat(opts.format, UInt(x)), terminator: "")
         } else {
           return 1
         }
@@ -361,12 +360,12 @@ let HAVE_REPS = 8
         }
       } else if opts.intdata {
         if x <= Double(UInt32.max) && x >= 0 {
-          print(String(format: opts.format, UInt(x)), terminator: "")
+          print(cFormat(opts.format, UInt(x)), terminator: "")
         } else {
           return 1
         }
       } else {
-        print(String(format: opts.format, x), terminator: "")
+        print(cFormat(opts.format, x), terminator: "")
       }
       if !last {
         print(opts.sepstring, terminator: "")

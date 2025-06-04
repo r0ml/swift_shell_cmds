@@ -30,7 +30,6 @@
  */
 
 // FIXME: apparently does not get built for APPLE platforms
-import Foundation
 import CMigration
 
 nonisolated(unsafe) var keep = false
@@ -179,25 +178,33 @@ func cleanup() {
   
 
   func insteadOfFork(_ cmd : String, _ args : [String]) -> Int32 {
-    let process = Process()
+    //   let process = Process()
 
     guard let execu = searchPath(for: cmd) else { print("command not found"); return -1 } // d.appending(component: "..").appending(component: executable).path(percentEncoded:false)
     
     
+    do {
+      let j = try ProcessRunner.run(command: execu, arguments: args)
+    } catch(let e as Errno) {
+      return e.rawValue
+    } catch {
+      return -1
+    }
     
-    process.launchPath = execu
-    process.arguments = args
-    process.launch()
+//    process.launchPath = execu
+//    process.arguments = args
+//    process.launch()
     
     signal(SIGINT, SIG_IGN)
     signal(SIGQUIT, SIG_IGN)
     signal(SIGTERM, { y in killed(y) } )
 
     
-    process.waitUntilExit()
+//    process.waitUntilExit()
 
-    return process.terminationStatus
+//    return process.terminationStatus
 
+    return 0
 
   }
 }

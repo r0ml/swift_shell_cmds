@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 extension UnsafeMutablePointer<passwd> {
@@ -559,7 +558,7 @@ extension UnsafeMutablePointer<group> {
     }
 #endif
     if (extended != 0) {
-      print(String(format: """
+      print(cFormat( """
 auid=%d
 mask.success=0x%08x
 mask.failure=0x%08x
@@ -578,11 +577,11 @@ termid_addr.addr[3]=0x%08x
                    ainfo_addr.ai_termid.at_addr.2,
                    ainfo_addr.ai_termid.at_addr.3))
 #if os(macOS)
-      print(String(format: "flags=0x%llx", ainfo_addr.ai_flags))
+      print(cFormat("flags=0x%llx", ainfo_addr.ai_flags))
 #endif
     } else {
 #if !os(macOS)
-      print(String(format: """
+      print(cFormat("""
 auid=%d
 mask.success=0x%08x
 mask.failure=0x%08x

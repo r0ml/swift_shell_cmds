@@ -28,11 +28,11 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
+import Darwin
 
 extension Date {
 
-  func domktime(_ t: inout tm, _ type: Character) -> Int {
+  func domktime(_ t: inout Darwin.tm, _ type: Character) -> Int {
     var ret: time_t = 0
 
     while true {

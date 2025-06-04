@@ -36,7 +36,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 extension find {
@@ -516,21 +515,32 @@ extension find {
       
       
       
-      let p = Process()
-      p.arguments = Array(epee.e_argv.dropFirst())
-      p.executableURL = URL.init(filePath: searchPath(for: epee.e_argv.first!)!)
+//      let p = Process()
+//      p.arguments = Array(epee.e_argv.dropFirst())
+//      p.executableURL = URL.init(filePath: searchPath(for: epee.e_argv.first!)!)
       
+
       // FIXME: change the current directory as needed
-      
+      var cwd : String?
        if let entry, (plan.flags & F_EXECDIR) == 0 && (ftsoptions & FTS_NOCHDIR) == 0 {
-       
-         p.currentDirectoryURL = URL(filePath: String(cString: entry.e.fts_parent.pointee.fts_path))
+         cwd = String(cString: entry.e.fts_parent.pointee.fts_path)
        }
       
+
+      var status : Int32 = 0
+      do {
+        try ProcessRunner.run(command: searchPath(for: epee.e_argv.first!)!, arguments: Array(epee.e_argv.dropFirst()), currentDirectory: cwd )
+      } catch ProcessError.nonZeroExit(let xstatus, let output, let error) {
+        status = xstatus
+      } catch {
+        status = -1
+      }
       
-      try! p.run()
-      p.waitUntilExit()
-      let status = p.terminationStatus
+      
+      
+//     try! p.run()
+//      p.waitUntilExit()
+//      let status = p.terminationStatus
       
       epee.e_argv = epee.e_orig
       
@@ -601,7 +611,7 @@ extension find {
       }
       argmax -= 1024
       argmax -= argmax/16
-      let x = ProcessInfo.processInfo.environment.reduce(0, {(s, kv) -> Int in s + kv.0.count + kv.1.count + 16 } )
+      let x = getenv().reduce(0, {(s, kv) -> Int in s + kv.0.count + kv.1.count + 16 } )
       argmax -= x
       ee.e_argmax = argmax
       
@@ -1001,13 +1011,13 @@ extension find {
       }
       
       name = withUnsafeTemporaryAllocation(byteCount: Int(PATH_MAX), alignment: 1) { p -> String? in
-        let pp = p.assumingMemoryBound(to: CChar.self).baseAddress!
+        let pp = p.assumingMemoryBound(to: UInt8.self).baseAddress!
         let len = readlink(entry.e.fts_accpath, pp , Int(PATH_MAX) - 1)
         if (len == -1) {
           return nil
         } else {
-          let k = Data(bytes: pp, count: len)
-          return String(data: k, encoding: .ascii)
+//          let k = Data(bytes: pp, count: len)
+          return String(decoding: UnsafeBufferPointer(start: pp, count: len), as: Unicode.ASCII.self)
         }
       }
       if name == nil { return false }

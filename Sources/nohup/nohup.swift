@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 let FILENAME = "nohup.out"
@@ -70,8 +69,7 @@ let EXIT_MISC : Int32 = 127
     let argvv = argv.map { strdup($0) }
     execvp(argv[1], argvv)
     exit_status = (errno == ENOENT) ? EXIT_NOTFOUND : EXIT_NOEXEC
-    return 
-    err( Int(exit_status), argv[1] )
+    return err( Int(exit_status), argv[1] )
   }
   
   func dofile() {
@@ -84,8 +82,8 @@ let EXIT_MISC : Int32 = 127
     if fd != -1 {
       dupit(fd: fd, p: p)
     }
-    if let home = getenv("HOME"), home.pointee != 0 {
-      let pathString = String(format: "%s/%s", home, FILENAME)
+    if let home = getenv("HOME") {
+      let pathString = "\(home)/\(FILENAME)"
       fd = open(pathString, O_RDWR | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR)
       if fd != -1 {
         dupit(fd: fd, p: pathString)

@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 nonisolated(unsafe) var reportRequested = false
@@ -104,7 +103,7 @@ func reportRequest(_ signo: Int32) {
   }
   
   func usage() {
-    var fh = FileHandle.standardError
+    var fh = FileDescriptor.standardError
     print("usage: sleep seconds", to: &fh )
     Darwin.exit(1)
   }

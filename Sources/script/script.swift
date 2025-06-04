@@ -34,7 +34,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 let DEF_BUF = 65536
@@ -104,7 +103,7 @@ let optString = "adeFkpqr"
 //  var slave : Int32 = 0
 //  var masterFH : FileHandle = FileHandle.standardOutput
 
-  var fscript : FileHandle = FileHandle.standardOutput
+  var fscript : FileDescriptor = FileDescriptor.standardOutput
   
   struct CommandOptions {
     var aflg = false
@@ -538,7 +537,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
   }
   
   func doshell(_ av : [String], _ opts : CommandOptions) -> Int32 {
-    var env = ProcessInfo.processInfo.environment
+    var env = getenv()
     
     var shell = env["SHELL"] ?? _PATH_BSHELL
 
@@ -611,7 +610,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
     exit(eno);
   }
   
-  func record(_ fp : FileHandle, _ buf : Data, _ direction : ScrDirection) {
+  func record(_ fp : FileDescriptor, _ buf : Data, _ direction : ScrDirection) {
     var iov = (iovec(), iovec() )
     var stampx = stamp()
     var tv = timeval()
@@ -644,7 +643,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
 //    }
   }
   
-  func consume(_ fp : FileHandle, _ lenx : UInt64, _ reg : Bool) -> Data {
+  func consume(_ fp : FileDescriptor, _ lenx : UInt64, _ reg : Bool) -> Data {
 
     var len = lenx
     
@@ -696,7 +695,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
   //    let slaveFH = FileHandle.standardInput
   //    let slaveFH = FileHandle(fileDescriptor: slave)
     
-      let slaveFH = FileHandle.standardInput
+      let slaveFH = FileDescriptor.standardInput
       var isReading = true
       //   var stt = termios()
       
@@ -717,7 +716,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
         if (opts.rawout) {
           record(fscript, a, .i);
         }
-        FileHandle.standardOutput.write(a) // /* masterFH */ .write(a)
+        FileDescriptor.standardOutput.write(a) // /* masterFH */ .write(a)
         
       }
       return true
@@ -751,7 +750,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
   }
   
   
-  func playback(_ fp : FileHandle, _ opts : CommandOptions) {
+  func playback(_ fp : FileDescriptor, _ opts : CommandOptions) {
     /*
      struct timespec tsi, tso;
      struct stamp stamp;
@@ -773,7 +772,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
 
 //    var buf : Data?
     
-    if (fstat(fp.fileDescriptor, &pst) == -1) {
+    if (fstat(fp.rawValue, &pst) == -1) {
       err(1, "fstat failed");
     }
     
@@ -891,7 +890,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
           
           do {
             if let bb = try fp.read(upToCount: Int(stampx.scr_len)) {
-              FileHandle.standardOutput.write(bb)
+              FileDescriptor.standardOutput.write(bb)
               stampx.scr_len -= UInt64(bb.count);
             }
 

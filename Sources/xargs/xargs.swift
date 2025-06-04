@@ -36,7 +36,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 /* Instead of using inout variables (passing a string in and then mutating it, pass in a string and return the
@@ -45,8 +44,9 @@ import CMigration
  
  This function was originally in a separate source file (strnsubst.c)
 */
+
 func strnsubst(str: String, match: String, replstr: String) -> String {
-  return str.replacingOccurrences(of: match, with: replstr)
+  return str.replacing(match, with: replstr)
 }
 
 @main final class Xargs : ShellCommand {
@@ -120,7 +120,7 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
   
   func parseOptions() throws(CmdErr) -> CommandOptions {
     let optstr = "+0E:I:J:L:n:oP:pR:S:s:rtxf:"
-    var opts = CommandOptions()
+    let opts = CommandOptions()
     
     let long_options: [CMigration.option] /* [(String?, Int32, UnsafeMutablePointer<Int32>?, Int32)] */ = [
       option("exit", /* "x", */ .no_argument),
@@ -494,7 +494,7 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     }
     */
     
-    let xy = (args.map { strdup($0.cString(using: .utf8)) }) + [UnsafeMutablePointer(bitPattern: 0)]
+    let xy = (args.map {a in a.withCString { s in strdup(s) } } ) + [UnsafeMutablePointer(bitPattern: 0)]
     defer { xy.forEach { free($0) } }
 
     rc = Darwin.posix_spawnp(&pid, args[0], &file_actions, nil, xy, Darwin.environ)

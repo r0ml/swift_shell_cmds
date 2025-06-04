@@ -33,7 +33,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 @main final class seq : ShellCommand {
@@ -333,8 +332,8 @@ import CMigration
     var places = 0
     
     /* look for a decimal point */
-    if let dp = number.range(of: ".") {
-      let decimalPart = number[dp.upperBound...]
+    if let dp = number.firstIndex(of: ".") {
+      let decimalPart = number[dp...].dropFirst()
       for char in decimalPart {
         if char.isNumber {
           places += 1
@@ -389,7 +388,7 @@ import CMigration
     // More processing here
     
     for cur in stride(from: first, through: last, by: incr) {
-      print(String(format: opts.format!, cur), terminator: opts.separator)
+      print(cFormat(opts.format!, cur), terminator: opts.separator)
     }
     
     // More processing here
@@ -423,7 +422,7 @@ import CMigration
       last = first + incr * floor((last - first) / incr)
     }
     
-    buf = String(format: "%g", incr)
+    buf = cFormat("%g", incr)
     if buf.contains("e") {
       cc = "e"
     }
@@ -449,10 +448,15 @@ import CMigration
       width2 -= (places + decimalPoint.count)
     }
     
+    let padx = UInt8(pad.unicodeScalars.first!.value)
     if precision != 0 {
-      buf = String(format: "%%%c%d.%d%c", [pad, max(width1, width2) + decimalPoint.count + precision, precision, (cc != "\0") ? cc : "f"])
+      String((cc != "\0") ? cc : "f").withCString {
+        buf = cFormat("%%%c%d.%d%c", padx, max(width1, width2) + decimalPoint.count + precision, precision, $0)
+      }
     } else {
-      buf = String.init(format: "%%%c%d%c", [pad, max(width1, width2), (cc != "\0") ? cc : "g"])
+      String(cc != "\0" ? cc : "g").withCString {
+        buf = cFormat("%%%c%d%c", padx, max(width1, width2), $0)
+      }
     }
     
     return buf

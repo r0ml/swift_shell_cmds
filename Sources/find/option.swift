@@ -36,8 +36,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
-
 typealias creat_f = (_ a : OPTION, _ b :inout ArraySlice<String>) -> PLAN
 typealias exec_f = ( _ a : PLAN, _ b : MyFTSENT ) -> Bool
 

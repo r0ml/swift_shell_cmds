@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 let PADDING = "         "
@@ -333,7 +332,7 @@ extension hexdump {
       }
     }
     
-    hdfmt = String(format: "%lu/%lu \" %%%d.%de \" \"\\n\"", 16 / isize, isize, digits + 8, digits)
+    hdfmt = cFormat("%lu/%lu \" %%%d.%de \" \"\\n\"", 16 / isize, isize, digits + 8, digits)
     odadd(hdfmt)
     
     return fmt
@@ -379,7 +378,15 @@ extension hexdump {
     if fchar == "d" {
       digits += 1
     }
-    hdfmt = String(format: "%lu/%lu \"%*s%%%s%d%s\" \"\\n\"", 16 / isize, isize, (4 * isize - digits), "", (fchar == "d" || fchar == "u") ? "" : "0", digits, String(fchar))
+    
+    hdfmt =
+    "".withCString { a in
+      String(fchar).withCString { b in
+        ((fchar == "d" || fchar == "u") ? "" : "0").withCString { c in
+          cFormat("%lu/%lu \"%*s%%%s%d%s\" \"\\n\"", 16 / isize, isize, (4 * isize - digits), a, c, digits, b )
+        }
+      }
+    }
     odadd(hdfmt)
     
     return fmt

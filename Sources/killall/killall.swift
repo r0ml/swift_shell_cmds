@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 @main final class killall : ShellCommand {
@@ -115,7 +114,7 @@ At least one option or argument to specify processes must be given."
 """
   } }
   
-  func printsig(_ fpx: FileHandle) {
+  func printsig(_ fpx: FileDescriptor) {
     var output = ""
     var fp = fpx
     
@@ -136,8 +135,8 @@ At least one option or argument to specify processes must be given."
   
   func nosig(_ name: String) {
     warnx("unknown signal \(name); valid signals:")
-    printsig(FileHandle.standardError)
-    exit(1)
+    printsig(FileDescriptor.standardError)
+    Darwin.exit(1)
   }
   
   func kludge_signal_arg(_ argr : String) throws(CmdErr) -> Int32? {
@@ -208,7 +207,7 @@ At least one option or argument to specify processes must be given."
           }
 #endif
         case "l":
-          printsig(FileHandle.standardOutput)
+          printsig(FileDescriptor.standardOutput)
           justPrint = true
           return opts
         case "m":
@@ -269,7 +268,7 @@ At least one option or argument to specify processes must be given."
         }
         opts.tdev = sb.st_rdev
         if opts.dflag != 0 {
-          print("ttydev:0x\(String(format: "%x", opts.tdev))")
+          print("ttydev:0x\(cFormat("%x", opts.tdev))")
         }
       }
     if let user = opts.user {
@@ -353,7 +352,7 @@ At least one option or argument to specify processes must be given."
         err(1, "could not sysctl(KERN_PROC)")
       }
       if size % MemoryLayout<kinfo_proc>.size != 0 {
-        var f = FileHandle.standardError
+        var f = FileDescriptor.standardError
         print("proc size mismatch (\(size) total, \(MemoryLayout<kinfo_proc>.size) chunks)", to: &f)
         print("userland out of sync with kernel", to: &f)
         exit(1)
@@ -501,7 +500,7 @@ At least one option or argument to specify processes must be given."
         }
         if opts.dflag != 0 {
 #if os(macOS)
-          print("sig:\(sig), cmd:\(opts.thiscmd!), pid:\(thispid), dev:0x\(String(format:"%0x",thistdev))")
+          print("sig:\(sig), cmd:\(opts.thiscmd!), pid:\(thispid), dev:0x\(cFormat("%0x",thistdev))")
 #else
           printf("sig:%d, cmd:%s, pid:%d, dev:0x%jx uid:%d\n", sig, thiscmd, thispid, thistdev, thisuid)
 #endif
@@ -521,7 +520,7 @@ At least one option or argument to specify processes must be given."
       }
       if killed == 0 {
         if opts.qflag == 0 {
-          var se = FileHandle.standardError
+          var se = FileDescriptor.standardError
           let j = getuid() != 0 ? "belonging to you " : ""
           print("No matching processes \(j)were found", to: &se )
         }

@@ -31,7 +31,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-import Foundation
 import CMigration
 
 @main class shlock {
@@ -58,7 +57,7 @@ import CMigration
     let buf = "shlock\(getpid())"
     var tempname = file
     if let range = tempname.range(of: "/", options: .backwards) {
-      tempname = tempname.prefix(upTo: range.upperBound).appending(buf)
+      tempname = tempname.prefix(upTo: range.upperBound) + buf
     } else {
       tempname = buf
     }
@@ -309,7 +308,7 @@ import CMigration
     }
 
   func bad_usage() {
-    var fp = FileHandle.standardError
+    var fp = FileDescriptor.standardError
     print("\(Pname): USAGE: \(Pname) [-du] [-p PID] -f file", to: &fp)
     Darwin.exit(LOCK_FAIL)
   }
@@ -321,7 +320,7 @@ import CMigration
     
     let a0 = CommandLine.arguments[0]
     
-    Pname = a0.contains("/") ? a0.components(separatedBy: "/").last! : a0
+    Pname = a0.contains("/") ? String(a0.split(separator: "/").last!) : a0
     
     var args = CommandLine.arguments.dropFirst()
     while !args.isEmpty {
