@@ -217,7 +217,7 @@ let optString = "adeFkpqr"
     var fs : FileDescriptor?
     do {
       if opts.pflg {
-        fs = FileDescriptor(forReadingAtPath: opts.fname)!
+        fs = try FileDescriptor(forReading: opts.fname)
       } else {
         if !fileExists(atPath: opts.fname) {
           fs = try FileDescriptor.open(opts.fname, .writeOnly, options: [.create])

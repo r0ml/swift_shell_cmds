@@ -68,16 +68,16 @@ import CMigration
 
     do {
       if opts.args.count == 0 {
-        if let fh = FileDescriptor(forReadingAtPath: "/dev/stdin") {
+        let fh = try FileDescriptor(forReading: "/dev/stdin")
           if try await search(opts.sflag, opts.qflag, fh) {
             found = true
           }
-        }
       } else {
         for arg in opts.args {
           file = arg
           
-          if let inStream = FileDescriptor(forReadingAtPath: file!) {
+          do {
+          let inStream = try FileDescriptor(forReading: file!)
             
             //        inStream = InputStream(fileAtPath: file!)
             if !opts.qflag {
@@ -87,7 +87,7 @@ import CMigration
               found = true
             }
             try? inStream.close()
-          } else {
+          } catch {
             if !opts.qflag {
               print("\(file!)")
             }
