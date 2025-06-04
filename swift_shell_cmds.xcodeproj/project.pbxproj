@@ -2767,6 +2767,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E7B3FF342DF0C8F20054A8EB /* PBXTargetDependency */,
 			);
 			name = realpath;
 			productName = shell_cmds;
@@ -3287,6 +3288,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E7B3FF302DF0C8B50054A8EB /* PBXTargetDependency */,
 			);
 			name = echo;
 			productName = shell_cmds;
@@ -3460,6 +3462,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E7B3FF322DF0C8D90054A8EB /* PBXTargetDependency */,
 			);
 			name = logname;
 			productName = shell_cmds;
@@ -3706,6 +3709,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E7B3FF362DF0C8FD0054A8EB /* PBXTargetDependency */,
 			);
 			name = test;
 			productName = shell_cmds;
@@ -4868,6 +4872,22 @@
 			isa = PBXTargetDependency;
 			target = FC5D638F14B9822D00123E48 /* hexdump */;
 			targetProxy = E7A46F9C2C1909F200AB34F5 /* PBXContainerItemProxy */;
+		};
+		E7B3FF302DF0C8B50054A8EB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E7B3FF2F2DF0C8B50054A8EB /* CMigration */;
+		};
+		E7B3FF322DF0C8D90054A8EB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E7B3FF312DF0C8D90054A8EB /* CMigration */;
+		};
+		E7B3FF342DF0C8F20054A8EB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E7B3FF332DF0C8F20054A8EB /* CMigration */;
+		};
+		E7B3FF362DF0C8FD0054A8EB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E7B3FF352DF0C8FD0054A8EB /* CMigration */;
 		};
 		E7EBF9342CA61A3A00AFAB94 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -8469,6 +8489,26 @@
 			productName = CMigration;
 		};
 		E7B3FF2D2DEF8C840054A8EB /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E7B3FF2F2DF0C8B50054A8EB /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E7B3FF312DF0C8D90054A8EB /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E7B3FF332DF0C8F20054A8EB /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E7B3FF352DF0C8FD0054A8EB /* CMigration */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
 			productName = CMigration;

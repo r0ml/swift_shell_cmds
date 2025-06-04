@@ -52,10 +52,10 @@ struct stamp {
   var scr_direction : UInt32 = 0 /* 'i', 'o', etc (also indicates endianness) */
 }
 
-struct buf_elm {
-  var rpos : size_t = 0
-  var ibuf : Data = Data()
-}
+//struct buf_elm {
+//  var rpos : size_t = 0
+//  var ibuf : Data = Data()
+//}
 
 
 
@@ -124,7 +124,7 @@ let optString = "adeFkpqr"
     var fname : String = ""
   }
   
-  var obuf_list = [buf_elm]()
+//  var obuf_list = [buf_elm]()
   
   var readstdin = true
   var start = time(nil)
@@ -213,22 +213,22 @@ let optString = "adeFkpqr"
     return opts
   }
   
-  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
-    var fs : FileHandle?
+  func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
+    var fs : FileDescriptor?
     do {
       if opts.pflg {
-        fs = FileHandle(forReadingAtPath: opts.fname)!
+        fs = FileDescriptor(forReadingAtPath: opts.fname)!
       } else {
-        if !FileManager.default.fileExists(atPath: opts.fname) {
-          FileManager.default.createFile(atPath: opts.fname, contents: nil)
+        if !fileExists(atPath: opts.fname) {
+          fs = try FileDescriptor.open(opts.fname, .writeOnly, options: [.create])
+        } else {
+          fs = try FileDescriptor.open(opts.fname, .writeOnly)
         }
-        fs = FileHandle(forWritingAtPath: opts.fname)!
-
-        if opts.aflg { try fs?.seekToEnd() }
-        else { try fs?.truncate(atOffset: 0) }
+        if opts.aflg { try fs?.seek(offset: 0, from: .end) }
+        else { try fs?.resize(to: 0) }
       }
     } catch(let e) {
-      err(1, e.localizedDescription)
+      err(1, "\(e)")
     }
     if let fs {
       fscript = fs
@@ -307,7 +307,7 @@ let optString = "adeFkpqr"
     */
     
     if (opts.rawout) {
-      record(fscript, Data(), .s);
+      record(fscript, [], .s);
     }
     
     var showexit = false
@@ -333,7 +333,7 @@ let optString = "adeFkpqr"
           print("", to: &fscript)
         }
       }
-      try? fscript.synchronize()
+      fsync(fscript.rawValue)
 
       #if ENABLE_FILEMON
       if (fflg) {
@@ -368,7 +368,8 @@ let optString = "adeFkpqr"
         }
       }
 #endif /* ENABLE_FILEMON */
-    let r = doshell(opts.args, opts)
+    do {
+      let r = try await doshell(opts.args, opts)
 //    }
 //    close(slave)
 
@@ -387,6 +388,10 @@ let optString = "adeFkpqr"
 //    let kk = await j.value
 //    finish();
     done(r, opts, showexit)
+    } catch(let e) {
+      throw CmdErr(127, "\(e)")
+    }
+
   }
   
   
@@ -536,7 +541,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
      */
   }
   
-  func doshell(_ av : [String], _ opts : CommandOptions) -> Int32 {
+  func doshell(_ av : [String], _ opts : CommandOptions) async throws -> Int32 {
     var env = getenv()
     
     var shell = env["SHELL"] ?? _PATH_BSHELL
@@ -549,26 +554,26 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
     
 //    setenv("SCRIPT", fname, 1);
     env["SCRIPT"] = opts.fname
-    let process = Process()
-    process.arguments = Array(av.dropFirst())
-    process.environment = env
     
+    let args = Array(av.dropFirst())
     
     if let av0 = av.first {
       let ff = searchPath(for: av0)
-      process.launchPath = ff!
-      process.launch()
+      
+      try ProcessRunner.run(command: ff!, arguments: args, environment: env)
+
 //      execvp(av0, av);
       warn(av0)
     } else {
-      process.launchPath = shell
-      process.arguments = ["-i"]
+      do {
+        let _ = try ProcessRunner.run(command: shell, arguments: ["-i"], environment: env)
+      } catch ProcessError.nonZeroExit(code: let r, stdout: _, stderr: _) {
+        return r
+      }
       
-      process.launch()
 //      execl(shell, shell, "-i", [] )
       warnx(shell)
-      process.waitUntilExit()
-      return process.terminationStatus
+      return 0
       
     }
     return 1
@@ -585,7 +590,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
     
     tvec = time(nil);
     if (opts.rawout) {
-      record(fscript, Data(), .e);
+      record(fscript, [], .e);
     }
     if (!opts.qflg) {
       if (!opts.rawout) {
@@ -610,7 +615,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
     exit(eno);
   }
   
-  func record(_ fp : FileDescriptor, _ buf : Data, _ direction : ScrDirection) {
+  func record(_ fp : FileDescriptor, _ buf : [UInt8], _ direction : ScrDirection) {
     var iov = (iovec(), iovec() )
     var stampx = stamp()
     var tv = timeval()
@@ -629,13 +634,12 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
 */
     
     do {
-      try withUnsafeMutableBytes(of: &stampx) { p in
-        try fp.write(contentsOf: Data(bytesNoCopy: p.baseAddress!, count: MemoryLayout<stamp>.size, deallocator: .none)
-                 )
+      let _ = try withUnsafeBytes(of: stampx) { p in
+        try fp.write(p) // contentsOf: Data(bytesNoCopy: p.baseAddress!, count: MemoryLayout<stamp>.size, deallocator: .none))
       }
-      if buf.count > 0 { fp.write(buf) }
+      if buf.count > 0 { let _ = try withUnsafeBytes(of: buf) { try fp.write($0) } }
     } catch(let e) {
-      err(1, e.localizedDescription)
+      err(1, "\(e)")
     }
     
 //    if (writev(fileno(fp), &iov.0, 2) == -1) {
@@ -643,32 +647,29 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
 //    }
   }
   
-  func consume(_ fp : FileDescriptor, _ lenx : UInt64, _ reg : Bool) -> Data {
+  func consume(_ fp : FileDescriptor, _ lenx : UInt64, _ reg : Bool) -> [UInt8] {
 
     var len = lenx
     
     if (reg) {
       do {
-        try fp.seek(toOffset: len + fp.offset() )
+        try fp.seek(offset: Int64(len), from: .current )
       } catch(let e) {
-        err(1, e.localizedDescription)
+        err(1, "\(e)")
       }
 //      if (fseeko(fp, len, SEEK_CUR) == -1) {
 //        err(1, "");
 //      }
-      return Data()
+      return []
     }
     else {
-      var res = Data()
+      var res = [UInt8]()
       while (len > 0) {
 //        let l = min(DEF_BUF, Int(len) );
         do {
-          if let buf = try fp.read(upToCount: Int(len) ) {
+          let buf = try fp.readUpToCount(Int(len) )
             len = len - UInt64(buf.count)
-            res.append(buf)
-          } else {
-            err(1, "cannot read buffer")
-          }
+          res.append(contentsOf: buf)
         } catch(let e) {
 //        if (fread(buf, sizeof(char), l, fp) != l) {
           err(1, "cannot read buffer");
@@ -701,23 +702,27 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
       
       
       while isReading {
-        let a = slaveFH.availableData
-        print("slave: \(String(data: a, encoding: .ascii)!)")
-        if a.count == 0 {
-          isReading = false
-          //        if (tcgetattr(masterFH.fileDescriptor, &stt) == 0 &&
-          //            (stt.c_lflag & UInt(ICANON) ) != 0) {
-          // VEOF is 0
-          //          write(masterFH.fileDescriptor, &stt.c_cc, 1);
-          //        }
+        do {
+          let a = try slaveFH.readUpToCount(4096)
+          print("slave: \(String(decoding: a, as: ISOLatin1.self))")
+          if a.count == 0 {
+            isReading = false
+            //        if (tcgetattr(masterFH.fileDescriptor, &stt) == 0 &&
+            //            (stt.c_lflag & UInt(ICANON) ) != 0) {
+            // VEOF is 0
+            //          write(masterFH.fileDescriptor, &stt.c_cc, 1);
+            //        }
+            
+          }
           
+          if (opts.rawout) {
+            record(fscript, a, .i);
+          }
+          try FileDescriptor.standardOutput.write(a) // /* masterFH */ .write(a)
+        } catch(let e) {
+          print(e)
+          return false
         }
-        
-        if (opts.rawout) {
-          record(fscript, a, .i);
-        }
-        FileDescriptor.standardOutput.write(a) // /* masterFH */ .write(a)
-        
       }
       return true
   }
@@ -776,21 +781,22 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
       err(1, "fstat failed");
     }
     
-    var reg = S_ISREG(pst.st_mode);
+    let reg = S_ISREG(pst.st_mode);
     
     
+    // FIXME: nread is never updated!
     var nread = Int64(0)
     
     while true {
       if reg && nread >= pst.st_size { break }
       //      for (nread = 0; !reg || nread < pst.st_size; nread += save_len) {
       
-      var ss : Data?
+      var ss : [UInt8]?
       
       do {
-        ss = try fp.read(upToCount: MemoryLayout<stamp>.size)
+        ss = try fp.readUpToCount(MemoryLayout<stamp>.size)
       } catch(let e) {
-        err(1, "reading playback header: \(e.localizedDescription)")
+        err(1, "reading playback header: \(e)")
       }
       //      if (fread(&stampx, sizeof(stampx), 1, fp) != 1) {
       
@@ -863,14 +869,15 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
           if (tclock - lclock > 0) {
             
             let bb = withUnsafeTemporaryAllocation(byteCount: 256, alignment: 1) { p in
-              let k = p.baseAddress!.assumingMemoryBound(to: CChar.self)
+              let k = p.baseAddress!.assumingMemoryBound(to: UInt8.self)
               let l = strftime(k, 256, opts.tstamp_fmt,
                            localtime(&tclock))
-              let d = Data(bytesNoCopy: k, count: l, deallocator: .none)
-              let bb = String(data: d, encoding: .ascii)
+        //      let d = Data(bytesNoCopy: k, count: l, deallocator: .none)
+              let j = UnsafeBufferPointer(start: k, count: l)
+              let bb = String(decoding: j, as: ISOLatin1.self)
               return bb
             }
-            print(bb!, terminator: "")
+            print(bb, terminator: "")
           }
           lclock = tclock;
         } else {
@@ -889,16 +896,15 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
 //          let l = min(DEF_BUF, stampx.scr_len);
           
           do {
-            if let bb = try fp.read(upToCount: Int(stampx.scr_len)) {
-              FileDescriptor.standardOutput.write(bb)
+            let bb = try fp.readUpToCount(Int(stampx.scr_len))
+             let _ = try FileDescriptor.standardOutput.write(bb)
               stampx.scr_len -= UInt64(bb.count);
-            }
 
 //            if (fread(buf, sizeof(char), l, fp) != l) {
 //              err(1, "cannot read buffer");
 //            }
           } catch(let e) {
-            err(1, "cannot read buffer: \(e.localizedDescription)")
+            err(1, "cannot read buffer: \(e)")
           }
           
         }

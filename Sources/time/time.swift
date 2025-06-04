@@ -98,7 +98,7 @@ actor Stuff {
   var before_ts = Darwin.timespec()
   var after = Darwin.timespec()
   
-  var pid : pid_t = -1
+//  var pid : pid_t = -1
 
   var usage = "usage: time [-al] [-h | -p] [-o file] utility [argument ...]"
 
@@ -243,15 +243,21 @@ actor Stuff {
     
     var out : UnsafeMutablePointer<FILE>?
     */
-    if let ofn = opts.ofn {
-      if !FileManager.default.fileExists(atPath: ofn) {
-        FileManager.default.createFile(atPath: ofn, contents: [UInt8]() )
+    
+    do {
+      if let ofn = opts.ofn {
+        if fileExists(atPath: ofn) {
+          fh = try FileDescriptor.open(ofn, .writeOnly, options: [.truncate])
+        } else {
+          fh = try FileDescriptor.open(ofn, .writeOnly, options: [.create])
+        }
+      } else {
+        fh = FileDescriptor.standardOutput
       }
-      fh = FileHandle(forWritingAtPath: ofn)!
-    } else {
-      fh = FileHandle.standardOutput
+      if opts.aflag { try fh.seek(offset: 0, from: .end) }
+    } catch(let e) {
+      throw CmdErr(1, "\(e)")
     }
-    if opts.aflag { fh.seekToEndOfFile() }
     
     /* r0ml: switched to FileHandle?
     if let ofn {
@@ -291,17 +297,29 @@ actor Stuff {
 
       
       
-      let process = Process()
       
-      guard FileManager.default.isExecutableFile(atPath: ff) else {
+      guard isExecutableFile(atPath: ff) else {
         throw CmdErr(127, "\(ff) is not an executable")
       }
       
-      process.launchPath = ff
-      process.arguments = Array(opts.args.dropFirst())
-      process.launch()
+      xstatus = 0
+      do {
+        let j = self.stuff
+        let res = try ProcessRunner.run(command: ff, arguments: Array(opts.args.dropFirst()), prelaunch: { p in
+ //         self.pid = p
+          let _ = await j.w4(p)
+        })
+      } catch ProcessError.nonZeroExit(let s, let o, let e) {
+        xstatus = s
+      } catch(let e) {
+        throw CmdErr(1, "\(e)")
+      }
       
-      pid = process.processIdentifier
+//      let process = Process()
+//      process.launchPath = ff
+//      process.arguments = Array(opts.args.dropFirst())
+//      process.launch()
+//      pid = process.processIdentifier
       
       
 /*      Task.detached {
@@ -330,7 +348,6 @@ actor Stuff {
 
 //      let ss = await stuff.lflagSetup(pid)
 //      print("ss flag \(ss)")
-        let _ = await self.stuff.w4(self.pid)
       /*
       if k == self.pid {
         print("pid yes")
@@ -338,10 +355,10 @@ actor Stuff {
         print("pid no")
       }
       */
-      process.waitUntilExit()
+//      process.waitUntilExit()
 
 //      print("exited")
-      xstatus = process.terminationStatus
+//      xstatus = process.terminationStatus
 
     } else {
       err(1, "not found: \(opts.args[0])")

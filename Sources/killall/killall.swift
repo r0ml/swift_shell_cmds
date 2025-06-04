@@ -396,12 +396,12 @@ At least one option or argument to specify processes must be given."
         syssize = size_t(argmax)
         opts.thiscmd = withUnsafeTemporaryAllocation(byteCount: syssize, alignment: 16) {p in
           if sysctl(&mib, 3, p.baseAddress!, &syssize, nil, 0) != -1 {
-            let procargs = Data(bytes: p.baseAddress!.advanced(by: 4), count: syssize-4)
+            let procargs = Array(UnsafeRawBufferPointer(start: p.baseAddress!.advanced(by: 4), count: syssize-4))
             
             let fi = procargs.firstIndex(where: {$0==0}) ?? procargs.count
             let pa = procargs[0..<fi]
             
-            var thiscmd = String(data: pa, encoding: .ascii)!
+            var thiscmd = String(decoding: pa, as: Unicode.ASCII.self)
             if let j = thiscmd.lastIndex(where: { $0 == "/" }) {
               thiscmd = String(thiscmd[j...].dropFirst())
             }

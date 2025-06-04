@@ -56,8 +56,8 @@ import CMigration
   func xtmpfile(_ file: String, _ pid: pid_t, _ uucpstyle: Bool) -> String? {
     let buf = "shlock\(getpid())"
     var tempname = file
-    if let range = tempname.range(of: "/", options: .backwards) {
-      tempname = tempname.prefix(upTo: range.upperBound) + buf
+    if let range = tempname.lastIndex(of: "/") {
+      tempname = tempname.prefix(upTo: range) + "/" + buf
     } else {
       tempname = buf
     }
@@ -148,7 +148,7 @@ import CMigration
     }
     
     var blx : Bool = true
-    var buf = Data()
+    var buf : [UInt8] = []
     
     if uucpstyle {
       let len = Darwin.read(fd, &pid, MemoryLayout<pid_t>.size)
@@ -157,7 +157,7 @@ import CMigration
       withUnsafeTemporaryAllocation(byteCount: Int(BUFSIZ), alignment: 1) { p in
         let len = Darwin.read(fd, p.baseAddress!, Int(BUFSIZ) )
         if len > 0 {
-          buf = Data(bytes: p.baseAddress!, count: len)
+          buf = Array( UnsafeRawBufferPointer(start: p.baseAddress!, count: len))
         }
         blx = len <= 0
       }
@@ -169,7 +169,7 @@ import CMigration
     }
     close(fd)
     
-    let s = String(data: buf, encoding: .ascii) ?? ""
+    let s = String(decoding: buf, as: Unicode.ASCII.self)
     return p_exists(pid: uucpstyle ? pid : pid_t( pid_t(s) ?? 0 ))
   }
   

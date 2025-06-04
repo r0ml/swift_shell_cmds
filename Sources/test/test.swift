@@ -20,14 +20,9 @@ func mtim(_ x : stat) -> timespec {
 }
 
 
-func error(_ msg : String, _ v : [String] ... ) {
-  if v.isEmpty {
-    print(msg)
-  } else {
-    withVaList(v) { v in
-      let _ = vfprintf(stderr, msg, v)
-    }
-  }
+
+func error(_ msg : String) {
+  print(msg)
   exit(2)
 }
 
@@ -189,8 +184,8 @@ class test {
       return 1
     }
     
-    if let range = args[0].range(of: "/", options: .backwards) {
-      p = String(args[0][range.upperBound...])
+    if let range = args[0].lastIndex(of: "/") {
+      p = String(args[0][range...].dropFirst())
     } else {
       p = args[0]
     }

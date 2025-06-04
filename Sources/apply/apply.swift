@@ -121,7 +121,7 @@ struct CommandOptions {
     return opts
   }
 
-  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
     var cmdbuf = ""
     var rval = 0
     var arg = opts.args
@@ -152,7 +152,7 @@ struct CommandOptions {
       if opts.debug {
         print(cmdbuf)
       } else {
-        if 0 != execShell(String(cmdbuf), opts.shell, opts.name) {
+        if await 0 != execShell(String(cmdbuf), opts.shell, opts.name) {
           rval = 1
         }
       }
@@ -166,7 +166,7 @@ struct CommandOptions {
   }
 
   /// Execute a shell `command` using passed `shell` and `use_name`  arguments.
-  func execShell(_ command: String, _ useShell: String, _ useName: String) -> Int {
+  func execShell(_ command: String, _ useShell: String, _ useName: String) async -> Int {
     do {
       let _ = try ProcessRunner.run(command: useShell, arguments: ["-c", command])
     } catch let e as Errno {

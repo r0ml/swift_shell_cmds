@@ -100,7 +100,7 @@ func cleanup() {
   }
   
   
-  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
+  func runCommand(_ optsx : CommandOptions) async throws(CmdErr) {
     var opts = optsx
     lockname = opts.args.removeFirst()
     
@@ -138,7 +138,7 @@ func cleanup() {
       err(Int(EX_OSERR), "atexit failed")
     }
     
-    let status = insteadOfFork(opts.args[0], opts.args)
+    let status = await insteadOfFork(opts.args[0], opts.args)
     
     let r = WIFEXITED(status) ? WEXITSTATUS(status) : EX_SOFTWARE
     if r != 0 { throw CmdErr(Int(r) ) }
@@ -177,7 +177,7 @@ func cleanup() {
   }
   
 
-  func insteadOfFork(_ cmd : String, _ args : [String]) -> Int32 {
+  func insteadOfFork(_ cmd : String, _ args : [String]) async -> Int32 {
     //   let process = Process()
 
     guard let execu = searchPath(for: cmd) else { print("command not found"); return -1 } // d.appending(component: "..").appending(component: executable).path(percentEncoded:false)

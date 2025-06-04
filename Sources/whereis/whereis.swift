@@ -155,13 +155,13 @@ func colonify(_ cpp: [String]) -> String {
     }
   }
   
-  func parseOptions() throws(CmdErr) -> CommandOptions {
+  func parseOptions() async throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
     
     setlocale(LC_ALL, "")
     
     try scanopts(&opts)
-    defaults(&opts)
+    await defaults(&opts)
     
     if opts.mandirs == nil {
       opts.opt_m = false
@@ -188,7 +188,7 @@ func colonify(_ cpp: [String]) -> String {
   }
   
 
-  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
+  func runCommand(_ optsx : CommandOptions) async throws(CmdErr) {
     var opts = optsx
     
     while let nam = opts.query.first {
@@ -218,7 +218,7 @@ func colonify(_ cpp: [String]) -> String {
       }
       
       if opts.opt_m  {
-        man = do_optM(namex, &opts)
+        man = await do_optM(namex, &opts)
       }
       
       if opts.opt_u && opts.unusual == 0 {
@@ -294,7 +294,7 @@ func colonify(_ cpp: [String]) -> String {
     return bin
   }
   
-  func do_optM(_ name : String, _ opts : inout CommandOptions) -> String? {
+  func do_optM(_ name : String, _ opts : inout CommandOptions) async -> String? {
     opts.unusual = opts.unusual | NO_MAN_FOUND
     let cp = opts.opt_a ? ["-a","-w", name] : ["-S1:8:6", "-w", name]
 //    let cpx = cp + ["-M", colonify(mandirs ?? [])]
@@ -344,7 +344,7 @@ func colonify(_ cpp: [String]) -> String {
   /*
    * Provide defaults for all options and directory lists.
    */
-  func defaults(_ opts : inout CommandOptions) {
+  func defaults(_ opts : inout CommandOptions) async {
 //      var s: Int
 //      var b: String
   //    var buf = [Character](repeating: "\0", count: BUFSIZ)
