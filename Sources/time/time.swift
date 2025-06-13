@@ -189,9 +189,13 @@ actor Stuff {
      */
     
     var opts = CommandOptions()
-    Darwin.setlocale(Darwin.LC_NUMERIC, "")
-    opts.decimal_point = localeconv().pointee.decimal_point[0]
-    
+
+    // FIXME: setlocale seems to be missing in Swift 6.2
+    // Darwin.setlocale(Darwin.LC_NUMERIC, "")
+
+    // FIXME: localeconv seems to be missing in Swift 6.2
+    // ;opts.decimal_point = Darwin.localeconv().pointee.decimal_point[0]
+
     let go = BSDGetopt("ahlo:p")
     while let (ch, optarg) = try go.getopt() {
       switch ch {

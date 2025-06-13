@@ -157,9 +157,10 @@ func colonify(_ cpp: [String]) -> String {
   
   func parseOptions() async throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
-    
-    setlocale(LC_ALL, "")
-    
+
+    // FIXME: setlocale seems to be missing in Swift 6.2
+    // setlocale(LC_ALL, "")
+
     try scanopts(&opts)
     await defaults(&opts)
     

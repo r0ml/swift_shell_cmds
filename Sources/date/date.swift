@@ -107,7 +107,9 @@ import CMigration
 
     opts.v = nil
     opts.fmt = nil
-    setlocale(LC_TIME, "")
+
+    // FIXME: selocale seems to be missing in macos 26
+    // setlocale(LC_TIME, "")
 
 
     let go = BSDGetopt("f:I::jnRr:uv:")
@@ -221,9 +223,11 @@ import CMigration
       printisodate(&lt, opts.iso8601_subset)
     }
 
+// FIXME: selocale seems to be missing on Swift 6.2
+    /*
     if opts.format == rfc2822_format {
       Darwin.setlocale(LC_TIME, "C")
-    }
+    }*/
 
     strftime(&buf, buf.count, opts.format, &lt)
     let k = String(platformString: buf)

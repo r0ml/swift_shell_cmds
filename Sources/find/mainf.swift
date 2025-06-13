@@ -96,8 +96,9 @@ var exitstatus : Int32 = 0
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
     var Hflag, Lflag : Bool
-    
-    Darwin.setlocale(LC_ALL, "")
+
+    // FIXME: setlocale seems to be missing in Swift 6.2
+    // Darwin.setlocale(LC_ALL, "")
     
     Darwin.time(&now) /* initialize the time-of-day */
     

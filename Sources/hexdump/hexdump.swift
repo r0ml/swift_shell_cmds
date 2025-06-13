@@ -178,9 +178,10 @@ final class hexdump : ShellCommand {
   func parseOptions() throws(CmdErr) -> CommandOptions {
     //    var p: String?
     var opts = CommandOptions()
-    
-    _ = setlocale(LC_ALL, "")
-    
+
+    // FIXME: setlocale seems to be missing in macos 26
+    // _ = setlocale(LC_ALL, "")
+
     let av = CommandLine.arguments[0]
     if let p = av.lastIndex(of: "o"), av[p...] != "od" {
       do {

@@ -67,7 +67,8 @@ import CMigration
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
 
-    Darwin.setlocale(Darwin.LC_TIME, "")
+    // FIXME: swiftlocale seems to be missing in Swift 6.2
+      // Darwin.setlocale(Darwin.LC_TIME, "")
     
     // #ifdef __APPLE__
     // let unix2003_std = true //  COMPAT_MODE("bin/who", "unix2003")

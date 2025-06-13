@@ -178,7 +178,8 @@ At least one option or argument to specify processes must be given."
   
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
-      setlocale(LC_ALL, "")
+    // FIXME: setlocale seems to be missing in Swift 6.2
+    // setlocale(LC_ALL, "")
       
       if CommandLine.arguments.count < 2 {
         throw CmdErr(1)

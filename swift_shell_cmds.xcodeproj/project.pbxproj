@@ -2785,6 +2785,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715E42DF9EFD600C1941A /* PBXTargetDependency */,
 			);
 			name = lockf;
 			productName = lockf;
@@ -2973,6 +2974,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75716132DFA172600C1941A /* PBXTargetDependency */,
 				E755203F2C39DAFB005E098B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
@@ -3177,6 +3179,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75716062DF9F04D00C1941A /* PBXTargetDependency */,
 			);
 			name = what;
 			productName = shell_cmds;
@@ -3195,6 +3198,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715D82DF9EFA900C1941A /* PBXTargetDependency */,
 			);
 			name = hexdump;
 			productName = shell_cmds;
@@ -3213,6 +3217,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715CA2DF9EF6B00C1941A /* PBXTargetDependency */,
 			);
 			name = apply;
 			productName = shell_cmds;
@@ -3231,6 +3236,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715CC2DF9EF7600C1941A /* PBXTargetDependency */,
 			);
 			name = basename;
 			packageProductDependencies = (
@@ -3252,6 +3258,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715CE2DF9EF7D00C1941A /* PBXTargetDependency */,
 			);
 			name = date;
 			productName = shell_cmds;
@@ -3270,6 +3277,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715D02DF9EF8500C1941A /* PBXTargetDependency */,
 			);
 			name = dirname;
 			productName = shell_cmds;
@@ -3306,6 +3314,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715D22DF9EF9000C1941A /* PBXTargetDependency */,
 			);
 			name = env;
 			productName = shell_cmds;
@@ -3341,6 +3350,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715D42DF9EF9B00C1941A /* PBXTargetDependency */,
 			);
 			name = find;
 			productName = shell_cmds;
@@ -3358,6 +3368,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715D62DF9EFA200C1941A /* PBXTargetDependency */,
 			);
 			name = getopt;
 			productName = shell_cmds;
@@ -3375,6 +3386,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715DA2DF9EFB100C1941A /* PBXTargetDependency */,
 			);
 			name = hostname;
 			productName = shell_cmds;
@@ -3392,6 +3404,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715DC2DF9EFB500C1941A /* PBXTargetDependency */,
 			);
 			name = id;
 			productName = shell_cmds;
@@ -3410,6 +3423,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715DE2DF9EFC000C1941A /* PBXTargetDependency */,
 			);
 			name = jot;
 			productName = shell_cmds;
@@ -3427,6 +3441,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715E02DF9EFC600C1941A /* PBXTargetDependency */,
 			);
 			name = kill;
 			productName = shell_cmds;
@@ -3445,6 +3460,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715E22DF9EFD000C1941A /* PBXTargetDependency */,
 			);
 			name = killall;
 			productName = shell_cmds;
@@ -3481,6 +3497,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715E62DF9EFE100C1941A /* PBXTargetDependency */,
 			);
 			name = mktemp;
 			productName = shell_cmds;
@@ -3498,6 +3515,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715E82DF9EFE700C1941A /* PBXTargetDependency */,
 			);
 			name = nice;
 			productName = shell_cmds;
@@ -3515,6 +3533,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715EA2DF9EFED00C1941A /* PBXTargetDependency */,
 			);
 			name = nohup;
 			productName = shell_cmds;
@@ -3533,6 +3552,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715EC2DF9EFF300C1941A /* PBXTargetDependency */,
 			);
 			name = path_helper;
 			productName = shell_cmds;
@@ -3550,6 +3570,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715EE2DF9EFF700C1941A /* PBXTargetDependency */,
 			);
 			name = printenv;
 			productName = shell_cmds;
@@ -3568,6 +3589,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715F02DF9EFFE00C1941A /* PBXTargetDependency */,
 			);
 			name = printf;
 			productName = shell_cmds;
@@ -3585,6 +3607,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715F22DF9F00300C1941A /* PBXTargetDependency */,
 			);
 			name = pwd;
 			productName = shell_cmds;
@@ -3603,6 +3626,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715F42DF9F00D00C1941A /* PBXTargetDependency */,
 			);
 			name = renice;
 			productName = shell_cmds;
@@ -3621,6 +3645,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715F62DF9F01400C1941A /* PBXTargetDependency */,
 			);
 			name = script;
 			productName = shell_cmds;
@@ -3639,6 +3664,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715F82DF9F01A00C1941A /* PBXTargetDependency */,
 			);
 			name = seq;
 			productName = shell_cmds;
@@ -3656,6 +3682,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715FA2DF9F01F00C1941A /* PBXTargetDependency */,
 			);
 			name = shlock;
 			productName = shell_cmds;
@@ -3674,6 +3701,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715FC2DF9F02400C1941A /* PBXTargetDependency */,
 			);
 			name = sleep;
 			productName = shell_cmds;
@@ -3691,6 +3719,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75715FE2DF9F02C00C1941A /* PBXTargetDependency */,
 			);
 			name = tee;
 			productName = shell_cmds;
@@ -3727,6 +3756,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75716002DF9F03800C1941A /* PBXTargetDependency */,
 			);
 			name = time;
 			productName = shell_cmds;
@@ -3761,6 +3791,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75716022DF9F04200C1941A /* PBXTargetDependency */,
 			);
 			name = uname;
 			productName = shell_cmds;
@@ -3778,6 +3809,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75716042DF9F04800C1941A /* PBXTargetDependency */,
 			);
 			name = users;
 			productName = shell_cmds;
@@ -3795,6 +3827,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E75716082DF9F05400C1941A /* PBXTargetDependency */,
 			);
 			name = whereis;
 			productName = shell_cmds;
@@ -3812,6 +3845,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E757160A2DF9F05A00C1941A /* PBXTargetDependency */,
 			);
 			name = which;
 			productName = shell_cmds;
@@ -3829,6 +3863,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E757160C2DF9F06100C1941A /* PBXTargetDependency */,
 			);
 			name = who;
 			productName = shell_cmds;
@@ -3846,6 +3881,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E757160E2DF9F06600C1941A /* PBXTargetDependency */,
 			);
 			name = xargs;
 			productName = shell_cmds;
@@ -4852,6 +4888,150 @@
 			isa = PBXTargetDependency;
 			target = FCBA162E14A145C700AA698B /* xargs */;
 			targetProxy = E755203E2C39DAFB005E098B /* PBXContainerItemProxy */;
+		};
+		E75715CA2DF9EF6B00C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715C92DF9EF6B00C1941A /* CMigration */;
+		};
+		E75715CC2DF9EF7600C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715CB2DF9EF7600C1941A /* CMigration */;
+		};
+		E75715CE2DF9EF7D00C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715CD2DF9EF7D00C1941A /* CMigration */;
+		};
+		E75715D02DF9EF8500C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715CF2DF9EF8500C1941A /* CMigration */;
+		};
+		E75715D22DF9EF9000C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715D12DF9EF9000C1941A /* CMigration */;
+		};
+		E75715D42DF9EF9B00C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715D32DF9EF9B00C1941A /* CMigration */;
+		};
+		E75715D62DF9EFA200C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715D52DF9EFA200C1941A /* CMigration */;
+		};
+		E75715D82DF9EFA900C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715D72DF9EFA900C1941A /* CMigration */;
+		};
+		E75715DA2DF9EFB100C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715D92DF9EFB100C1941A /* CMigration */;
+		};
+		E75715DC2DF9EFB500C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715DB2DF9EFB500C1941A /* CMigration */;
+		};
+		E75715DE2DF9EFC000C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715DD2DF9EFC000C1941A /* CMigration */;
+		};
+		E75715E02DF9EFC600C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715DF2DF9EFC600C1941A /* CMigration */;
+		};
+		E75715E22DF9EFD000C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715E12DF9EFD000C1941A /* CMigration */;
+		};
+		E75715E42DF9EFD600C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715E32DF9EFD600C1941A /* CMigration */;
+		};
+		E75715E62DF9EFE100C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715E52DF9EFE100C1941A /* CMigration */;
+		};
+		E75715E82DF9EFE700C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715E72DF9EFE700C1941A /* CMigration */;
+		};
+		E75715EA2DF9EFED00C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715E92DF9EFED00C1941A /* CMigration */;
+		};
+		E75715EC2DF9EFF300C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715EB2DF9EFF300C1941A /* CMigration */;
+		};
+		E75715EE2DF9EFF700C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715ED2DF9EFF700C1941A /* CMigration */;
+		};
+		E75715F02DF9EFFE00C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715EF2DF9EFFE00C1941A /* CMigration */;
+		};
+		E75715F22DF9F00300C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715F12DF9F00300C1941A /* CMigration */;
+		};
+		E75715F42DF9F00D00C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715F32DF9F00D00C1941A /* CMigration */;
+		};
+		E75715F62DF9F01400C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715F52DF9F01400C1941A /* CMigration */;
+		};
+		E75715F82DF9F01A00C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715F72DF9F01A00C1941A /* CMigration */;
+		};
+		E75715FA2DF9F01F00C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715F92DF9F01F00C1941A /* CMigration */;
+		};
+		E75715FC2DF9F02400C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715FB2DF9F02400C1941A /* CMigration */;
+		};
+		E75715FE2DF9F02C00C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715FD2DF9F02C00C1941A /* CMigration */;
+		};
+		E75716002DF9F03800C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75715FF2DF9F03800C1941A /* CMigration */;
+		};
+		E75716022DF9F04200C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75716012DF9F04200C1941A /* CMigration */;
+		};
+		E75716042DF9F04800C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75716032DF9F04800C1941A /* CMigration */;
+		};
+		E75716062DF9F04D00C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75716052DF9F04D00C1941A /* CMigration */;
+		};
+		E75716082DF9F05400C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75716072DF9F05400C1941A /* CMigration */;
+		};
+		E757160A2DF9F05A00C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75716092DF9F05A00C1941A /* CMigration */;
+		};
+		E757160C2DF9F06100C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E757160B2DF9F06100C1941A /* CMigration */;
+		};
+		E757160E2DF9F06600C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E757160D2DF9F06600C1941A /* CMigration */;
+		};
+		E75716132DFA172600C1941A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E75716122DFA172600C1941A /* ShellTesting */;
 		};
 		E78D06482C12430A00A7C01B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -8487,6 +8667,186 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
 			productName = CMigration;
+		};
+		E75715C92DF9EF6B00C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715CB2DF9EF7600C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715CD2DF9EF7D00C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715CF2DF9EF8500C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715D12DF9EF9000C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715D32DF9EF9B00C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715D52DF9EFA200C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715D72DF9EFA900C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715D92DF9EFB100C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715DB2DF9EFB500C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715DD2DF9EFC000C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715DF2DF9EFC600C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715E12DF9EFD000C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715E32DF9EFD600C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715E52DF9EFE100C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715E72DF9EFE700C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715E92DF9EFED00C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715EB2DF9EFF300C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715ED2DF9EFF700C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715EF2DF9EFFE00C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715F12DF9F00300C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715F32DF9F00D00C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715F52DF9F01400C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715F72DF9F01A00C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715F92DF9F01F00C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715FB2DF9F02400C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715FD2DF9F02C00C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75715FF2DF9F03800C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75716012DF9F04200C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75716032DF9F04800C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75716052DF9F04D00C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75716072DF9F05400C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75716092DF9F05A00C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E757160B2DF9F06100C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E757160D2DF9F06600C1941A /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
+		E75716122DFA172600C1941A /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
 		};
 		E7B3FF2D2DEF8C840054A8EB /* CMigration */ = {
 			isa = XCSwiftPackageProductDependency;

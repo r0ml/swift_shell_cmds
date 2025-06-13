@@ -133,8 +133,9 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
       option("verbose", /* "t", */ .no_argument),
       option("input-file", /* "f" , */ .required_argument),
     ]
-    
-    Darwin.setlocale(Darwin.LC_ALL, "")
+
+    // FIXME: setlocale seems to be missing in Swift 6.2
+    // Darwin.setlocale(Darwin.LC_ALL, "")
     
     opts.nline = opts.arg_max - Int(Darwin.MAXPATHLEN)
     
