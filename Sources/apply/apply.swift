@@ -38,6 +38,8 @@
 
 import CMigration
 
+import Darwin
+
 let magic = "%"
 
 func ISMAGICNO(_ p: String ) -> Bool {

@@ -40,6 +40,8 @@
 
 import CMigration
 
+import Darwin
+
 struct Flags : OptionSet {
 
   init(rawValue: UInt16) {

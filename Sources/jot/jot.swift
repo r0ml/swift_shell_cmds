@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 /* Defaults */
 let BEGIN_DEF : Double = 1
 let ENDER_DEF : Double = 100

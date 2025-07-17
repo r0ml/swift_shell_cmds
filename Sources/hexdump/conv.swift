@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 let MB_CUR_MAX = 1
 
 extension hexdump {

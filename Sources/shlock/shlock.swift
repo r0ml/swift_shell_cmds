@@ -33,6 +33,11 @@
 
 import CMigration
 
+import stdlib_h
+import errno_h
+
+import Darwin
+
 @main class shlock {
   
   let LOCK_GOOD : Int32 = 0
@@ -50,7 +55,7 @@ import CMigration
   
   static func main() {
     let z = Self().main()
-    exit(z)
+    stdlib_h.exit(z)
   }
   
   func xtmpfile(_ file: String, _ pid: pid_t, _ uucpstyle: Bool) -> String? {
@@ -70,8 +75,8 @@ import CMigration
       fd = Darwin.open(tempname, Darwin.O_RDWR|Darwin.O_CREAT|Darwin.O_TRUNC|Darwin.O_SYNC|Darwin.O_EXCL, 0644)
       if fd == -1 {
         switch errno {
-          case Darwin.EEXIST:
-            if Darwin.unlink(tempname) == -1 {
+          case errno_h.EEXIST:
+            if stdlib_h.unlink(tempname) == -1 {
             warn("unlink(\(tempname))")
             return nil
           }

@@ -35,6 +35,9 @@
 
 import CMigration 
 
+import Darwin
+
+
 @main final class pwd : ShellCommand {
   
   var usage = "usage: pwd [-L | -P]"

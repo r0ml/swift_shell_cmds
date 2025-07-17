@@ -33,14 +33,17 @@
 
 import CMigration
 
+import stdio_h
+import stdlib_h
+
 @main struct Echo {
   static func main() {
     
     var args = CommandLine.arguments
     args.removeFirst() // this is the executable name
     var nflag = false
-    let posix = Darwin.getenv("POSIXLY_CORRECT") != nil || Darwin.getenv("POSIX_PEDANTIC") != nil
-    
+    let posix = stdlib_h.getenv("POSIXLY_CORRECT") != nil || stdlib_h.getenv("POSIX_PEDANTIC") != nil
+
     if !posix && args[0] == "-n" {
       nflag = true
       args.removeFirst()
@@ -49,7 +52,7 @@ import CMigration
     var firstTime = true
     for arg in args {
       if !firstTime {
-        Darwin.putchar(32)
+        stdio_h.putchar(32)
       } else {
         firstTime = false
       }
@@ -64,23 +67,23 @@ import CMigration
     }
     
     if !nflag {
-      Darwin.putchar(10)
+      stdio_h.putchar(10)
     }
     
-    fflush(stdout)
-    Darwin.exit(0)
+    stdio_h.fflush(stdout)
+    stdlib_h.exit(0)
   }
   
   static func printEscapeChar(cur: inout String, posix: Bool) {
     if cur.isEmpty {
-      Darwin.putchar(92)
+      stdio_h.putchar(92)
       return
     }
     
     let z =  cur.removeFirst()
     if z == "c" {
-      fflush(stdout)
-      Darwin.exit(0)
+      stdio_h.fflush(stdout)
+      stdlib_h.exit(0)
     }
     
     if !posix {
@@ -89,21 +92,21 @@ import CMigration
 
     switch z {
           case "a":
-        Darwin.putchar(7)
+        stdio_h.putchar(7)
           case "b":
-        Darwin.putchar(8)
+        stdio_h.putchar(8)
           case "f":
-        Darwin.putchar(12)
+        stdio_h.putchar(12)
           case "n":
-        Darwin.putchar(10)
+        stdio_h.putchar(10)
           case "r":
-        Darwin.putchar(13)
+        stdio_h.putchar(13)
           case "t":
-        Darwin.putchar(9)
+        stdio_h.putchar(9)
           case "v":
-        Darwin.putchar(11)
+        stdio_h.putchar(11)
           case "\\":
-        Darwin.putchar(92)
+        stdio_h.putchar(92)
           case "0":
               var j = 0, num = 0
       while true {
@@ -121,7 +124,7 @@ import CMigration
           break
         }
       }
-        Darwin.putchar(Int32(num))
+        stdio_h.putchar(Int32(num))
           default:
       print( z, terminator: "" )
           }

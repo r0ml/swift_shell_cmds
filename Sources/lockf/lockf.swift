@@ -32,6 +32,10 @@
 // FIXME: apparently does not get built for APPLE platforms
 import CMigration
 
+import signal_h
+
+import Darwin
+
 nonisolated(unsafe) var keep = false
 nonisolated(unsafe) var lockfd : Int32 = -1
 nonisolated(unsafe) var lockname : String!

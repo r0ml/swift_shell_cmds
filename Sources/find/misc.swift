@@ -38,6 +38,8 @@
 
 import CMigration
 
+import Darwin
+
 /*
  * brace_subst --
  *  Replace occurrences of {} in s1 with s2 and return the result string.

@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 @main class killCommand {
   #if os(macOS) || os(iOS) || os(visionOS) || os(tvOS) || os(watchOS)
   let sys_nsig = NSIG

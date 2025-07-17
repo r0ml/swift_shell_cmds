@@ -38,6 +38,8 @@
 
 import CMigration
 
+import Darwin
+
 /* Instead of using inout variables (passing a string in and then mutating it, pass in a string and return the
    replaced string.  The "maxsize" argument can be ignored -- because in Swift, I don't need to do memory management,
   so it is easier to just let the result string be as large as it needs to be.

@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 extension UnsafeMutablePointer<passwd> {
   var name : String {
     String(cString: self.pointee.pw_name)

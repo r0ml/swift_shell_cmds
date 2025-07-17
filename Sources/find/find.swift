@@ -38,6 +38,8 @@
 
 import CMigration
 
+import Darwin
+
 indirect enum P_un {
   case g_data(_ a : Darwin.gid_t)
   case i_data(_ a : Darwin.ino_t)

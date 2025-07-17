@@ -32,6 +32,8 @@
 
 import CMigration
 
+import Darwin
+
 @main final class Who : ShellCommand {
   struct CommandOptions {
     var Hflag : Bool = false     // Write column headings

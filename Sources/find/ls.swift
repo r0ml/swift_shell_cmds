@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 extension find {
   func printlong(name: String, accpath: String, sb: Darwin.stat) {
     //    var modep = [CChar](repeating: 0, count: 15)

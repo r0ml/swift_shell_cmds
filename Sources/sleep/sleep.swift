@@ -33,6 +33,11 @@
 
 import CMigration
 
+import stdlib_h
+import time_h
+import limits_h
+import signal_h
+
 nonisolated(unsafe) var reportRequested = false
 
 func reportRequest(_ signo: Int32) {
@@ -46,15 +51,15 @@ func reportRequest(_ signo: Int32) {
   
   static func main() {
     let z = Self().main()
-    exit(z)
+    stdlib_h.exit(z)
   }
   
   func main() -> Int32 {
     let argc = CommandLine.argc
     let argv = CommandLine.arguments
     
-    var timeToSleep = Darwin.timespec()
-    var timeSlept = Darwin.timespec()
+    var timeToSleep = time_h.timespec()
+    var timeSlept = time_h.timespec()
     var d: Double = 0.0
     var original: time_t = 0
     var buf = [Character](repeating: " ", count: 2)
@@ -71,14 +76,14 @@ func reportRequest(_ signo: Int32) {
     withUnsafeMutablePointer(to: &d) { dp in
       withUnsafeMutablePointer(to: &buf) { bufp in
         withVaList([dp, bufp]) { va in
-          if Darwin.vsscanf(argv.last!, "%lf%1s", va) != 1 {
+          if stdlib_h.vsscanf(argv.last!, "%lf%1s", va) != 1 {
             usage()
           }
         }
       }
     }
     
-    if d > Double(INT_MAX) {
+    if d > Double(limits_h.INT_MAX) {
       usage()
     }
     if d <= 0 {
@@ -89,8 +94,8 @@ func reportRequest(_ signo: Int32) {
     original = timeToSleep.tv_sec
     timeToSleep.tv_nsec = Int(1e9 * (d - Double(timeToSleep.tv_sec)))
     
-    Darwin.signal(Darwin.SIGINFO, { reportRequest($0) } )
-    
+    signal_h.signal(signal_h.SIGINFO, { reportRequest($0) } )
+
     while nanosleep(&timeToSleep, &timeSlept) != 0 {
       if reportRequested {
         print("about \(timeSlept.tv_sec) second(s) left out of the original \(original)")
@@ -105,6 +110,6 @@ func reportRequest(_ signo: Int32) {
   func usage() {
     var fh = FileDescriptor.standardError
     print("usage: sleep seconds", to: &fh )
-    Darwin.exit(1)
+    stdlib_h.exit(1)
   }
 }

@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 let PRIu64 = "u"
 
 nonisolated(unsafe) var child_running = true

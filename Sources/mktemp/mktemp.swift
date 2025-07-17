@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 @main final class mktemp : ShellCommand {
   let long_opts: [CMigration.option] = [
     option("directory", .no_argument),

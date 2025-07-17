@@ -35,6 +35,8 @@
 
 import CMigration
 
+import stdlib_h
+
 @main final class What : ShellCommand {
   struct CommandOptions {
     var qflag = false
@@ -101,7 +103,7 @@ import CMigration
       let z = String(describing: error)
       throw CmdErr(2, z)
     }
-    exit(found ? 0 : 1)
+    stdlib_h.exit(found ? 0 : 1)
   }
   
     var usage = "usage: what [-qs] [file ...]"

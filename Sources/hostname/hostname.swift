@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 @main final class hostname : ShellCommand {
   
   struct CommandOptions {

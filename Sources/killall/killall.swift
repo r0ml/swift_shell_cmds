@@ -33,6 +33,8 @@
 
 import CMigration
 
+import Darwin
+
 @main final class killall : ShellCommand {
   
   var signames : [String] = []

@@ -35,11 +35,15 @@
 
 import CMigration
 
+import stdlib_h
+import Darwin
+
+
 @main class logname {
   required init() {}
   static func main() {
     let z = Self().main()
-    Darwin.exit(z)
+    stdlib_h.exit(z)
   }
   
   func main() -> Int32 {
@@ -59,11 +63,11 @@ import CMigration
     if Darwin.ferror(Darwin.stdout) != 0 || fflush(Darwin.stdout) != 0 {
       fatalError("stdout")
     }
-    Darwin.exit(0)
+    stdlib_h.exit(0)
   }
   
   func usage() {
     Darwin.fputs("usage: logname\n", Darwin.stderr)
-    Darwin.exit(1)
+    stdlib_h.exit(1)
   }
 }

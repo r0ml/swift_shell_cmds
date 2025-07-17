@@ -38,6 +38,9 @@
 
 import CMigration
 
+import time_h
+import Darwin
+
 /*
 var now = time_t()
 var dotfd : Int32 = 0
@@ -54,7 +57,7 @@ var exitstatus : Int32 = 0
 */
 
 @main final class find : ShellCommand {
-  var now = time_t()
+  var now = time_h.time_t()
   var exitstatus : Int32 = 0
 
   // FIXME: these should really be CommandOptions

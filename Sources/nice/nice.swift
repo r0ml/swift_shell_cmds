@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 @main final class Nice : ShellCommand {
   let DEFNICE : Int32 = 10
   var niceness: Int32 = 10

@@ -14,6 +14,8 @@
 
 import CMigration
 
+import Darwin
+
 #if os(macOS) || os(iOS)
 func mtim(_ x : stat) -> timespec {
   return x.st_mtimespec

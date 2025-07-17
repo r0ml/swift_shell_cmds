@@ -36,6 +36,8 @@
 
 import CMigration
 
+import Darwin
+
 let FILENAME = "nohup.out"
 let EXIT_NOEXEC : Int32 = 126
 let EXIT_NOTFOUND : Int32 = 127

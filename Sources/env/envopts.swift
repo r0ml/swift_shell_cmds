@@ -36,6 +36,9 @@
 
 import CMigration
 
+import stdio_h
+import Darwin
+
 extension Env {
    
     /*
@@ -105,8 +108,8 @@ extension Env {
         }
         
         if env_verbosity > 1 {
-          Darwin.fputs("#env Searching:\t'\(path)'\n", Darwin.stderr)
-          Darwin.fputs("#env  for file:\t'\(filename)'\n", Darwin.stderr)
+          stdio_h.fputs("#env Searching:\t'\(path)'\n", stdio_h.stderr)
+          stdio_h.fputs("#env  for file:\t'\(filename)'\n", stdio_h.stderr)
         }
         
         fqname = nil

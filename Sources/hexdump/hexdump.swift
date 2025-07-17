@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 /*
 struct prOptions : OptionSet {
   let rawValue: UInt8

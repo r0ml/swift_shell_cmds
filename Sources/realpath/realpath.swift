@@ -33,19 +33,24 @@
  * SUCH DAMAGE.
  */
 
-import CMigration 
+import CMigration
+
+import limits_h
+import stdlib_h
+import stdio_h
+
 @main class realpath {
   var qflag = 0
   var rval = 0
   var path: String?
   var p: UnsafeMutablePointer<Int8>?
-  var buf = [Int8](repeating: 0, count: Int(PATH_MAX))
-  
+  var buf = [Int8](repeating: 0, count: Int(limits_h.PATH_MAX))
+
   required init() {}
   
   static func main() {
     let z = Self().main()
-    exit(z)
+    stdlib_h.exit(z)
   }
   
   func main() -> Int32 {
@@ -65,7 +70,7 @@ import CMigration
     var aa = CommandLine.arguments
     repeat {
       withUnsafeMutablePointer(to: &buf) { b in
-        p = Darwin.realpath(path, b)
+        p = stdlib_h.realpath(path, b)
       }
       
       if p == nil {
@@ -83,7 +88,7 @@ import CMigration
   }
   
     func usage() {
-      Darwin.fputs("usage: realpath [-q] [path ...]\n", Darwin.stderr)
-      exit(1)
+      stdio_h.fputs("usage: realpath [-q] [path ...]\n", stdio_h.stderr)
+      stdlib_h.exit(1)
     }
     }

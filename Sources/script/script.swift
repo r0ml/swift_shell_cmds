@@ -36,6 +36,8 @@
 
 import CMigration
 
+import Darwin
+
 let DEF_BUF = 65536
 
 enum ScrDirection : UInt32 {

@@ -38,6 +38,8 @@
 
 import CMigration
 
+import Darwin
+
 extension find {
   
   func COMPARE<T : Equatable & Comparable>(_ a: T, _ b: T, _ plan: PLAN) -> Bool {

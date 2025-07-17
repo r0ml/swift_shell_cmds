@@ -32,6 +32,9 @@
 
 import CMigration
 
+import Darwin
+
+
 func usage() {
     print("usage: which [-as] program ...")
     exit(EXIT_FAILURE)

@@ -27,6 +27,8 @@
 
 import CMigration
 
+import Darwin
+
 @main final class path_helper : ShellCommand {
   enum Style {
     case csh

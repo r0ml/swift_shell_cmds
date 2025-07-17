@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 extension hexdump {
   func newsyntax(_ opts : inout CommandOptions) throws {
     

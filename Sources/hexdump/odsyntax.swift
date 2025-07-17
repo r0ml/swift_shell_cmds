@@ -35,6 +35,9 @@
 
 import CMigration
 
+import Darwin
+
+
 let PADDING = "         "
 let TYPE_OFFSET = 7
 

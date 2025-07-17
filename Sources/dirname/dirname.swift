@@ -35,6 +35,9 @@
 
 import CMigration
 
+import Darwin
+
+
 @main final class dirnameTool :ShellCommand {
   struct CommandOptions {
     var args : [String] = []
