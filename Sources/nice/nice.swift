@@ -35,7 +35,7 @@
 
 import CMigration
 
-import Darwin
+// import sys_resource
 
 @main final class Nice : ShellCommand {
   let DEFNICE : Int32 = 10
@@ -69,14 +69,12 @@ import Darwin
       switch ch {
       case "n":
         errno = 0
-        let opta = optarg
-        
-        niceness = Int32(strtol(opta, &ep, 10))
-        let epx = if let ep { String(cString: ep) } else { "" }
-        if epx == opta || epx != "" || errno != 0 ||
-            niceness < Int32.min || niceness > Int32.max {
-          throw CmdErr(1, "\(opta): invalid nice value")
-        }
+          if let opta = Int32(optarg) {
+            niceness = opta
+          } else {
+              throw CmdErr(1, "\(optarg): invalid nice value")
+          }
+
       default:
         throw CmdErr(1)
       }
@@ -103,13 +101,10 @@ import Darwin
     let evpa = opts.args.dropFirst().map { strdup($0) }
     execvp(opts.args[0], evpa)
     
-    let nn = String(cString: getprogname())
-    
-//     let nn = String(cString: basename(argv[0]))
     let n = "\(opts.args[0])"
-    let e = String(cString: strerror( errno ))
-    Darwin.fputs("\(nn): \(n): \(e)\n", Darwin.stderr)
-    Darwin.exit(Darwin.errno == Darwin.ENOENT ? 127 : 126)
+    let e = POSIXErrno().description
+    var se = FileDescriptor.standardError
+    print("\(progname): \(n): \(e)", to: &se)
   }
   
   var usage = "usage: nice [-n increment] utility [argument ...]"

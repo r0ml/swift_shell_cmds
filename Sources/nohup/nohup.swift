@@ -36,7 +36,7 @@
 
 import CMigration
 
-import Darwin
+import sys_resource
 
 let FILENAME = "nohup.out"
 let EXIT_NOEXEC : Int32 = 126
@@ -75,29 +75,30 @@ let EXIT_MISC : Int32 = 127
   }
   
   func dofile() {
-    var fd: Int32
-    var path = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+    var path = [CChar](repeating: 0, count: MAXPATHLEN)
     var p: String
     
     p = FILENAME
-    fd = open(p, O_RDWR | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR)
-    if fd != -1 {
+    do {
+      let fd = try FileDescriptor.open(p, .readWrite, options: [.create, .append], permissions: [.ownerReadWrite])
       dupit(fd: fd, p: p)
-    }
-    if let home = getenv("HOME") {
-      let pathString = "\(home)/\(FILENAME)"
-      fd = open(pathString, O_RDWR | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR)
-      if fd != -1 {
-        dupit(fd: fd, p: pathString)
-        return
+    } catch {
+
+      if let home = getenv("HOME") {
+        let pathString = "\(home)/\(FILENAME)"
+        do {
+          let fd = try FileDescriptor.open(pathString, .readWrite, options: [.create, .append], permissions: [.ownerReadWrite])
+          dupit(fd: fd, p: pathString)
+        } catch {
+          errx(Int(EXIT_MISC), "can't open a nohup.out file")
+        }
       }
     }
-    errx(Int(EXIT_MISC), "can't open a nohup.out file")
   }
   
-  func dupit(fd: Int32, p: String) {
-    lseek(fd, 0, SEEK_END)
-    if dup2(fd, STDOUT_FILENO) == -1 {
+  func dupit(fd: FileDescriptor, p: String) {
+    try? fd.seek(offset: 0, from: .end)
+    if dup2(fd.rawValue, STDOUT_FILENO) == -1 {
       fatalError()
     }
     print("appending output to \(p)")
