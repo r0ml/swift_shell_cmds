@@ -37,55 +37,25 @@
  */
 
 import CMigration
-import CoreFoundation
 
-#if SHELL
-@_cdecl("printfcmd") public func printfcmd(_ argc : Int32, _ argv : UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> Int32 {
-  var ss : [String] = []
-  for i in 0..<Int(argc) {
-    let p = String.init(utf8String: argv[i]!)!
-    ss.append(p)
-  }
-  return printf().main(ArraySlice(ss) )
-}
-#endif
+import ICU
 
-#if !SHELL
-@main
-#endif
-class printf : ShellCommand {
-  
+
+@main class printf : ShellCommand {
+
   struct CommandOptions {
     var args : ArraySlice<String> = []
   }
 
-//  var encoding : String.Encoding
+  var mapping : [Character : Int] = [:]
 
-  //  var myargv : ArraySlice<String> = []
-//  var myargc : Int
-  
   required init() {
-
-//    let d = getenv("LC_ALL") ?? getenv("LANG") ?? "en_US.UTF8"
-//    let e = d.split(separator: ".").last ?? "UTF8"
-//    let a = CFStringConvertIANACharSetNameToEncoding( e as CFString)
-//    let b = CFStringConvertEncodingToNSStringEncoding(a)
-//    encoding = String.Encoding(rawValue: b)
+    mapping = buildISOLatin1Mapping()
   }
-  
 
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
-    
-    // FIXME: need to handle this case
-    /*
-     #if SHELL
-     nextopt("")
-     argc = Int32(argptr - argvx)
-     argv = argptr
-     
-     #else
-     */
+
     let go = BSDGetopt("")
     while let (ch, _) = try go.getopt() {
       switch ch {
@@ -95,8 +65,7 @@ class printf : ShellCommand {
         throw CmdErr(1)
       }
     }
-    //    #endif
-    
+
     opts.args = ArraySlice(go.remaining)
     
     if opts.args.count < 1 {
@@ -109,15 +78,10 @@ class printf : ShellCommand {
   func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
     var opts = optsx
     let (_, format) = escape(opts.args.removeFirst(), 1) // backslash interpretation
-    
-    
-//    var rval : Int = 0
 
     while true {
       var maxargv = opts.args
-//      myargv = opts.args
-//      myargc = args.count
-      
+
       // Restart at the beginning of the format string.
       var fmt = Substring(format)
       var end = false
@@ -139,7 +103,6 @@ class printf : ShellCommand {
             end = false
           }
           start = String(fmt)
-//          fmt.removeFirst()
         } else {
           fmt.removeFirst()
         }
@@ -159,45 +122,16 @@ class printf : ShellCommand {
   }
     
   let end_fmt = "end"
-  
-  
-  
-  
+
   /// implement the formatting following a %
   func printf_doformat(_ fmt: String /* , _ rval: inout Int */, _ opts : inout CommandOptions) throws(CmdErr) -> String? {
-    
-    
-    
+
     let skip1 = "#'-+ 0"
     var fieldwidth: Int = 0
     var haveprec: Bool = false
     var havewidth: Bool = false
-    var mod_ldbl: Bool = false
     var precision: Int = 0
     var fargv: ArraySlice<String>?
-    
-/*    let PF = { (_ f: String, _ _func: CVarArg) // _ havewidth: Bool, _ haveprec: Bool, _ fieldwidth: Int, _ precision: Int) in
-      in
-      if havewidth {
-        if haveprec {
-          print(String(format: f, fieldwidth, precision, _func), terminator: "")
-        } else {
-          print(String(format: f, fieldwidth, _func), terminator: "")
-        }
-      } else if haveprec {
-        print(String(format: f, precision, _func), terminator: "")
-      } else {
-        
-        let _ = _func.withCString { s in
-          withVaList([s]) { p in
-            vprintf(f, p)
-          }
-        }
-        
-//        print(String(format: f, _func), terminator: "")
-      }
-    }
-  */
     
     func PF(_ f : String, _ _func: CVarArg) {
       if havewidth {
@@ -209,28 +143,10 @@ class printf : ShellCommand {
       } else if haveprec {
         print(cFormat(f, precision, _func), terminator: "")
       } else {
-        
-        switch _func {
-/*        case is String:
-        let _ = (_func as! String).withCString { s in
-          withVaList([s]) { p in
-            vprintf(f, p)
-          }
-        }
- */
-        default:
-          let _ = withVaList([_func]) { p in
-              vprintf(f, p)
-            }
-          }
-
-//        print(String(format: f, _func), terminator: "")
+        print(cFormat(f, _func), terminator: "")
       }
-
     }
-    
-    
-    
+
     var start = "%"
     
     // drop the leading %
@@ -240,12 +156,7 @@ class printf : ShellCommand {
     if l > 0 && fmt.dropFirst(l).first == "$" {
       let idx = Int(String(fmt.prefix(l)))!
       opts.args = opts.args.dropFirst(idx - 1)
-      
-      // FIXME: doesnt make sense to me
-      //      if args > maxargv {
-      //        maxargv = args
-      //      }
-      
+
       fmt = fmt.dropFirst(l + 1)
       fargv = opts.args
       
@@ -275,13 +186,6 @@ class printf : ShellCommand {
       }
       
       fieldwidth = try getint(&opts)
-      
-      // FIXME: this still makes no sense
-      /*
-       if args > maxargv {
-       maxargv = args
-       }
-       */
       
       havewidth = true
       
@@ -317,10 +221,6 @@ class printf : ShellCommand {
         
         precision = try getint(&opts)
         
-        // FIXME: still making no sense
-        //        if args > maxargv {
-        //          maxargv = args
-        //        }
         haveprec = true
         start.append("*")
       } else {
@@ -341,16 +241,13 @@ class printf : ShellCommand {
     if let c = fmt.first { start.append(c) }
     
     if fmt.first == "L" {
-      mod_ldbl = true
       fmt = fmt.dropFirst()
       if let c = fmt.first, !"aAeEfFgG".contains(c) {
         warnx("bad modifier L for \(c)")
         return nil
       }
-    } else {
-      mod_ldbl = false
     }
-    
+
     if fargv != nil {
       opts.args = fargv ?? []
     }
@@ -383,7 +280,6 @@ class printf : ShellCommand {
         p.withCString { PF(String(start), $0) }
     case "d", "i", "o", "u", "x", "X":
       var f: String?
-//      var val: Int = 0
       let signedconv: Bool
       
       signedconv = (convch == "d" || convch == "i")
@@ -408,9 +304,7 @@ class printf : ShellCommand {
     
     return String(fmt)
   }
-  
-  
-  
+
   func mknum(_ str: String, _ ch: Character) -> String? {
     var copy: String = ""
     var copySize: Int = 0
@@ -422,7 +316,7 @@ class printf : ShellCommand {
       newLen = ((len + 1023) >> 10) << 10
       newCopy = String(repeating: " ", count: newLen)
       if newCopy.isEmpty {
-        warnx(String(cString: strerror(ENOMEM)))
+        warnx(POSIXErrno(ENOMEM).description)
         return nil
       }
       copy = newCopy
@@ -486,7 +380,6 @@ class printf : ShellCommand {
           var value = Int(String(cc))!
           while !fmt.isEmpty && "01234567".contains(fmt.first!)
                   && c > 0 {
-//          for ( c-- && *fmt >= '0' && *fmt <= '7'; ++fmt) {
             value <<= 3;
             let dd = Int(String(fmt.removeFirst()))!
             value += dd
@@ -494,7 +387,6 @@ class printf : ShellCommand {
           }
           
           // FIXME: do I need this?
-//          --fmt;
           if ((percent != 0) && value == "%".first!.asciiValue!) {
             store.append("%%")
           } else {
@@ -526,7 +418,7 @@ class printf : ShellCommand {
   func getint(_ opts : inout CommandOptions) throws(CmdErr) -> Int {
     let val = try getnum(&opts)
     if val < Int.min || val > Int.max {
-      throw CmdErr(1, "\(val): \(strerror(ERANGE)!)")
+      throw CmdErr(1, "\(val): \(POSIXErrno(ERANGE).description)")
     }
     return val
   }
@@ -566,35 +458,33 @@ class printf : ShellCommand {
         }
           throw CmdErr(1, "\(ss): expected numeric value")
   }
-  
+
+
   func asciicode(_ s : Character?) -> Int {
     guard let s else { return 0 }
-    let ch = Int(s.unicodeScalars.first?.value ?? 0)
-/*    if ch == 39 || ch == 34 {
-      let s = args.first!.dropFirst()
 
-      /*
-      var mbs = mbstate_t()
-      var wch = wchar_t()
-      
-      ch = s.withCString { p in
-        let j = mbrtowc(&wch, p, Int(MB_LEN_MAX), &mbs )
-        if j < 0 {
-          wch = Int32(s.first!.asciiValue!)
-        } else if j == 0 {
-          wch = 0
-        }
-        return Int(wch)
-      }
-       */
-
-     let sx = s.data(using: encoding)![0]
-      ch = Int(sx)
+    // This deals with the ISOLatin1 problem
+    if let sa = mapping[s] {
+      return sa
     }
-//    args.removeFirst()
- */
+
+    // FIXME: if this character is a composite of multiple unicode scalars, it is not clear
+    // what the value should be
+    let ch = Int(s.unicodeScalars.first?.value ?? 0)
     return ch
   }
   
   var usage = "usage: printf format [arguments ...]"
+
+
+  func buildISOLatin1Mapping() -> [Character : Int] {
+    var mapping : [Character : Int] = [:]
+    for i in 128..<256 {
+      let k = Character(UnicodeScalar(i)!)
+      mapping[k]=i
+    }
+    return mapping
+  }
+
+
 }

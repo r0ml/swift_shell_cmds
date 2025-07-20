@@ -59,14 +59,14 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "%1$*s"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "&quot;%d\\n&quot;"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "1"
-            isEnabled = "YES">
-         </CommandLineArgument>
-         <CommandLineArgument
-            argument = "1"
+            argument = "\&quot;&#xe4;"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

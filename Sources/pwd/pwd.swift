@@ -102,13 +102,8 @@ import Darwin
     if let p {
       print(p)
     } else {
-      perror(".")
-      throw CmdErr(1)
+      throw CmdErr(1, ".")
     }
-    
-    // #ifdef __APPLE__
-    if ferror(stdout) != 0 || fflush(stdout) != 0 {
-      perror("stdout")
-    }
+
   }
 }

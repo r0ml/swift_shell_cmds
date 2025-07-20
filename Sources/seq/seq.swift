@@ -35,8 +35,6 @@
 
 import CMigration
 
-import math_h
-
 @main final class seq : ShellCommand {
   
   struct CommandOptions {
@@ -419,9 +417,9 @@ import math_h
     
     /* figure out "last" value printed */
     if first > last {
-      last = first - incr * math_h.floor((first - last) / incr)
+      last = first - incr * floor((first - last) / incr)
     } else {
-      last = first + incr * math_h.floor((last - first) / incr)
+      last = first + incr * floor((last - first) / incr)
     }
     
     buf = cFormat("%g", incr)

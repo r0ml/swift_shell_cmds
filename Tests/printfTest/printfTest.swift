@@ -42,8 +42,11 @@ import ShellTesting
   }
   
  // REGRESSION_TEST(`l1', `LC_ALL=en_US.ISO8859-1 env printf "%d\n" $(env printf \"\\344)')
-  @Test(.disabled("arguments get interpreted with utf8 -- the \\344 character gets translated to two scalars")) func test_l1() async throws {
-    // set LC_ALL=en.US.ISO8859-1
+  // The implementation will use ISOLatin1 (ISO8859-1) for characters in the 0-255 range -- but will use
+  // the first unicode scalar of the composite for all others.
+  // This passes this test, but it is unclear that this behavior is correct for all characters
+  @Test(  // .disabled("arguments get interpreted with utf8 -- the \\344 character gets translated to two scalars")
+  ) func test_l1() async throws {
     setenv("LC_ALL","en.US.ISO8859-1", 1)
     let (_, j1, _) = try await ShellProcess(cmd, "\"\\344").run()
     let (_, j2, _) = try await ShellProcess(cmd, "%d\n", j1!).run()
@@ -53,15 +56,15 @@ import ShellTesting
   
   // REGRESSION_TEST(`l2', `LC_ALL=en_US.UTF-8 env printf "%d\n" $(env printf \"\\303\\244)')
   // FIXME: The conversion on the way in is problematic
-/*  @Test func test_l2() async throws {
+  @Test(.disabled("Command line arguments are always parsed as UTF-8, so the \\303\\244 sequence is interpreted as two characters"))
+  func test_l2() async throws {
     setenv("LC_ALL", "en.US.UTF-8", 1)
-    let (_, j1, _) = try captureStdoutLaunch(Clem.self, "printf", ["\"\\303\\244"])
+    let (_, j1, _) = try await ShellProcess(cmd, "\"\\303\\244").run()
 //    let j3 = "\"\u{195}\u{164}"
-    let (_, j2, _) = try captureStdoutLaunch(Clem.self, "printf", ["%d\n", j1!])
-    let out = getFile("regress.l2.out")
+    let (_, j2, _) = try await ShellProcess(cmd, "%d\n", j1!).run()
+    let out = try fileContents("regress.l2.out")
     #expect(j2 == out)
   }
- */
 
  // REGRESSION_TEST(`m1', `env printf "%c%%%d\0\045\n" abc \"abc')
   @Test func test_m1() async throws {
