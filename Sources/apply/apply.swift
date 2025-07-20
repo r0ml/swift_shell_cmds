@@ -38,8 +38,6 @@
 
 import CMigration
 
-import Darwin
-
 let magic = "%"
 
 func ISMAGICNO(_ p: String ) -> Bool {
@@ -94,8 +92,7 @@ struct CommandOptions {
     let mm = p.matches(of: /%([1-9])/)
     let n = mm.reduce(0, { max($0, Int($1.output.1)!)})
 
-    let tmpShell = getenv("SHELL")
-    opts.shell = tmpShell ?? Darwin._PATH_BSHELL
+    opts.shell = getShell()
     let slashp = opts.shell.lastIndex(of: "/")
     opts.name = slashp != nil ? String(opts.shell[opts.shell.index(after: slashp!)...]) : opts.shell
 
@@ -119,7 +116,7 @@ struct CommandOptions {
       opts.nargs = n
     }
     opts.args.removeFirst()
-    opts.arg_max = Darwin.sysconf(Darwin._SC_ARG_MAX)
+    opts.arg_max = scArgMax
     return opts
   }
 
@@ -170,22 +167,13 @@ struct CommandOptions {
   /// Execute a shell `command` using passed `shell` and `use_name`  arguments.
   func execShell(_ command: String, _ useShell: String, _ useName: String) async -> Int {
     do {
-      let _ = try ProcessRunner.run(command: useShell, arguments: ["-c", command])
+      let _ = try ProcessRunner.run(command: useShell, arguments: ["-c", command], captureStdout: false, captureStderr: false)
     } catch let e as Errno {
       return Int(e.rawValue)
     } catch(let e) {
       print(e)
       return -1
     }
-
-    /*
-    let task = Process()
-    task.launchPath = useShell
-    task.arguments = ["-c", command]
-    task.launch()
-    task.waitUntilExit()
-    return Int(task.terminationStatus)
-     */
     return 0
   }
 

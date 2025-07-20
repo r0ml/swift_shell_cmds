@@ -10,48 +10,43 @@
 import CMigration
 
 @main final class Getopt : ShellCommand {
-    
+
   struct CommandOptions {
     var args : [String] = []
     var help = false
   }
-  
-//    optind = 2
-//    var argv = CommandLine.arguments
-    
-//    var c: Int32
-    
-    func parseOptions() throws(CmdErr) -> CommandOptions {
-      var opts = CommandOptions()
-      
-      let go = BSDGetopt( CommandLine.arguments[0] )
-      go.skip()
-      
-      while let (ch, optarg) = try go.getopt() {
-        switch ch {
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
+
+    let go = BSDGetopt( CommandLine.arguments[0] )
+    go.skip()
+
+    while let (ch, optarg) = try go.getopt() {
+      switch ch {
         case "?":
-            opts.help = true
+          opts.help = true
         default:
           if !optarg.isEmpty {
             print(" -\(ch) \(optarg)", terminator: "")
           } else {
             print(" -\(ch)", terminator: "")
           }
-        }
       }
-      
-      opts.args = go.remaining
-      return opts
     }
-    
+
+    opts.args = go.remaining
+    return opts
+  }
+
   func runCommand(_ opts : CommandOptions) throws(CmdErr) {
-      print(" --", terminator: "")
+    print(" --", terminator: "")
     for i in opts.args {
-        print(" \(i)", terminator: "")
-      }
-      print("")
+      print(" \(i)", terminator: "")
     }
-  
+    print("")
+  }
+
   var usage = "getopt optionString [arguments]"
 }
 

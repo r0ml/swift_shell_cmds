@@ -33,10 +33,10 @@
  * SUCH DAMAGE.
  */
 
-import Darwin
+import stdlib_h
 
 @main struct False {
   static func main() {
-    Darwin.exit(1)
+    stdlib_h.exit(1)
   }
 }

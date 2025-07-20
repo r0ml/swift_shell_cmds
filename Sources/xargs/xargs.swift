@@ -38,6 +38,13 @@
 
 import CMigration
 
+import locale_h
+import ctype_h
+import stdlib_h
+import stdio_h
+import limits_h
+import errno_h
+
 import Darwin
 
 /* Instead of using inout variables (passing a string in and then mutating it, pass in a string and return the
@@ -54,9 +61,9 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
 @main final class Xargs : ShellCommand {
   let unix2003 = true
   var pad9314053: Int = MemoryLayout<UnsafePointer<CChar>>.size
-  let NOPID: Darwin.pid_t = 0
-  
-  var childpids: Set<Darwin.pid_t> = []
+  let NOPID: ctype_h.pid_t = 0
+
+  var childpids: Set<ctype_h.pid_t> = []
   var jbxp : [String] = []
   var kbxp : [String] = []
   var rval = 0
@@ -90,7 +97,7 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     
     var args : [String] = []
     
-    var inp : UnsafeMutablePointer<FILE>! = Darwin.stdin
+    var inp : UnsafeMutablePointer<FILE>! = stdio_h.stdin
   }
   
   enum PromptCases {
@@ -136,19 +143,18 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
       option("input-file", /* "f" , */ .required_argument),
     ]
 
-    // FIXME: setlocale seems to be missing in Swift 6.2
-    // Darwin.setlocale(Darwin.LC_ALL, "")
-    
+    locale_h.setlocale(locale_h.LC_ALL, "")
+
     opts.nline = opts.arg_max - Int(Darwin.MAXPATHLEN)
-    
+
     
     
     var ep = Darwin.environ
-    
+
     let go = BSDGetopt_long(optstr, long_options)
     
     while let epp = ep.pointee {
-      opts.nline -= Darwin.strlen(epp) + 1 + MemoryLayout<UnsafeMutablePointer<Int8>?>.size
+      opts.nline -= stdlib_h.strlen(epp) + 1 + MemoryLayout<UnsafeMutablePointer<Int8>?>.size
       ep = ep.advanced(by: 1)
     }
     opts.nline -= pad9314053
@@ -307,7 +313,7 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     // Constructs the next argument from stdin
 
     while true {
-      let ch = Darwin.getc(opts.inp)
+      let ch = stdio_h.getc(opts.inp)
 
       if ch == EOF {
         if insingle || indouble {
@@ -384,7 +390,7 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
           break
         }
         if !insingle && !indouble {
-          let ch = Darwin.getc(opts.inp)
+          let ch = stdio_h.getc(opts.inp)
           if ch == EOF {
             throw CmdErr(1, "backslash at EOF")
           }
@@ -653,20 +659,20 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     var rsize: Darwin.size_t = 0
     var match: Int32 = 0
     
-    let ttyfp = Darwin.fopen(_PATH_TTY, "r")
+    let ttyfp = stdio_h.fopen(Darwin._PATH_TTY, "r")
     if ttyfp != nil {
       return .two
     }
-    Darwin.fputs("?...", Darwin.stderr)
-    fflush(Darwin.stderr)
-    let response = Darwin.fgetln(ttyfp, &rsize)
+    stdio_h.fputs("?...", stdio_h.stderr)
+    stdio_h.fflush(stdio_h.stderr)
+    let response = stdio_h.fgetln(ttyfp, &rsize)
     if response == nil || Darwin.regcomp(&cre, Darwin.nl_langinfo(Darwin.YESEXPR), Darwin.REG_EXTENDED) != 0 {
-      Darwin.fclose(ttyfp)
+      stdio_h.fclose(ttyfp)
       return .zero
     }
     response![Int(rsize) - 1] = 0
     match = Darwin.regexec(&cre, response, 0, nil, 0)
-    Darwin.fclose(ttyfp)
+    stdio_h.fclose(ttyfp)
     Darwin.regfree(&cre)
     return match == 0 ? .one : .zero
   }
@@ -675,7 +681,7 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
 
   func xexit(_ name: String, _ exit_code: Int, _ opts : CommandOptions) throws {
     waitchildren(name, true, opts)
-    Darwin.exit(Int32(exit_code))
+    stdlib_h.exit(Int32(exit_code))
   }
   
   func waitchildren(_ name: String, _ waitl: Bool, _ opts : CommandOptions) {
@@ -692,11 +698,11 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
  */
       if pid <= 0 {
         if (cause_exit != 0) {
-          Darwin.exit(cause_exit)
+          stdlib_h.exit(cause_exit)
         }
-        if (pid == -1 && errno != Darwin.ECHILD) {
-          Darwin.fputs("waitpid", Darwin.stderr)
-          Darwin.exit(1)
+        if (pid == -1 && errno != errno_h.ECHILD) {
+          stdio_h.fputs("waitpid", stdio_h.stderr)
+          stdlib_h.exit(1)
         }
         return
       }
@@ -705,11 +711,11 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
       if status & 0x7f != 0x7f && status & 0x7f != 0 { // (WIFSIGNALED(status) != 0) {
         waitall = true
         cause_exit = 1
-        Darwin.fputs("\(name): terminated with signal \(status & 0x7f); aborting", Darwin.stderr)
+        stdio_h.fputs("\(name): terminated with signal \(status & 0x7f); aborting", stdio_h.stderr)
       } else if status >> 8 == 255 {
         waitall = true
         cause_exit = 1
-        Darwin.fputs("\(name): exited with status 255; aborting", Darwin.stderr)
+        stdio_h.fputs("\(name): exited with status 255; aborting", stdio_h.stderr)
       } else if (status >> 8) != 0 {
         rval = 1
       }

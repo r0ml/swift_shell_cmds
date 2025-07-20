@@ -40,9 +40,8 @@ import CMigration
 
 extension find {
   
-  /*
-   * yanknode --
-   *  destructively removes the top from the plan
+  /**
+   yanknode -- destructively removes the top from the plan
    */
   func yanknode(_ p : inout ArraySlice<PLAN>) -> PLAN? {
     if let _ = p.first {
@@ -52,11 +51,11 @@ extension find {
     }
   }
   
-  /*
-   * yankexpr --
-   *  Removes one expression from the plan.  This is used mainly by
-   *  paren_squish.  In comments below, an expression is either a
-   *  simple node or a f_expr node containing a list of simple nodes.
+  /**
+   yankexpr --
+    Removes one expression from the plan.  This is used mainly by
+    paren_squish.  In comments below, an expression is either a
+    simple node or a f_expr node containing a list of simple nodes.
    */
   func yankexpr(_ planp : inout ArraySlice<PLAN>) -> PLAN? {
     

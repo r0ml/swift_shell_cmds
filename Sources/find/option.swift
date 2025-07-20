@@ -55,47 +55,35 @@ struct OPTION {
 
 
 /* function modifiers */
-let F_NEEDOK   : Int32 = 0x00000001  /* -ok vs. -exec */
-let F_EXECDIR  : Int32 = 0x00000002  /* -execdir vs. -exec */
-let F_TIME_A   : Int32 = 0x00000004  /* one of -atime, -anewer, -newera* */
-let F_TIME_C   : Int32 = 0x00000008  /* one of -ctime, -cnewer, -newerc* */
-let  F_TIME2_A : Int32 =   0x00000010  /* one of -newer?a */
-let  F_TIME2_C : Int32 =   0x00000020  /* one of -newer?c */
-let  F_TIME2_T : Int32 =   0x00000040  /* one of -newer?t */
-let F_MAXDEPTH : Int32 =   F_TIME_A  /* maxdepth vs. mindepth */
-let F_DEPTH    : Int32 =  F_TIME_A  /* -depth n vs. -d */
-/* command line function modifiers */
-let F_EQUAL     : Int32 = 0x00000000  /* [acm]min [acm]time inum links size */
-let F_LESSTHAN  : Int32 =  0x00000100
+let F_NEEDOK   : Int32 = 0x00000001  // -ok vs. -exec
+let F_EXECDIR  : Int32 = 0x00000002  // -execdir vs. -exec
+let F_TIME_A   : Int32 = 0x00000004  // one of -atime, -anewer, -newera*
+let F_TIME_C   : Int32 = 0x00000008  // one of -ctime, -cnewer, -newerc*
+let F_TIME2_A  : Int32 = 0x00000010  // one of -newer?a 
+let F_TIME2_C  : Int32 = 0x00000020  // one of -newer?c
+let F_TIME2_T  : Int32 = 0x00000040  // one of -newer?t
+let F_MAXDEPTH : Int32 = F_TIME_A    // maxdepth vs. mindepth
+let F_DEPTH    : Int32 = F_TIME_A    // -depth n vs. -d
+// command line function modifiers
+let F_EQUAL     : Int32 = 0x00000000  // [acm]min [acm]time inum links size
+let F_LESSTHAN  : Int32 = 0x00000100
 let F_GREATER   : Int32 = 0x00000200
 let F_ELG_MASK  : Int32 = 0x00000300
-let F_ATLEAST   : Int32 = 0x00000400  /* flags perm */
-let F_ANY       : Int32 = 0x00000800  /* perm */
+let F_ATLEAST   : Int32 = 0x00000400  // flags perm
+let F_ANY       : Int32 = 0x00000800  // perm
 let F_MTMASK    : Int32 = 0x00003000
-let F_MTFLAG    : Int32 = 0x00000000  /* fstype */
+let F_MTFLAG    : Int32 = 0x00000000  // fstype
 let F_MTTYPE    : Int32 = 0x00001000
 let F_MTUNKNOWN : Int32 = 0x00002000
-let F_IGNCASE   : Int32 = 0x00010000  /* iname ipath iregex */
-let F_EXACTTIME : Int32 = F_IGNCASE  /* -[acm]time units syntax */
-let F_EXECPLUS  : Int32 = 0x00020000  /* -exec ... {} + */
-
-
-let F_TIME_B : Int32 = 0x00040000  /* one of -Btime, -Bnewer, -newerB* */
-let F_TIME2_B : Int32 =  0x00080000  /* one of -newer?B */
-
-
-let F_LINK  : Int32    = 0x00100000  /* lname or ilname */
-
-
-
-
-
-
-
+let F_IGNCASE   : Int32 = 0x00010000  // iname ipath iregex
+let F_EXACTTIME : Int32 = F_IGNCASE   // -[acm]time units syntax
+let F_EXECPLUS  : Int32 = 0x00020000  // -exec ... {} +
+let F_TIME_B    : Int32 = 0x00040000  // one of -Btime, -Bnewer, -newerB*
+let F_TIME2_B   : Int32 = 0x00080000 // one of -newer?B
+let F_LINK      : Int32 = 0x00100000  // lname or ilname
 
 // NB: the following table must be sorted lexically.
 // Options listed with C++ comments are in gnu find, but not our find
-
 
 extension find {
   func initOptions() -> [String : OPTION] {
@@ -231,7 +219,7 @@ extension find {
       // FIXME:
       //  #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
       OPTION( "-xattr",  c_simple,  f_xattr,  0 ),
-      OPTION("-xattrname",  c_name,    f_xattrname,  0 ),
+      OPTION( "-xattrname",  c_name,    f_xattrname,  0 ),
       //  #endif  /* __APPLE__ */
       OPTION( "-xdev",  c_xdev,    f_always_true,  0 )
       // -xtype
@@ -243,14 +231,13 @@ extension find {
     }
     return res
   }
-  
-  
-  // find_create --
-  // create a node corresponding to a command line argument.
-  //
-  // TODO:
-  // add create/process function pointers to node, so we can skip
-  // this switch stuff.
+
+  /// find_create --
+  /// create a node corresponding to a command line argument.
+  ///
+  /// TODO:
+  /// add create/process function pointers to node, so we can skip
+  /// this switch stuff.
   func find_create(_ argv: inout ArraySlice<String>) -> PLAN {
     
     guard let p = options[argv.first!] else {

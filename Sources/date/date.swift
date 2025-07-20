@@ -33,9 +33,14 @@
  * SUCH DAMAGE.
  */
 
-import os
 import CMigration
 
+import locale_h
+import stdlib_h
+import stdio_h
+import time_h
+
+import Darwin
 
 @main final class Date : ShellCommand {
 
@@ -108,8 +113,7 @@ import CMigration
     opts.v = nil
     opts.fmt = nil
 
-    // FIXME: selocale seems to be missing in macos 26
-    // setlocale(LC_TIME, "")
+    locale_h.setlocale(locale_h.LC_TIME, "")
 
 
     let go = BSDGetopt("f:I::jnRr:uv:")
@@ -149,7 +153,7 @@ import CMigration
         case "r":
           opts.rflag = true
           var tmp: UnsafeMutablePointer<CChar>?
-          tval = Darwin.time_t(Darwin.strtoq(optarg, &tmp, 0))
+          tval = time_h.time_t(stdlib_h.strtoq(optarg, &tmp, 0))
           if tmp!.pointee != 0 {
             let sr  = optarg.withCString { oo in
               // FIXME: Darwin.stat won't compile because there is ambiguity between
@@ -165,7 +169,7 @@ import CMigration
             }
           }
         case "u":
-          Darwin.setenv("TZ", "UTC0", 1)
+          stdlib_h.setenv("TZ", "UTC0", 1)
         case "v":
           opts.v?.append(optarg)
         default:
@@ -176,7 +180,7 @@ import CMigration
     opts.argv = go.remaining
 
 
-    if !opts.rflag && Darwin.time(&tval) == -1 {
+    if !opts.rflag && time_h.time(&tval) == -1 {
       err(1, "time")
     }
 
@@ -212,7 +216,7 @@ import CMigration
 
   func runCommand(_ opts: CommandOptions) throws(CmdErr) {
 
-    var lt = Darwin.localtime(&tval).pointee
+    var lt = time_h.localtime(&tval).pointee
     if let v = opts.v {
       if let badv = vary_apply(v, &lt) {
         throw CmdErr(1, "\(badv): Cannot apply date adjustment")
@@ -223,11 +227,9 @@ import CMigration
       printisodate(&lt, opts.iso8601_subset)
     }
 
-// FIXME: selocale seems to be missing on Swift 6.2
-    /*
     if opts.format == rfc2822_format {
-      Darwin.setlocale(LC_TIME, "C")
-    }*/
+      locale_h.setlocale(locale_h.LC_TIME, "C")
+    }
 
     strftime(&buf, buf.count, opts.format, &lt)
     let k = String(platformString: buf)
@@ -275,22 +277,22 @@ import CMigration
 
   func setthetime(_ fmt: String?, _ p: String, _ jflag: Bool) throws(CmdErr) {
     var utx = Darwin.utmpx()
-    var tv = Darwin.timeval()
+    var tv = time_h.timeval()
     var century: Int32
 
-    guard let lt = Darwin.localtime(&tval) else {
+    guard let lt = time_h.localtime(&tval) else {
       throw CmdErr(1, "invalid time")
     }
 
     lt.pointee.tm_isdst = -1
 
     if let fmt {
-      guard let t = strptime(p, fmt, lt) else {
-        Darwin.fputs("Failed conversion of ``\(p)'' using format ``\(fmt)''\n", Darwin.stderr)
+      guard let t = time_h.strptime(p, fmt, lt) else {
+        stdio_h.fputs("Failed conversion of ``\(p)'' using format ``\(fmt)''\n", stdio_h.stderr)
         throw badformat
       }
       if t.pointee != 0 {
-        Darwin.fputs("Warning: Ignoring \(strlen(t)) extraneous characters in date string \(t)\n", Darwin.stderr)
+        stdio_h.fputs("Warning: Ignoring \(strlen(t)) extraneous characters in date string \(t)\n", stdio_h.stderr)
       }
     } else {
       var t = p
@@ -384,7 +386,7 @@ import CMigration
       if settimeofday(&tv, nil) != 0 {
         err(1, "settimeofday (timeval)")
       }
-      utx.ut_type = Int16(NEW_TIME)
+      utx.ut_type = Int16(Darwin.NEW_TIME)
       Darwin.gettimeofday(&utx.ut_tv, nil)
       Darwin.pututxline(&utx)
 

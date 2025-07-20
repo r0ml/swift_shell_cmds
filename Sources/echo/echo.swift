@@ -33,16 +33,13 @@
 
 import CMigration
 
-import stdio_h
-import stdlib_h
-
 @main struct Echo {
   static func main() {
     
     var args = CommandLine.arguments
     args.removeFirst() // this is the executable name
     var nflag = false
-    let posix = stdlib_h.getenv("POSIXLY_CORRECT") != nil || stdlib_h.getenv("POSIX_PEDANTIC") != nil
+    let posix = getenv("POSIXLY_CORRECT") != nil || getenv("POSIX_PEDANTIC") != nil
 
     if !posix && args[0] == "-n" {
       nflag = true
@@ -52,7 +49,7 @@ import stdlib_h
     var firstTime = true
     for arg in args {
       if !firstTime {
-        stdio_h.putchar(32)
+        print(" ", terminator: "")
       } else {
         firstTime = false
       }
@@ -61,29 +58,38 @@ import stdlib_h
       while let x = a.firstIndex(of: "\\") {
         print(a[a.startIndex..<x], terminator: "")
         a = String(a[ a.index(x, offsetBy: 1)...])
-        printEscapeChar(cur: &a, posix: posix)
+        do {
+          try printEscapeChar(cur: &a, posix: posix)
+        } catch {
+          return
+        }
       }
       print(a, terminator: "")
     }
     
     if !nflag {
-      stdio_h.putchar(10)
+      print("")
     }
-    
-    stdio_h.fflush(stdout)
-    stdlib_h.exit(0)
+
+    // FIXME: do I need this?
+//    stdio_h.fflush(stdout)
   }
   
-  static func printEscapeChar(cur: inout String, posix: Bool) {
+  static func printEscapeChar(cur: inout String, posix: Bool) throws {
+    enum End : Error {
+      case end
+    }
+
     if cur.isEmpty {
-      stdio_h.putchar(92)
+      print("\\", terminator: "")
       return
     }
     
     let z =  cur.removeFirst()
     if z == "c" {
-      stdio_h.fflush(stdout)
-      stdlib_h.exit(0)
+      // FIXME: do I need this?
+//      stdio_h.fflush(stdout)
+      throw End.end
     }
     
     if !posix {
@@ -92,21 +98,21 @@ import stdlib_h
 
     switch z {
           case "a":
-        stdio_h.putchar(7)
+        print("\u{07}", terminator: "")
           case "b":
-        stdio_h.putchar(8)
+        print("\u{08}", terminator: "")
           case "f":
-        stdio_h.putchar(12)
+        print("\u{0C}", terminator: "")
           case "n":
-        stdio_h.putchar(10)
+        print("")
           case "r":
-        stdio_h.putchar(13)
+        print("\u{0D}", terminator: "")
           case "t":
-        stdio_h.putchar(9)
+        print("\t", terminator: "")
           case "v":
-        stdio_h.putchar(11)
+        print("\u{0b}", terminator: "")
           case "\\":
-        stdio_h.putchar(92)
+        print("\\", terminator: "")
           case "0":
               var j = 0, num = 0
       while true {
@@ -124,7 +130,7 @@ import stdlib_h
           break
         }
       }
-        stdio_h.putchar(Int32(num))
+        print(String(UnicodeScalar(UInt32(num))!), terminator: "")
           default:
       print( z, terminator: "" )
           }

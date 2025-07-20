@@ -38,9 +38,7 @@
 
 import CMigration
 
-import Darwin
-
-/*
+/**
  * brace_subst --
  *  Replace occurrences of {} in s1 with s2 and return the result string.
  */
@@ -58,5 +56,7 @@ func queryuser(_ argv: [String]) -> Bool {
   } else {
     print("\n")
   }
-  return Darwin.rpmatch(resp) != 0
+
+  return rpmatch(resp) == .yes
 }
+

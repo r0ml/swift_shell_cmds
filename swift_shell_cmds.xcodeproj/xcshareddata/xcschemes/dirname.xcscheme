@@ -50,7 +50,7 @@
       </TestPlans>
    </TestAction>
    <LaunchAction
-      buildConfiguration = "Release"
+      buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       launchStyle = "0"
@@ -70,15 +70,12 @@
             ReferencedContainer = "container:swift_shell_cmds.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "FCBA14C714A1428000AA698B"
-            BuildableName = "dirname"
-            BlueprintName = "dirname"
-            ReferencedContainer = "container:shell_cmds.xcodeproj">
-         </BuildableReference>
-      </MacroExpansion>
+      <CommandLineArguments>
+         <CommandLineArgument
+            argument = "/usr"
+            isEnabled = "YES">
+         </CommandLineArgument>
+      </CommandLineArguments>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
