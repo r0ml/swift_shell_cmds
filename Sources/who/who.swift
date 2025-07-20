@@ -69,15 +69,10 @@ import Darwin
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
 
-    // FIXME: swiftlocale seems to be missing in Swift 6.2
-      // Darwin.setlocale(Darwin.LC_TIME, "")
-    
     // #ifdef __APPLE__
     // let unix2003_std = true //  COMPAT_MODE("bin/who", "unix2003")
     
     let go = BSDGetopt("abdHlmpqrstTu")
-    //    while true {
-    //      let ch = getopt(argc, argv, "abdHlmpqrstTu")
     while let (ch, _) = try go.getopt() {
       
       switch ch {
@@ -186,8 +181,6 @@ import Darwin
       throw CmdErr(1, "stdout")
     }
 #endif
-    
-    Darwin.exit(0)
   }
   
   var usage = "usage: who [-abdHlmpqrstTu] [am I] [file]"

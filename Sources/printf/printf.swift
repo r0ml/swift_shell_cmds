@@ -65,9 +65,6 @@ class printf : ShellCommand {
 //  var myargc : Int
   
   required init() {
-#if !SHELL
-setlocale(LC_ALL, "")
-#endif
 
 //    let d = getenv("LC_ALL") ?? getenv("LANG") ?? "en_US.UTF8"
 //    let e = d.split(separator: ".").last ?? "UTF8"

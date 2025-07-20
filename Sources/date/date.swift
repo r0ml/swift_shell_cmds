@@ -113,9 +113,6 @@ import Darwin
     opts.v = nil
     opts.fmt = nil
 
-    locale_h.setlocale(locale_h.LC_TIME, "")
-
-
     let go = BSDGetopt("f:I::jnRr:uv:")
     while let (ch, optarg) = try go.getopt() {
       switch ch {

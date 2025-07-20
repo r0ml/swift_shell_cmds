@@ -201,12 +201,6 @@ class test {
     
     if args.isEmpty { return 1 }
     
-    // FIXME:
-/*    #ifndef SHELL
-      (void)setlocale(LC_CTYPE, "");
-    #endif
-*/
-    
     t_wp = args.dropFirst()
     nargc = args.count - 1
     

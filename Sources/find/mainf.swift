@@ -100,9 +100,6 @@ var exitstatus : Int32 = 0
     var opts = CommandOptions()
     var Hflag, Lflag : Bool
 
-    // FIXME: setlocale seems to be missing in Swift 6.2
-    // Darwin.setlocale(LC_ALL, "")
-    
     Darwin.time(&now) /* initialize the time-of-day */
     
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)

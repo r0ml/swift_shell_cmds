@@ -38,7 +38,7 @@
 
 import CMigration
 
-import locale_h
+// import locale_h
 import ctype_h
 import stdlib_h
 import stdio_h
@@ -143,12 +143,8 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
       option("input-file", /* "f" , */ .required_argument),
     ]
 
-    locale_h.setlocale(locale_h.LC_ALL, "")
-
     opts.nline = opts.arg_max - Int(Darwin.MAXPATHLEN)
 
-    
-    
     var ep = Darwin.environ
 
     let go = BSDGetopt_long(optstr, long_options)

@@ -35,11 +35,6 @@ import CMigration
 import Darwin
 
 
-func usage() {
-    print("usage: which [-as] program ...")
-    exit(EXIT_FAILURE)
-}
-
 // #define S_ISREG(m)      (((m) & S_IFMT) == S_IFREG)     /* regular file */
 
 func S_ISREG(_ m : mode_t) -> Bool {
@@ -120,8 +115,8 @@ func printMatches(path: String, filename: String, allpaths: Bool ) -> Bool {
     }
     
     for a in opts.args {
-      if a.count >= Darwin.FILENAME_MAX || !printMatches(path: path, filename: a, allpaths: opts.allpaths) {
-        throw CmdErr(Int(Darwin.EXIT_FAILURE))
+      if a.count >= MAXPATHLEN || !printMatches(path: path, filename: a, allpaths: opts.allpaths) {
+        throw CmdErr(1)
       }
     }
   }

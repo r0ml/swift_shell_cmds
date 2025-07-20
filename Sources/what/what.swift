@@ -35,35 +35,32 @@
 
 import CMigration
 
-import stdlib_h
-
 @main final class What : ShellCommand {
   struct CommandOptions {
     var qflag = false
     var sflag = false
-    //    var inStream: InputStream?
     var args = [String]()
   }
-  
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
-    
+
     let go = BSDGetopt("qs")
     while let (ch, _) = try go.getopt() {
       switch ch {
-      case "q":
+        case "q":
           opts.qflag = true
-      case "s":
+        case "s":
           opts.sflag = true
-      default:
-        throw CmdErr(1)
+        default:
+          throw CmdErr(1)
       }
     }
-    
+
     opts.args = go.remaining
     return opts
   }
-  
+
   func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
     var file: String?
     var found = false
@@ -71,17 +68,15 @@ import stdlib_h
     do {
       if opts.args.count == 0 {
         let fh = try FileDescriptor(forReading: "/dev/stdin")
-          if try await search(opts.sflag, opts.qflag, fh) {
-            found = true
-          }
+        if try await search(opts.sflag, opts.qflag, fh) {
+          found = true
+        }
       } else {
         for arg in opts.args {
           file = arg
-          
+
           do {
-          let inStream = try FileDescriptor(forReading: file!)
-            
-            //        inStream = InputStream(fileAtPath: file!)
+            let inStream = try FileDescriptor(forReading: file!)
             if !opts.qflag {
               print("\(file!):")
             }
@@ -91,7 +86,8 @@ import stdlib_h
             try? inStream.close()
           } catch {
             if !opts.qflag {
-              print("\(file!)")
+              var se = FileDescriptor.standardError
+              print("\(progname): \(file!): \(error)", to: &se)
             }
             continue
           }
@@ -103,71 +99,68 @@ import stdlib_h
       let z = String(describing: error)
       throw CmdErr(2, z)
     }
-    stdlib_h.exit(found ? 0 : 1)
+
+    if !found { throw CmdErr(1, "") }
+//    stdlib_h.exit(found ? 0 : 1)
   }
-  
-    var usage = "usage: what [-qs] [file ...]"
-    
-    func search(_ one: Bool, _ quiet: Bool, _ inStream: FileDescriptor) async throws -> Bool {
-      var found = false
-//      var c: Int
 
-      var state = 0
-      for try await b in inStream.bytes {
-        let ch = Character(UnicodeScalar(b))
+  var usage = "usage: what [-qs] [file ...]"
 
-        switch state {
-//      while true {
-//        do {
-//          if let c = try inStream.read(upToCount: 1) {
-//            let ch = String(data: c, encoding: .nonLossyASCII)!
+  func search(_ one: Bool, _ quiet: Bool, _ inStream: FileDescriptor) async throws -> Bool {
+    var found = false
+
+    var state = 0
+    for try await b in inStream.bytes {
+      let ch = Character(UnicodeScalar(b))
+
+      switch state {
         case 0:
-            if ch != "@" {
-              state = 0
-              continue
-            }
+          if ch != "@" {
+            state = 0
+            continue
+          }
           state = 1
         case 1:
-            if ch != "(" {
-              state = 0
-              continue
-            }
+          if ch != "(" {
+            state = 0
+            continue
+          }
           state = 2
-          
+
         case 2:
-            if ch != "#" {
-              state = 0
-              continue
-            }
+          if ch != "#" {
+            state = 0
+            continue
+          }
           state = 3
         case 3:
-            if ch != ")" {
-              state = 0
-              continue
-            }
+          if ch != ")" {
+            state = 0
+            continue
+          }
           state = 4
-          
-            if !quiet {
-              print("\t", terminator: "")
-            }
+
+          if !quiet {
+            print("\t", terminator: "")
+          }
         case 4:
-              if (b != 0 && ch != "\"" && ch != ">" && ch != "\\" && ch != "\n") {
-                print(ch, terminator: "")
-                continue
-              }
-              print("")
-              found = true
-              if one {
-                break
-              } else {
-                state = 0
-                continue
-              }
+          if (b != 0 && ch != "\"" && ch != ">" && ch != "\\" && ch != "\n") {
+            print(ch, terminator: "")
+            continue
+          }
+          print("")
+          found = true
+          if one {
+            break
+          } else {
+            state = 0
+            continue
+          }
         default:
-        fatalError("not possible")
-            }
-        }
-      return found
+          fatalError("not possible")
+      }
     }
+    return found
   }
+}
 

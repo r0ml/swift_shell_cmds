@@ -75,7 +75,8 @@ extension Env {
         (Darwin.getuid() != 0 ||
          (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0) {
       if env_verbosity > 1 {
-        Darwin.fputs("#env   matched:\t'\(candidate)'\n", Darwin.stderr)
+        var se = FileDescriptor.standardError
+        print("#env   matched:\t'\(candidate)'", to: &se)
       }
       return true
     }

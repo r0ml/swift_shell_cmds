@@ -192,9 +192,6 @@ actor Stuff {
     
     var opts = CommandOptions()
 
-    // FIXME: setlocale seems to be missing in Swift 6.2
-    // Darwin.setlocale(Darwin.LC_NUMERIC, "")
-
     // FIXME: localeconv seems to be missing in Swift 6.2
     // ;opts.decimal_point = Darwin.localeconv().pointee.decimal_point[0]
 

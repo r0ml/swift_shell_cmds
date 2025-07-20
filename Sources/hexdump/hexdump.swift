@@ -181,9 +181,6 @@ final class hexdump : ShellCommand {
     //    var p: String?
     var opts = CommandOptions()
 
-    // FIXME: setlocale seems to be missing in macos 26
-    // _ = setlocale(LC_ALL, "")
-
     let av = CommandLine.arguments[0]
     if let p = av.lastIndex(of: "o"), av[p...] != "od" {
       do {

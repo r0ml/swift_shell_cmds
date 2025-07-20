@@ -35,19 +35,20 @@
 
 import CMigration
 
-import Darwin
+// import Darwin
+import signal_h
 
-let DEFFILEMODE = Darwin.S_IRUSR|Darwin.S_IWUSR|Darwin.S_IRGRP|Darwin.S_IWGRP|Darwin.S_IROTH|Darwin.S_IWOTH
-
+// let DEFFILEMODE = Darwin.S_IRUSR|Darwin.S_IWUSR|Darwin.S_IRGRP|Darwin.S_IWGRP|Darwin.S_IROTH|Darwin.S_IWOTH
+let DEFFILEMODE : FilePermissions = [.ownerRead, .ownerWrite, .groupRead, .groupWrite, .otherRead, .otherWrite]
 
 @main final class tee : ShellCommand {
   struct FDs {
-    var fd: Int32
+    var fd: FileDescriptor
     var name: String
   }
   var head: [FDs] = []
   
-  func add(_ fd: Int32, _ name: String) {
+  func add(_ fd: FileDescriptor, _ name: String) {
     head.append(FDs(fd: fd, name: name))
   }
   
@@ -71,7 +72,7 @@ let DEFFILEMODE = Darwin.S_IRUSR|Darwin.S_IWUSR|Darwin.S_IRGRP|Darwin.S_IWGRP|Da
           opts.append = true
         break
       case "i":
-          Darwin.signal(Darwin.SIGINT, Darwin.SIG_IGN)
+          signal(SIGINT, SIG_IGN)
         break
       case "?":
         fallthrough
@@ -85,45 +86,44 @@ let DEFFILEMODE = Darwin.S_IRUSR|Darwin.S_IWUSR|Darwin.S_IRGRP|Darwin.S_IWGRP|Da
   }
   
   func runCommand(_ opts : CommandOptions) throws(CmdErr) {
-    var buf = [Int8](repeating: 0, count: BSIZE)
-    
-    add(STDOUT_FILENO, "stdout")
-    
+    var exitval = 0
+
+    add(FileDescriptor.standardOutput, "stdout")
+
     for arg in opts.args {
-      let fd = Darwin.open(arg, opts.append ?
-                           Darwin.O_WRONLY|Darwin.O_CREAT|Darwin.O_APPEND :
-                            Darwin.O_WRONLY|Darwin.O_CREAT|Darwin.O_TRUNC, DEFFILEMODE)
-      if fd < 0 {
-        // warn(arg)
-        throw CmdErr(1, arg)
-//        exitval = 1
-      } else {
+      do {
+        let fd = try FileDescriptor.open(arg, .writeOnly, options: opts.append ? [.create, .append] : [.create, .truncate], permissions: DEFFILEMODE )
         add(fd, arg)
+      } catch {
+        //       let fd = Darwin.open(arg, opts.append ? Darwin.O_WRONLY|Darwin.O_CREAT|Darwin.O_APPEND : Darwin.O_WRONLY|Darwin.O_CREAT|Darwin.O_TRUNC, DEFFILEMODE)
+        var se = FileDescriptor.standardError
+        print("\(progname): \(arg): \(error)", to: &se)
+        // warn(arg)
+        exitval = 1
       }
     }
     
-   try withUnsafeMutablePointer(to: &buf) { (bufp) throws(CmdErr) in
+     let ii = FileDescriptor.standardInput
       while true {
-        let rval = Darwin.read(Darwin.STDIN_FILENO, bufp, BSIZE)
-        if rval == 0 { break }
-        if rval < 0 {
-          err(1, "read")
-        }
-        for p in head {
-          var n = rval
-          
-          var bp = bufp
-          repeat {
-            let wval = Darwin.write(p.fd, bp, n)
-            if wval == -1 {
-              throw CmdErr(1, p.name)
-//              warn( p.name)
+        do {
+          let buf = try ii.readUpToCount(BSIZE)
+          if buf.count == 0 { break }
+          for p in head {
+            do {
+              try p.fd.write(buf)
+            } catch {
+              var se = FileDescriptor.standardError
+              print("\(p.name): \(error)", to: &se)
+              //              warn( p.name)
             }
-            bp += wval
-            n -= wval
-          } while (n != 0)
+          }
+        } catch {
+          throw CmdErr(1, "reading: \(error)")
         }
-      }
+    }
+
+    if exitval != 0 {
+      throw CmdErr(exitval, "")
     }
   }
 }
