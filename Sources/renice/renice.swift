@@ -36,7 +36,6 @@
 import CMigration
 
 import stdlib_h
-import Darwin // for getpwnam
 
 @main class renice {
   enum PriorityType: Int32 {
@@ -102,8 +101,8 @@ import Darwin // for getpwnam
         }
       }
       if which == .user {
-        if let pwd = Darwin.getpwnam(arg) {
-          who = pwd.pointee.pw_uid
+        if let p = getPasswd(for: arg) {
+          who = id_t(p.userId)
         } else if let num = id_t(arg) {
           who = num
         } else {

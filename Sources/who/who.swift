@@ -393,8 +393,8 @@ import Darwin
     }
     
     memset(&ut, 0, MemoryLayout<utmpx>.size)
-    if let pwd = getpwuid(getuid()) {
-      name = String(cString: pwd.pointee.pw_name)
+    if let pwd = getPasswd(of: userId) {
+      name = pwd.name
     } else {
       name = "?"
     }

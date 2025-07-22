@@ -37,28 +37,6 @@ import CMigration
 
 import Darwin
 
-extension UnsafeMutablePointer<passwd> {
-  var name : String {
-    String(cString: self.pointee.pw_name)
-  }
-}
-
-extension passwd {
-  var name : String {
-    String(cString: self.pw_name)
-  }
-}
-
-extension UnsafeMutablePointer<group> {
-  var name : String {
-    String(cString: self.pointee.gr_name)
-  }
-}
-// #if os(macOS)
-// SPI for 5235093
-// int32_t getgrouplist_2(const char *, gid_t, gid_t **);
-// #endif
-
 
 @main final class idCommand : ShellCommand {
 
@@ -86,8 +64,8 @@ extension UnsafeMutablePointer<group> {
     var uflag = false
     var Aflag = false
     var Fflag = false
-    var id = id_t(0)
-    
+    var id = 0
+
     let __APPLE__ = true
 #else
     var Gflag = 0
@@ -209,8 +187,8 @@ extension UnsafeMutablePointer<group> {
 
   
   func runCommand(_ opts: CommandOptions) throws(CmdErr) {
-    let pw = opts.args.isEmpty ? nil : who(opts.args.first!)
-    
+    let pw = try opts.args.isEmpty ? nil : who(opts.args.first!)
+
 #if !os(macOS)
     if (opts.Mflag != 0 && pw != nil) {
       throw CmdErr(1)
@@ -218,17 +196,19 @@ extension UnsafeMutablePointer<group> {
 #endif
 
   
-  forGoto(pw, opts)
-    
-#if os(macOS)
+  try forGoto(pw, opts)
+
+    // FIXME: do I need this?
+/*
+ #if os(macOS)
     if (ferror(stdout) != 0 || fflush(stdout) != 0) {
       err(1, "stdout");
     }
 #endif
-    exit(0);
+ */
   }
   
-  func forGoto(_ pwx : passwd?, _ opts : CommandOptions) {
+  func forGoto(_ pwx : Passwd?, _ opts : CommandOptions) throws(CmdErr) {
     var pw = pwx
 #if USE_BSM_AUDIT
     if opts.Aflag {
@@ -241,7 +221,7 @@ extension UnsafeMutablePointer<group> {
     
 #if os(macOS)
     if opts.Fflag {
-      fullname(pw);
+      try fullname(pw);
 #if !DEBUG
       return
 #endif
@@ -260,11 +240,11 @@ extension UnsafeMutablePointer<group> {
 #endif
     
     if opts.gflag {
-      let id = pw != nil ? pw!.pw_gid : (opts.rflag ? getgid() : getegid())
+      let id = pw != nil ? pw!.groupId : (opts.rflag ? groupId : effectiveGroupId)
       if opts.nflag {
-        let gr = getgrgid(id)
+        let gr = getGroupEntry(of: id)
         if let gr {
-          print(gr.pointee.gr_name ?? "")
+          print(gr.name)
         } else {
           print(id)
         }
@@ -278,11 +258,10 @@ extension UnsafeMutablePointer<group> {
     }
     
     if opts.uflag {
-      let id = pw != nil ? pw!.pw_uid : opts.rflag ? getuid() : geteuid();
+      let id = pw != nil ? pw!.userId : opts.rflag ? userId : effectiveUserId
       if opts.nflag {
-        if let pwx = getpwuid(id) {
-          pw = pwx.pointee
-          print(pw!.name)
+        if let pw = getPasswd(of: Int(id) ) {
+          print(pw.name)
         } else {
           print(id)
         }
@@ -312,14 +291,14 @@ extension UnsafeMutablePointer<group> {
 #endif
     
     if opts.Pflag {
-      pline(pw)
+      try pline(pw)
 #if !DEBUG
       return
 #endif
     }
     
     if opts.pflag {
-      pretty(pw);
+      try pretty(pw);
 #if !DEBUG
       return
 #endif
@@ -331,14 +310,14 @@ extension UnsafeMutablePointer<group> {
         id_print(pw, true, 0, 0);
       }
       else {
-        let id = getuid();
-        pw = getpwuid(id).pointee
+        let id = userId
+        pw = getPasswd(of: id)
         id_print(pw, false, 1, 1);
       }
     }
   }
   
-  func pretty(_ pwx : passwd?) {
+  func pretty(_ pwx : Passwd?) throws(CmdErr) {
     var pw = pwx
     
     if let pw {
@@ -347,11 +326,10 @@ extension UnsafeMutablePointer<group> {
       group(pw, true);
     } else {
       guard let loginx = getlogin() else {
-        err(1, "getlogin");
-        fatalError("already exited")
+        throw CmdErr(1, "getlogin")
       }
-      let ridu = getuid()
-      pw = getpwuid(ridu).pointee
+      let ridu = userId
+      pw = getPasswd(of: ridu)
       let login = String(cString: loginx)
       if pw == nil || login != pw!.name {
         print("login\t\(login)");
@@ -362,19 +340,19 @@ extension UnsafeMutablePointer<group> {
         print("uid\t\(ridu)");
       }
       
-      let eidu = geteuid()
+      let eidu = effectiveUserId
       if eidu != ridu {
-        if let pw = getpwuid(eidu) {
+        if let pw = getPasswd(of: eidu) {
           print("euid\t\(pw.name)");
         }
         else {
           print("euid\t\(eidu)");
         }
       }
-      let rid = getgid()
-      let eid = getegid()
+      let rid = groupId
+      let eid = effectiveGroupId
       if rid != eid {
-        if let gr = getgrgid(rid) {
+        if let gr = getGroupEntry(of: rid) {
           print("rgid\t\(gr.name)")
         }
         else {
@@ -386,40 +364,33 @@ extension UnsafeMutablePointer<group> {
     }
   }
   
-  func id_print(_ pwx : passwd?, _ use_ggl : Bool, _ p_euid : Int, _ p_egid : Int)
+  func id_print(_ pwx : Passwd?, _ use_ggl : Bool, _ p_euid : Int, _ p_egid : Int)
   {
     var ugg = use_ggl
-    var gid, egid : gid_t
-    var uid, euid : uid_t
+    var gid, egid : Int
+    var uid, euid : Int
     var pw = pwx
     
-#if os(macOS)
-    
     if (pw == nil) {
-      pw = getpwuid(getuid()).pointee
+      pw = getPasswd(of: userId)
     }
     
     ugg = true
-#endif
+
     if (pw != nil) {
-      uid = pw!.pw_uid
-      gid = pw!.pw_gid
+      uid = pw!.userId
+      gid = pw!.groupId
     }
     else {
-      uid = getuid();
-      gid = getgid();
+      uid = userId
+      gid = groupId
     }
     
-#if !os(macOS)
     let ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
-    //      if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL) {
-    //        err(1, "malloc");
-    //      }
-#endif
-    
-    var groups : [gid_t]?
+
+    var groups : [Int]?
     if (ugg && pw != nil) {
-#if os(macOS)
+
       // FIXME: was getgrouplist_2
       // 5235093
       //        ngroups = getgrouplist_2(pw.pw_name, gid, &groups);
@@ -427,43 +398,26 @@ extension UnsafeMutablePointer<group> {
       groups = withUnsafeTemporaryAllocation(of: gid_t.self, capacity: ngroups_max) { p in
         
         var ngroups = Int32(ngroups_max)
-        getgrouplist(pw!.name, Int32(pw!.pw_gid), p.baseAddress!, &ngroups)
-        
-        var res = Array(repeating: gid_t(), count: Int(ngroups))
+        getgrouplist(pw!.name, Int32(pw!.groupId), p.baseAddress!, &ngroups)
+
+        var res = Array(repeating: 0, count: Int(ngroups))
         for i in 0..<res.count {
-          res[i]=p[i]
+          res[i]=Int(p[i])
         }
         return res
       }
-      
-      
-      
-      
-      
-#else
-      ngroups = ngroups_max;
-      getgrouplist(pw.pointee.pw_name, gid, groups, &ngroups);
-#endif
     }
     else {
-#if os(macOS)
       let ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
-      //        if ((groups = malloc(sizeof(gid_t) * ngroups_max)) == NULL) {
-      //          err(1, "malloc");
-      //        }
-#endif
-      
-      
-      
-      
+
       // ngroups = getgroups(Int32(ngroups_max), groups);
       
       groups = withUnsafeTemporaryAllocation(of: gid_t.self, capacity: ngroups_max) { p in
         let ngroups = getgroups(Int32(ngroups_max), p.baseAddress!)
         
-        var res = Array(repeating: gid_t(), count: Int(ngroups))
+        var res = Array(repeating: 0, count: Int(ngroups))
         for i in 0..<res.count {
-          res[i]=p[i]
+          res[i]=Int(p[i])
         }
         return res
       }
@@ -484,31 +438,31 @@ extension UnsafeMutablePointer<group> {
     if let pw {
       print("uid=\(uid)(\(pw.name))", terminator: "");
     } else {
-      print("uid=\(getuid())", terminator: "")
+      print("uid=\(userId)", terminator: "")
     }
     print(" gid=\(gid)", terminator: "");
-    if let gr = getgrgid(gid) {
-      print("(\(String(cString: gr.pointee.gr_name)))", terminator: "");
+    if let gr = getGroupEntry(of: gid) {
+      print("(\(gr.name))", terminator: "");
     }
     if p_euid != 0 {
-      euid = geteuid()
+      euid = effectiveUserId
       if euid != uid {
         print(" euid=\(euid)", terminator: "")
-        if let pw = getpwuid(euid) {
+        if let pw = getPasswd(of: Int(euid) ) {
           print("(\(pw.name))", terminator: "");
         }
       }
     }
     if p_egid != 0 {
-      egid = getegid()
+      egid = effectiveGroupId
       if egid != gid {
         print(" egid=\(egid)", terminator: "")
-        if let gr = getgrgid(egid) {
-          print("(\(String(cString: gr.pointee.gr_name)))", terminator: "")
+        if let gr = getGroupEntry(of: egid) {
+          print("(\(gr.name))", terminator: "")
         }
       }
     }
-    var lastgid : gid_t? = nil
+    var lastgid : Int? = nil
     var first = true
     for gid in groups {
       if (lastgid == gid) {
@@ -522,7 +476,7 @@ extension UnsafeMutablePointer<group> {
         print(",\(gid)", terminator: "");
       }
       first = false
-      if let gr = getgrgid(gid) {
+      if let gr = getGroupEntry(of: Int(gid) ) {
         print("(\(gr.name))", terminator: "");
       }
       lastgid = gid
@@ -600,34 +554,26 @@ termid.machine=0x%08x
 #endif
   
 #if os(macOS)
-  func fullname(_ pwx : passwd?) {
+  func fullname(_ pwx : Passwd?) throws(CmdErr) {
     var pw = pwx
     if pw == nil {
-      pw = getpwuid(getuid()).pointee
+      pw = getPasswd(of: userId)
       if pw == nil {
-        err(1, "getpwuid");
+        throw CmdErr(1, "getpwuid")
       }
-      
-      print(String(cString: pw!.pw_gecos))
     }
+    print(pw!.fullname)
   }
 #endif
   
-  func group(_ pwx : passwd?, _ nflag : Bool) {
-    var groups : [gid_t]?
+  func group(_ pwx : Passwd?, _ nflag : Bool) {
+    var groups : [Int]?
     var pw = pwx
     
-#if os(macOS)
     if pw == nil {
-      pw = getpwuid(getuid()).pointee
+      pw = getPasswd(of: userId)
     }
-#else
-    ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
-    if ((groups = malloc(sizeof(gid_t) * (ngroups_max))) == NULL) {
-      err(1, "malloc");
-    }
-#endif
-    
+
     if let pw {
 #if os(macOS)
       // 5235093
@@ -637,11 +583,11 @@ termid.machine=0x%08x
         // FIXME: was getgrouplist_2
         //          let ngroups = getgrouplist_2(pw.pw_name, pw.pw_gid, p)
         var ngroups = Int32(ngroups_max)
-        getgrouplist(pw.name, Int32(pw.pw_gid), p.baseAddress!, &ngroups)
-        
-        var res = Array(repeating: gid_t(), count: Int(ngroups))
+        getgrouplist(pw.name, Int32(pw.groupId), p.baseAddress!, &ngroups)
+
+        var res = Array(repeating: 0, count: Int(ngroups))
         for i in 0..<res.count {
-          res[i]=p[i]
+          res[i]=Int(p[i])
         }
         return res
       }
@@ -658,23 +604,23 @@ termid.machine=0x%08x
       groups = withUnsafeTemporaryAllocation(of: gid_t.self, capacity: ngroups_max) { p in
         let ngroups = getgroups(Int32(ngroups_max), p.baseAddress!);
         
-        var res = Array(repeating: gid_t(), count: Int(ngroups))
+        var res = Array(repeating: 0, count: Int(ngroups))
         for i in 0..<res.count {
-          res[i]=p[i]
+          res[i]=Int(p[i])
         }
         return res
         
       }
     }
-    var lastid : gid_t? = nil
+    var lastid : Int? = nil
     var first = true
     for id in groups! {
       if lastid == id {
         continue;
       }
       if nflag {
-        if let gr = getgrgid(id) {
-          print("\(first ? "" : " ")\(String(cString: gr.pointee.gr_name))", terminator: "");
+        if let gr = getGroupEntry(of: id) {
+          print("\(first ? "" : " ")\(gr.name))", terminator: "");
         }
         else {
           print("\(first ? "" : " ")\(id)", terminator: "")
@@ -713,38 +659,36 @@ termid.machine=0x%08x
   }
 #endif /* __APPLE__ */
   
-  func who(_ u : String) -> passwd {
-    
+  func who(_ u : String) throws(CmdErr) -> Passwd {
+
     
     /*
      * Translate user argument into a pw pointer.  First, try to
      * get it as specified.  If that fails, try it as a number.
      */
     
-    if let pw = getpwnam(u) {
-      return pw.pointee
+    if let pw = getPasswd(for: u) {
+      return pw
     }
-    if let id = uid_t(u) {
-      if let pw = getpwuid(id) {
-        return pw.pointee
+    if let id = Int(u) {
+      if let pw = getPasswd(of: Int(id) ) {
+        return pw
       }
     }
-    errx(1, "\(u): no such user")
-    /* NOTREACHED */
-    fatalError("\(u): no such user")
+    throw CmdErr(1, "\(u): no such user")
   }
   
-  func pline(_ pwx : passwd?) {
+  func pline(_ pwx : Passwd?) throws(CmdErr) {
     var pw = pwx
     if pw == nil {
-      pw = getpwuid(getuid())?.pointee
-      if pw == nil {
-        err(1, "getpwuid");
-      }
+      pw = getPasswd(of: userId)
     }
     if let pw {
-      print("\(pw.name):\(String(cString: pw.pw_passwd)):\(pw.pw_uid):\(pw.pw_gid):\( String(cString:pw.pw_class)):\(pw.pw_change):\(pw.pw_expire):\(String(cString: pw.pw_gecos)):\(String(cString: pw.pw_dir)):\(String(cString: pw.pw_shell))")
+      print("\(pw.name):pw_passwd:\(pw.userId):\(pw.groupId):class:change:expire:gecos:\(pw.home):\(pw.shell)")
+    } else {
+      throw CmdErr(1, "getpwuid");
     }
+
   }
   
   var usage : String { get {

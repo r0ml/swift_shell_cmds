@@ -34,7 +34,6 @@
  */
 
 import CMigration
-import SystemPackage
 
 import Darwin
 

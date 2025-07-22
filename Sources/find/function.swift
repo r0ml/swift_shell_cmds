@@ -1479,15 +1479,15 @@ extension find {
   func c_user(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
     var username: String
     var new: PLAN
-    var p: UnsafeMutablePointer<passwd>?
-    var uid: uid_t
+    var uid: id_t
     
     username = nextarg(option: option, argvp: &argvp)
     ftsoptions &= ~Darwin.FTS_NOSTAT
     
     new = PLAN(option)
-    p = getpwnam(username)
-    if p == nil {
+    if let p = getPasswd(for: username) {
+      uid = id_t(p.userId)
+    } else {
       let cp = username
       if username.hasPrefix("-") || username.hasPrefix("+") {
         username.removeFirst()
@@ -1498,8 +1498,6 @@ extension find {
       }
       var endch: Character?
       uid = uid_t(find_parsenum(plan: &new, option: option.name, vp: cp, endch: &endch))
-    } else {
-      uid = p?.pointee.pw_uid ?? 0
     }
     
     new.p_un = .u_data(uid)

@@ -276,21 +276,20 @@ At least one option or argument to specify processes must be given."
       if let x = uid_t(user) {
         opts.uid = x
         } else {
-          pw = getpwnam(user)
-          if pw == nil {
-            errx(1, "user \(user) does not exist")
-          }
-          opts.uid = pw!.pointee.pw_uid
-          if opts.dflag != 0 {
-            print("uid:\(opts.uid)")
+          if let pw = getPasswd(for: user) {
+            opts.uid = id_t(pw.userId)
+            if opts.dflag != 0 {
+              print("uid:\(opts.uid)")
+            }
+          } else {
+            throw CmdErr(1, "user \(user) does not exist")
           }
         }
       } else {
         opts.uid = getuid()
         if opts.uid != 0 {
-          pw = getpwuid(opts.uid)
-          if let pw = pw {
-            opts.user = String(cString: pw.pointee.pw_name)
+          if let pw = getPasswd(of: Int(opts.uid) ) {
+            opts.user = pw.name
           }
           if opts.dflag != 0 {
             print("uid:\(opts.uid)", opts.uid)

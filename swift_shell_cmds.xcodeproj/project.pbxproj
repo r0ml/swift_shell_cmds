@@ -98,9 +98,8 @@
 		E73F99CC2D459D9800E89FF3 /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E73F99CB2D459D9700E89FF3 /* CMigration */; };
 		E73F99CE2D459DCF00E89FF3 /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E73F99CD2D459DCF00E89FF3 /* CMigration */; };
 		E79B2C152E2ABBBA00C33F4B /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E79B2C142E2ABBBA00C33F4B /* CMigration */; };
-		E79B2DA12E2C0F0100C33F4B /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E79B2DA02E2C0F0100C33F4B /* ShellTesting */; };
+		E79B31A12E2FD6C300C33F4B /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E79B31A02E2FD6C300C33F4B /* ShellTesting */; };
 		E7B3FF2E2DEF8C840054A8EB /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E7B3FF2D2DEF8C840054A8EB /* CMigration */; };
-		E7E33DB72D30EB2800478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DB62D30EB2800478AF2 /* ShellTesting */; };
 		E7E33DB92D30EB2E00478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DB82D30EB2E00478AF2 /* ShellTesting */; };
 		E7E33DBB2D30EB3200478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DBA2D30EB3200478AF2 /* ShellTesting */; };
 		E7E33DBD2D30EB3700478AF2 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E7E33DBC2D30EB3700478AF2 /* ShellTesting */; };
@@ -1964,7 +1963,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E7E33DB72D30EB2800478AF2 /* ShellTesting in Frameworks */,
+				E79B31A12E2FD6C300C33F4B /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1988,7 +1987,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				E79B2DA12E2C0F0100C33F4B /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2672,11 +2670,12 @@
 			buildRules = (
 			);
 			dependencies = (
+				E79B319F2E2FD6BB00C33F4B /* PBXTargetDependency */,
 				E70465D72C9CCEB600599B9E /* PBXTargetDependency */,
 			);
 			name = applyTest;
 			packageProductDependencies = (
-				E7E33DB62D30EB2800478AF2 /* ShellTesting */,
+				E79B31A02E2FD6C300C33F4B /* ShellTesting */,
 			);
 			productName = applyTest;
 			productReference = E763BAB72C3DD91E00649ACB /* applyTest.xctest */;
@@ -2729,12 +2728,10 @@
 			buildRules = (
 			);
 			dependencies = (
-				E79B2D9F2E2C0EFA00C33F4B /* PBXTargetDependency */,
 				E79B2D9D2E2C0EF300C33F4B /* PBXTargetDependency */,
 			);
 			name = envTest;
 			packageProductDependencies = (
-				E79B2DA02E2C0F0100C33F4B /* ShellTesting */,
 			);
 			productName = envTest;
 			productReference = E79B2D952E2C0EE100C33F4B /* envTest.xctest */;
@@ -2805,7 +2802,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				E75716132DFA172600C1941A /* PBXTargetDependency */,
 				E755203F2C39DAFB005E098B /* PBXTargetDependency */,
 			);
 			name = xargsTest;
@@ -3945,8 +3941,8 @@
 			mainGroup = FC80BF5514A05A2F00C6F7F5;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */,
 				E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */,
+				E79B319D2E2FD65300C33F4B /* XCRemoteSwiftPackageReference "ShellTesting" */,
 			);
 			productRefGroup = FC80BF6114A05A2F00C6F7F5 /* Products */;
 			projectDirPath = "";
@@ -4795,10 +4791,6 @@
 			isa = PBXTargetDependency;
 			productRef = E757160D2DF9F06600C1941A /* CMigration */;
 		};
-		E75716132DFA172600C1941A /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			productRef = E75716122DFA172600C1941A /* ShellTesting */;
-		};
 		E78D06482C12430A00A7C01B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = FCBA14CF14A1433F00AA698B /* echo */;
@@ -4814,9 +4806,9 @@
 			target = FCBA14D714A1434A00AA698B /* env */;
 			targetProxy = E79B2D9C2E2C0EF300C33F4B /* PBXContainerItemProxy */;
 		};
-		E79B2D9F2E2C0EFA00C33F4B /* PBXTargetDependency */ = {
+		E79B319F2E2FD6BB00C33F4B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			productRef = E79B2D9E2E2C0EFA00C33F4B /* ShellTesting */;
+			productRef = E79B319E2E2FD6BB00C33F4B /* ShellTesting */;
 		};
 		E7A46F902C19085D00AB34F5 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -8355,6 +8347,14 @@
 				kind = branch;
 			};
 		};
+		E79B319D2E2FD65300C33F4B /* XCRemoteSwiftPackageReference "ShellTesting" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/r0ml/ShellTesting";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/r0ml/ShellTesting";
@@ -8706,24 +8706,19 @@
 			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
 			productName = CMigration;
 		};
-		E75716122DFA172600C1941A /* ShellTesting */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
-			productName = ShellTesting;
-		};
 		E79B2C142E2ABBBA00C33F4B /* CMigration */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
 			productName = CMigration;
 		};
-		E79B2D9E2E2C0EFA00C33F4B /* ShellTesting */ = {
+		E79B319E2E2FD6BB00C33F4B /* ShellTesting */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			package = E79B319D2E2FD65300C33F4B /* XCRemoteSwiftPackageReference "ShellTesting" */;
 			productName = ShellTesting;
 		};
-		E79B2DA02E2C0F0100C33F4B /* ShellTesting */ = {
+		E79B31A02E2FD6C300C33F4B /* ShellTesting */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			package = E79B319D2E2FD65300C33F4B /* XCRemoteSwiftPackageReference "ShellTesting" */;
 			productName = ShellTesting;
 		};
 		E7B3FF2D2DEF8C840054A8EB /* CMigration */ = {
@@ -8750,11 +8745,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
 			productName = CMigration;
-		};
-		E7E33DB62D30EB2800478AF2 /* ShellTesting */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E7E33DB52D30EB1D00478AF2 /* XCRemoteSwiftPackageReference "ShellTesting" */;
-			productName = ShellTesting;
 		};
 		E7E33DB82D30EB2E00478AF2 /* ShellTesting */ = {
 			isa = XCSwiftPackageProductDependency;

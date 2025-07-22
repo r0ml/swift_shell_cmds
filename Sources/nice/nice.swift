@@ -35,7 +35,7 @@
 
 import CMigration
 
-// import sys_resource
+import sys_resource
 
 @main final class Nice : ShellCommand {
   let DEFNICE : Int32 = 10
