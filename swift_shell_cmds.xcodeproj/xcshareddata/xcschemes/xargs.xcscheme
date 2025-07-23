@@ -64,7 +64,7 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "-f /Users/r0ml/Repositories/shell_cmds/xargs/tests/regress.in"
+            argument = "-f /Users/r0ml/AppleOpenSource/shell_cmds/xargs/tests/regress.in"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

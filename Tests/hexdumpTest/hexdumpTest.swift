@@ -31,7 +31,7 @@
 
 import ShellTesting
 
-final class hexdumpTest : ShellTest {
+@Suite("hexdump tests", .serialized) final class hexdumpTest : ShellTest {
   let cmd = "hexdump"
   let suiteBundle = "shell_cmds_hexdumpTest"
   

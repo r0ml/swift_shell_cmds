@@ -38,38 +38,20 @@
 
 import CMigration
 
-// import locale_h
-import ctype_h
-import stdlib_h
-import stdio_h
-import limits_h
-import errno_h
-
 import Darwin
-
-/* Instead of using inout variables (passing a string in and then mutating it, pass in a string and return the
-   replaced string.  The "maxsize" argument can be ignored -- because in Swift, I don't need to do memory management,
-  so it is easier to just let the result string be as large as it needs to be.
- 
- This function was originally in a separate source file (strnsubst.c)
-*/
-
-func strnsubst(str: String, match: String, replstr: String) -> String {
-  return str.replacing(match, with: replstr)
-}
 
 @main final class Xargs : ShellCommand {
   let unix2003 = true
-  var pad9314053: Int = MemoryLayout<UnsafePointer<CChar>>.size
-  let NOPID: ctype_h.pid_t = 0
+//  var pad9314053: Int = MemoryLayout<UnsafePointer<CChar>>.size
+  let NOPID = 0
 
-  var childpids: Set<ctype_h.pid_t> = []
+  var childpids: Set<Int> = []
   var jbxp : [String] = []
   var kbxp : [String] = []
   var rval = 0
   
   class CommandOptions {
-    var arg_max: Int = Int(Darwin.sysconf(Darwin._SC_ARG_MAX))
+//    var arg_max: Int = Int(Darwin.sysconf(Darwin._SC_ARG_MAX))
     var Jflag = false
     var Iflag = false
     var Lflag = 0
@@ -89,21 +71,15 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     // in Swift, I can just build a command line -- however long it is.
     //      var nline: Int = -1 // Int(sysconf(_SC_ARG_MAX)) - Int(MAXPATHLEN)
     var linelen: Int = -1
-    var rl: rlimit = Darwin.rlimit()
+//    var rl: rlimit = Darwin.rlimit()
     var replstr: String?
     var eofstr: String?
     var oflag = false
-    var nline = -1
-    
+//    var nline = -1
+
     var args : [String] = []
     
-    var inp : UnsafeMutablePointer<FILE>! = stdio_h.stdin
-  }
-  
-  enum PromptCases {
-    case zero
-    case one
-    case two
+    var inp = FileDescriptor.standardInput // UnsafeMutablePointer<FILE>! = stdio_h.stdin
   }
   
   func numericArg(_ chx : String, _ arg : String, _ min : Int) throws(CmdErr) -> Int {
@@ -143,17 +119,22 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
       option("input-file", /* "f" , */ .required_argument),
     ]
 
-    opts.nline = opts.arg_max - Int(Darwin.MAXPATHLEN)
+//    opts.nline = opts.arg_max - MAXPATHLEN
 
-    var ep = Darwin.environ
+//    var ep = getenv()
 
     let go = BSDGetopt_long(optstr, long_options)
-    
+
+    /*
     while let epp = ep.pointee {
       opts.nline -= stdlib_h.strlen(epp) + 1 + MemoryLayout<UnsafeMutablePointer<Int8>?>.size
       ep = ep.advanced(by: 1)
     }
-    opts.nline -= pad9314053
+     */
+
+//    opts.nline -= pad9314053
+
+
     opts.maxprocs = 1
     
     
@@ -188,14 +169,19 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
       case "o":
         opts.oflag = true
       case "P", "max-procs":
-        opts.maxprocs = try numericArg(ch, optarg, 0)
-        
+          // FIXME: do I need this ?  Or will posix_spawn behave appropriately?
+
+          opts.maxprocs = try numericArg(ch, optarg, 0)
+
+          // FIXME: put me back?
+          /*
         if getrlimit(RLIMIT_NPROC, &opts.rl) != 0 {
           throw CmdErr(1, "getrlimit failed")
         }
         if opts.maxprocs == 0 || opts.maxprocs > opts.rl.rlim_cur {
           opts.maxprocs = Int(opts.rl.rlim_cur)
         }
+           */
       case "p", "interactive":
         opts.pflag = true
       case "R":
@@ -208,8 +194,10 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
       case "S":
         opts.Sflag = try numericArg(ch, optarg, 0)
       case "s", "max-chars":
-        opts.nline = try numericArg(ch, optarg, 0)
-        pad9314053 = 0
+          // FIXME: do I need this?  Will posix_spawn complain if the command line is too big?
+          break
+//        opts.nline = try numericArg(ch, optarg, 0)
+//        pad9314053 = 0
       case "t", "verbose":
         opts.tflag = true
       case "x", "exit":
@@ -217,10 +205,10 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
       case "0", "null":
         opts.zflag = true
       case "f", "input-file":
-        if let z = fopen(optarg,"r") {
-          opts.inp = z
-        } else {
-          throw CmdErr(1, "-f \(optarg): "+String(cString: strerror(errno)) )
+          do {
+          opts.inp = try FileDescriptor(forReading: optarg)
+        } catch(let e) {
+          throw CmdErr(1, "-f \(optarg): \(e)")
         }
       case "?":
         fallthrough
@@ -255,33 +243,33 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
       throw CmdErr(1, "replstr may not be empty")
     }
 
-    childpids = Set<pid_t>()
-    
+    childpids = Set<Int>()
+
     opts.linelen = 1 + opts.args.count + opts.nargs + 1
 
     let _PATH_ECHO = "/bin/echo"
     let echo = _PATH_ECHO
     
-    var cnt = 0
+//    var cnt = 0
     if opts.args.isEmpty {
       jbxp.append(echo)
-      cnt = echo.count
+//      cnt = echo.count
     } else {
       if opts.Jflag, let rr = opts.replstr, let k = opts.args.firstIndex(of: rr) {
         opts.jfound = true
         jbxp.append(contentsOf: opts.args[0..<k])
         kbxp = Array(opts.args[(k+1)...])
-        cnt -= rr.count + 1 + pad9314053
+//        cnt -= rr.count + 1 + pad9314053
       } else {
         jbxp.append(contentsOf: opts.args)
       }
-      cnt = opts.args.reduce(0, { $0 + $1.count + 1 + pad9314053} )
+//      cnt = opts.args.reduce(0, { $0 + $1.count + 1 + pad9314053} )
     }
     
-    opts.nline -= cnt
-    if opts.nline <= 0 {
-     throw CmdErr(1, "insufficient space for command")
-     }
+//    opts.nline -= cnt
+//    if opts.nline <= 0 {
+//     throw CmdErr(1, "insufficient space for command")
+//     }
     return opts
   }
 
@@ -299,7 +287,7 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     case newline
   }
   
-  func parseArgument(_ prevc : Character, _ opts : CommandOptions) throws(CmdErr) -> (String, Character?) {
+  func parseArgument(_ prevc : Character, _ inp : inout AsyncCharacterReader.AsyncIterator, _ opts : CommandOptions) async throws(CmdErr) -> (String, Character?) {
     var indouble = false
     var insingle = false
     var argp = ""
@@ -308,30 +296,39 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     
     // Constructs the next argument from stdin
 
-    while true {
-      let ch = stdio_h.getc(opts.inp)
 
-      if ch == EOF {
+
+    while true {
+      var ch : Character? = nil
+      do {
+        ch = try await inp.next()
+      } catch(let e) {
+        throw CmdErr(1, "reading input: \(e)")
+      }
+      guard let ch else {
+        return (argp, nil)
+      }
+
+      if ch == nil {
         if insingle || indouble {
           throw CmdErr(1, "unterminated quote")
         }
         return (argp, nil)
       }
 
-      let chx = Character(UnicodeScalar(UInt8(ch)))
-      switch chx {
+      switch ch {
       case " ":
         fallthrough
       case "\t":
         if insingle || indouble || opts.zflag || opts.Lflag > 0 {
-          argp.append(chx)
+          argp.append(ch)
           break
         } else {
           if !opts.Iflag {
             if argp.count == 0 && !wasquoted {
               break
             }
-            return (argp, chx)
+            return (argp, ch)
           }
         }
       case "\0":
@@ -340,13 +337,13 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
             break
           }
  */
-          return (argp, chx)
+          return (argp, ch)
         } else {
-          argp.append(chx)
+          argp.append(ch)
         }
       case "\n":
         if opts.zflag {
-          argp.append(chx)
+          argp.append(ch)
           break
         }
         if unix2003 {
@@ -365,44 +362,48 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
         if argp.count == 0 && !wasquoted {
           break
         }
-        return (argp, chx)
+        return (argp, ch)
       case "'":
         if indouble || opts.zflag {
-          argp.append(chx)
+          argp.append(ch)
         } else {
           insingle.toggle()
           wasquoted = true
         }
       case "\"":
         if insingle || opts.zflag {
-          argp.append(chx)
+          argp.append(ch)
         } else {
           indouble.toggle()
           wasquoted = true
         }
       case "\\":
         if opts.zflag {
-          argp.append(chx)
+          argp.append(ch)
           break
         }
         if !insingle && !indouble {
-          let ch = stdio_h.getc(opts.inp)
-          if ch == EOF {
-            throw CmdErr(1, "backslash at EOF")
+          do {
+            let ch = try await inp.next()
+            guard let ch else {
+              throw CmdErr(1, "backslash at EOF")
+            }
+            argp.append(ch)
+          } catch(let e) {
+            throw CmdErr(1, "reading input: \(e)")
           }
-          argp.append(Character(UnicodeScalar(UInt8(ch))))
           break
         }
       default:
-        argp.append(chx)
+        argp.append(ch)
         // The original code tests to see if the argument exceeds the available space at this point, and if so, reports an error or truncates the argument.
         // the "available space" is opts.nline
         // As Swift will grow the argument string size, perhaps this is not necessary.
-        if argp.count >= opts.nline {
-          fatalError("see xargs.c[572]")
-        }
+//        if argp.count >= opts.nline {
+//          fatalError("see xargs.c[572]")
+//        }
       }
-      prevchar = chx
+      prevchar = ch
     }
   }
 
@@ -433,7 +434,7 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     var rr = 0
     for var tmpLast in avj {
       if rr < repls, let replstr = opts.replstr, tmpLast.contains(replstr) {
-        tmpLast = strnsubst(str: tmpLast, match: replstr, replstr: inpline)
+        tmpLast = tmpLast.replacing(replstr, with: inpline) //  strnsubst(str: tmpLast, match: replstr, replstr: inpline)
           rr += 1
         }
       tmp.append(tmpLast)
@@ -465,12 +466,12 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     if opts.tflag || opts.pflag {
       print(args.joined(separator: " "))
       if opts.pflag {
-        switch prompt() {
-        case .zero:
+        switch rpmatch("?...") {
+        case .yes:
           return
-        case .one:
+        case .no:
           break
-        case .two:
+          case .neither:
           break
         }
       }
@@ -480,7 +481,7 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     if opts.oflag {
       inpath = Darwin._PATH_TTY
     }
-    
+
     if posix_spawn_file_actions_init(&file_actions) != 0 {
       throw CmdErr(1, "posix_spawn_file_actions_init failed")
     }
@@ -503,23 +504,26 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     defer { xy.forEach { free($0) } }
 
     rc = Darwin.posix_spawnp(&pid, args[0], &file_actions, nil, xy, Darwin.environ)
-    
+
+
+
+
     if rc != 0 {
-      waitchildren(jbxp[0], true, opts)
+      try waitchildren(jbxp[0], true, opts)
       errno = rc
 //      fputs(args[0], stderr)
       throw CmdErr(rc == ENOENT ? 127 : 126, args[0])
     } else {
-      childpids.insert(pid)
+      childpids.insert(Int(pid))
  //     let jj = try pipe.fileHandleForReading.availableData
 //      print( String(data: jj, encoding: .utf8)! )
-      waitchildren(jbxp[0], false, opts)
+      try waitchildren(jbxp[0], false, opts)
     }
   }
   
   // wait for a status from a subprocess
-  func xwait(_ block: Bool)-> (pid_t, Int32) {
-    
+  func xwait(_ block: Bool)-> (Int, Int32) {
+
     if childpids.isEmpty {
       errno = ECHILD
       return (-1, 0)
@@ -528,7 +532,7 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     var status : Int32 = 0
     
     while let pid = Optional(waitpid(-1, &status, block ? 0 : WNOHANG)), pid > 0 {
-      if let p = childpids.remove(pid) {
+      if let p = childpids.remove(Int(pid)) {
         return (p, status)
       }
     }
@@ -631,13 +635,15 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
   }
   */
   
-  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
+  func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
     var pc : Character? = "\n"
     var a : String = ""
     var ibxp = [String]()
-    
+
+    var argi = opts.inp.characters.makeAsyncIterator()
+
     while pc != nil {
-      (a, pc) = try parseArgument(pc!, opts)
+      (a, pc) = try await parseArgument(pc!, &argi, opts)
       if (!a.isEmpty) || (opts.zflag && opts.xflag) {
         ibxp.append(a)
       }
@@ -649,7 +655,7 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     }
   }
   
-  
+  /*
   func prompt() -> PromptCases {
     var cre = Darwin.regex_t()
     var rsize: Darwin.size_t = 0
@@ -672,18 +678,21 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
     Darwin.regfree(&cre)
     return match == 0 ? .one : .zero
   }
-  
+  */
+
   var usage = "usage: xargs [-0opt] [-E eofstr] [-I replstr [-R replacements] [-S replsize]] [-J replstr] [-L number] [-n number [-x]] [-P maxprocs] [-s size] [utility [argument ...]]"
 
-  func xexit(_ name: String, _ exit_code: Int, _ opts : CommandOptions) throws {
-    waitchildren(name, true, opts)
-    stdlib_h.exit(Int32(exit_code))
+  func xexit(_ name: String, _ exit_code: Int, _ opts : CommandOptions) throws(CmdErr) {
+    try waitchildren(name, true, opts)
+    throw CmdErr(exit_code, "")
   }
   
-  func waitchildren(_ name: String, _ waitl: Bool, _ opts : CommandOptions) {
+  func waitchildren(_ name: String, _ waitl: Bool, _ opts : CommandOptions) throws(CmdErr) {
     var waitall = waitl
     var cause_exit : Int32 = 0
-    
+
+    var se = FileDescriptor.standardError
+
     while let (pid, status) = Optional(xwait( waitall || childpids.count >= opts.maxprocs)) {
 /*      if (childerr != 0 && cause_exit == 0) {
         errno = childerr
@@ -694,11 +703,10 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
  */
       if pid <= 0 {
         if (cause_exit != 0) {
-          stdlib_h.exit(cause_exit)
+          throw CmdErr(Int(cause_exit), "")
         }
-        if (pid == -1 && errno != errno_h.ECHILD) {
-          stdio_h.fputs("waitpid", stdio_h.stderr)
-          stdlib_h.exit(1)
+        if (pid == -1 && errno != ECHILD) {
+          throw CmdErr(1, "waitpid")
         }
         return
       }
@@ -707,11 +715,11 @@ func strnsubst(str: String, match: String, replstr: String) -> String {
       if status & 0x7f != 0x7f && status & 0x7f != 0 { // (WIFSIGNALED(status) != 0) {
         waitall = true
         cause_exit = 1
-        stdio_h.fputs("\(name): terminated with signal \(status & 0x7f); aborting", stdio_h.stderr)
+        print("\(name): terminated with signal \(status & 0x7f); aborting", to: &se)
       } else if status >> 8 == 255 {
         waitall = true
         cause_exit = 1
-        stdio_h.fputs("\(name): exited with status 255; aborting", stdio_h.stderr)
+        print("\(name): exited with status 255; aborting", to: &se)
       } else if (status >> 8) != 0 {
         rval = 1
       }
