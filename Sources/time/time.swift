@@ -252,7 +252,7 @@ actor Stuff {
         if fileExists(atPath: ofn) {
           fh = try FileDescriptor.open(ofn, .writeOnly, options: [.truncate])
         } else {
-          fh = try FileDescriptor.open(ofn, .writeOnly, options: [.create])
+          fh = try FileDescriptor.open(ofn, .writeOnly, options: [.create], permissions: [.ownerReadWrite])
         }
       } else {
         fh = FileDescriptor.standardOutput

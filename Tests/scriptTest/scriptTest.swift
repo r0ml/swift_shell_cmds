@@ -24,13 +24,12 @@ import ShellTesting
   let suiteBundle = "shell_cmds_scriptTest"
 
   @Test("Ignore tcgetattr() failure when input is a regular file") func from_file_body() throws {
-    let infil = "empty"
+    let infil = try tmpfile("empty", Data())
     let outfil = "output"
-    FileManager.default.createFile(atPath: infil, contents: Data() )
     defer {
-      try? FileManager.default.removeItem(atPath: infil)
+      rm(infil)
     }
-    let a = tryInput("script", [outfil], FileHandle(forReadingAtPath: infil)! )
+    let a = try tryInput("script", [outfil], FileHandle(forReadingFrom: infil) )
     #expect(a == 0)
     
   }
@@ -59,10 +58,14 @@ import ShellTesting
     
     process.launchPath = execu
     process.arguments = args
-    process.standardOutput = output
+
+
+    process.standardOutput = output.fileHandleForWriting
     process.standardInput = input
-    process.standardError = stderr
+    process.standardError = stderr.fileHandleForWriting
+
     process.environment = ["SHELL" : "/bin/sh", "PS1" : "$ "]
+
     process.launch()
 
 /*
@@ -87,6 +90,8 @@ import ShellTesting
     process.waitUntilExit()
 //    writeok = false
   //  print("finished waiting \(args)")
+    output.fileHandleForWriting.closeFile()
+    stderr.fileHandleForWriting.closeFile()
     
     let k1 = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
     let k2 = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)

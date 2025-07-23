@@ -19,7 +19,7 @@
 
 import ShellTesting
 
-@Suite("xargs tests") final class xargsTest : ShellTest {
+@Suite("xargs tests", .serialized) final class xargsTest : ShellTest {
   let cmd = "xargs"
   let suiteBundle = "shell_cmds_xargsTest"
 

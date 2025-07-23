@@ -2910,6 +2910,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				E7A55F602E3097D9008EDF5B /* PBXTargetDependency */,
 				E7EBF9422CA61A9F00AFAB94 /* PBXTargetDependency */,
 			);
 			name = scriptTest;
@@ -4820,6 +4821,10 @@
 			target = FC5D638F14B9822D00123E48 /* hexdump */;
 			targetProxy = E7A46F9C2C1909F200AB34F5 /* PBXContainerItemProxy */;
 		};
+		E7A55F602E3097D9008EDF5B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			productRef = E7A55F5F2E3097D9008EDF5B /* ShellTesting */;
+		};
 		E7B3FF302DF0C8B50054A8EB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			productRef = E7B3FF2F2DF0C8B50054A8EB /* CMigration */;
@@ -6322,8 +6327,6 @@
 		E7E5A2752BED67A9002EC4B4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "-";
 				DEAD_CODE_STRIPPING = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -6865,9 +6868,6 @@
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
@@ -6898,16 +6898,12 @@
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = MHEBPE6SV2;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -7579,8 +7575,6 @@
 		FCBA15BB14A1459900AA698B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
 				CODE_SIGN_IDENTITY = "-";
 				DEAD_CODE_STRIPPING = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -8717,6 +8711,11 @@
 			productName = ShellTesting;
 		};
 		E79B31A02E2FD6C300C33F4B /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E79B319D2E2FD65300C33F4B /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
+		E7A55F5F2E3097D9008EDF5B /* ShellTesting */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E79B319D2E2FD65300C33F4B /* XCRemoteSwiftPackageReference "ShellTesting" */;
 			productName = ShellTesting;
