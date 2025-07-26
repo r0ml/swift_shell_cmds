@@ -37,7 +37,7 @@
  */
 
 import CMigration
-import Darwin
+// import Darwin
 
 @main final class Xargs : ShellCommand {
   let unix2003 = true
@@ -535,7 +535,8 @@ import Darwin
     }
      */
   }
-  
+
+  /*
   // wait for a status from a subprocess
   func xwait(_ block: Bool)-> (Int, Int32) {
 
@@ -555,7 +556,7 @@ import Darwin
     return (NOPID, status)
     // return pid
   }
-  
+  */
 
   
 
@@ -697,6 +698,7 @@ import Darwin
 
   var usage = "usage: xargs [-0opt] [-E eofstr] [-I replstr [-R replacements] [-S replsize]] [-J replstr] [-L number] [-n number [-x]] [-P maxprocs] [-s size] [utility [argument ...]]"
 
+  /*
   func xexit(_ name: String, _ exit_code: Int, _ opts : CommandOptions) throws(CmdErr) {
     try waitchildren(name, true, opts)
     throw CmdErr(exit_code, "")
@@ -741,7 +743,7 @@ import Darwin
     }
     
   }
-  
+  */
 }
 
 
