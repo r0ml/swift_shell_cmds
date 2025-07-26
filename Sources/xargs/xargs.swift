@@ -37,7 +37,6 @@
  */
 
 import CMigration
-
 import Darwin
 
 @main final class Xargs : ShellCommand {
@@ -407,11 +406,11 @@ import Darwin
     }
   }
 
-  func prerun(_ jbxp : [String], _ ibxp : [String], _ kbxp : [String], _ inpline : String, _ opts : CommandOptions) throws(CmdErr) {
+  func prerun(_ jbxp : [String], _ ibxp : [String], _ kbxp : [String], _ inpline : String, _ opts : CommandOptions) async throws(CmdErr) {
     let repls = opts.Rflag
    
     if repls == 0 {
-      try run(jbxp + (ibxp.filter { !$0.isEmpty }) + kbxp, opts)
+      try await run(jbxp + (ibxp.filter { !$0.isEmpty }) + kbxp, opts)
       return
     }
     
@@ -440,8 +439,8 @@ import Darwin
       tmp.append(tmpLast)
     }
     
-    try run(tmp, opts)
-    
+    try await run(tmp, opts)
+
     /*
     for _ in tmp2 {
       tmp.removeLast()
@@ -456,7 +455,10 @@ import Darwin
      */
   }
   
-  func run(_ args : [String], _ opts : CommandOptions) throws(CmdErr) {
+  func run(_ args : [String], _ opts : CommandOptions) async throws(CmdErr) {
+
+
+    /*
     var pid: pid_t = 0
     var rc: Int32 = 0
 
@@ -502,12 +504,24 @@ import Darwin
     
     let xy = (args.map {a in a.withCString { s in strdup(s) } } ) + [UnsafeMutablePointer(bitPattern: 0)]
     defer { xy.forEach { free($0) } }
+*/
 
-    rc = Darwin.posix_spawnp(&pid, args[0], &file_actions, nil, xy, Darwin.environ)
+    // use a TaskGroup here?
+
+    let p = ProcessRunner2(command: args[0], arguments: args, environment: nil )
+
+    do {
+      let m = try await p.run(captureStdout: false, captureStderr: false)
+
+    } catch(let e) {
+      throw CmdErr(1, "\(e)")
+    }
+
+//    rc = Darwin.posix_spawnp(&pid, args[0], &file_actions, nil, xy, Darwin.environ)
 
 
 
-
+/*
     if rc != 0 {
       try waitchildren(jbxp[0], true, opts)
       errno = rc
@@ -519,6 +533,7 @@ import Darwin
 //      print( String(data: jj, encoding: .utf8)! )
       try waitchildren(jbxp[0], false, opts)
     }
+     */
   }
   
   // wait for a status from a subprocess
@@ -649,7 +664,7 @@ import Darwin
       }
       if (pc == nil && ibxp.count > 0) || ibxp.count >= opts.nargs || (opts.xflag && opts.Lflag <= ibxp.count)  {
           //        try arg2(av)
-          try prerun(jbxp, ibxp, kbxp, a, opts)
+          try await prerun(jbxp, ibxp, kbxp, a, opts)
         ibxp = []
       }
     }
@@ -728,3 +743,7 @@ import Darwin
   }
   
 }
+
+
+
+

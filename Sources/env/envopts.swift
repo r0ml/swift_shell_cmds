@@ -97,6 +97,7 @@ extension Env {
    *
    * This is similar to the print_matches() routine in usr.bin/which/which.c.
    */
+  // FIXME: use searchPath from CMigration?
   func search_paths(_ path: String, _ argv: String) -> String {
     //    var candidate = [CChar](repeating: 0, count: Int(PATH_MAX))
     //    var d: String?
