@@ -544,7 +544,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
   }
   
   func doshell(_ av : [String], _ opts : CommandOptions) async throws -> Int32 {
-    var env = getenv()
+    var env = Environment.getenv()
     
     var shell = env["SHELL"] ?? _PATH_BSHELL
 
@@ -562,13 +562,15 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
     if let av0 = av.first {
       let ff = searchPath(for: av0)
       
-      try ProcessRunner.run(command: ff!, arguments: args, environment: env)
+      let p = ProcessRunner(command: ff!, arguments: args, environment: env)
+      try await p.run()
 
 //      execvp(av0, av);
       warn(av0)
     } else {
       do {
-        let _ = try ProcessRunner.run(command: shell, arguments: ["-i"], environment: env)
+        let p = ProcessRunner(command: shell, arguments: ["-i"], environment: env)
+        try await p.run()
       } catch ProcessError.nonZeroExit(code: let r, stdout: _, stderr: _) {
         return r
       }

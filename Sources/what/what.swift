@@ -87,7 +87,7 @@ import CMigration
           } catch {
             if !opts.qflag {
               var se = FileDescriptor.standardError
-              print("\(progname): \(file!): \(error)", to: &se)
+              print("\(Environment.progname): \(file!): \(error)", to: &se)
             }
             continue
           }

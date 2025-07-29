@@ -104,7 +104,7 @@ import sys_resource
     let n = "\(opts.args[0])"
     let e = POSIXErrno().description
     var se = FileDescriptor.standardError
-    print("\(progname): \(n): \(e)", to: &se)
+    print("\(Environment.progname): \(n): \(e)", to: &se)
   }
   
   var usage = "usage: nice [-n increment] utility [argument ...]"

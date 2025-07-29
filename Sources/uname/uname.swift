@@ -241,8 +241,8 @@ let optString = "abiKmnoprsUv"
   func scan_env(_ opt : String) -> String? {
 //    let k = ProcessInfo.processInfo.environment
     if let a = env_opts[opt],
-       let z = getenv(a) { return z }
-    return getenv("UNAME_\(opt)")
+       let z = Environment[a] { return z }
+    return Environment["UNAME_\(opt)"]
   }
   
 }

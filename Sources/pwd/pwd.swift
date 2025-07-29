@@ -44,7 +44,7 @@ import Darwin
   
   func getcwd_logical() -> String? {
     var lg = stat(), phy = stat()
-    let pwdStr = getenv("PWD")
+    let pwdStr = Environment["PWD"]
     
     if let pwdStr, pwdStr.first == "/" {
       if stat(pwdStr, &lg) == -1 || stat(".", &phy) == -1 {

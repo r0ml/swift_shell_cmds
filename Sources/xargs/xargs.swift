@@ -37,7 +37,6 @@
  */
 
 import CMigration
-// import Darwin
 
 @main final class Xargs : ShellCommand {
   let unix2003 = true
@@ -94,56 +93,28 @@ import CMigration
     }
   }
   
-// FIXME: the protocol for ShellCommand should support a cleanup
-/*    defer {
-      if let k = opts.inp {
-        fclose(k)
-      }
-    }
- */
-  
   func parseOptions() throws(CmdErr) -> CommandOptions {
     let optstr = "+0E:I:J:L:n:oP:pR:S:s:rtxf:"
     let opts = CommandOptions()
     
-    let long_options: [CMigration.option] /* [(String?, Int32, UnsafeMutablePointer<Int32>?, Int32)] */ = [
-      option("exit", /* "x", */ .no_argument),
-      option("interactive", /* "p", */ .no_argument),
-      option("max-args", /* "n", */ .required_argument),
-      option("max-chars", /* "s", */ .required_argument),
-      option("max-procs", /* "P", */ .required_argument),
-      option("no-run-if-empty", /* "r", */ .no_argument),
-      option("null", /* "0", */ .no_argument),
-      option("verbose", /* "t", */ .no_argument),
-      option("input-file", /* "f" , */ .required_argument),
+    let long_options: [CMigration.option] = [
+      option("exit", .no_argument),             // x
+      option("interactive", .no_argument),      // p
+      option("max-args", .required_argument),   // n
+      option("max-chars", .required_argument),  // s
+      option("max-procs", .required_argument),  // P
+      option("no-run-if-empty", .no_argument),  // r
+      option("null", .no_argument),             // 0
+      option("verbose", .no_argument),          // t
+      option("input-file", .required_argument), // f
     ]
 
-//    opts.nline = opts.arg_max - MAXPATHLEN
-
-//    var ep = getenv()
-
     let go = BSDGetopt_long(optstr, long_options)
-
-    /*
-    while let epp = ep.pointee {
-      opts.nline -= stdlib_h.strlen(epp) + 1 + MemoryLayout<UnsafeMutablePointer<Int8>?>.size
-      ep = ep.advanced(by: 1)
-    }
-     */
-
-//    opts.nline -= pad9314053
-
-
     opts.maxprocs = 1
-    
-    
     while let (ch, optarg) = try go.getopt_long() {
-      
-      //      let ch = getopt_long(argc, argv, optstr, long_options, nil)
       switch ch {
       case "E":
         opts.eofstr = optarg
-        //        eoflen = strlen(optarg)
       case "I":
         opts.Jflag = false
         opts.Iflag = true
@@ -217,7 +188,6 @@ import CMigration
     }
     
     let args = go.remaining
-    //    let args = Array(arguments.dropFirst(Int(optind)))
     opts.args = args
     
     if !opts.Iflag && opts.Rflag != 0 {
@@ -249,26 +219,17 @@ import CMigration
     let _PATH_ECHO = "/bin/echo"
     let echo = _PATH_ECHO
     
-//    var cnt = 0
     if opts.args.isEmpty {
       jbxp.append(echo)
-//      cnt = echo.count
     } else {
       if opts.Jflag, let rr = opts.replstr, let k = opts.args.firstIndex(of: rr) {
         opts.jfound = true
         jbxp.append(contentsOf: opts.args[0..<k])
         kbxp = Array(opts.args[(k+1)...])
-//        cnt -= rr.count + 1 + pad9314053
       } else {
         jbxp.append(contentsOf: opts.args)
       }
-//      cnt = opts.args.reduce(0, { $0 + $1.count + 1 + pad9314053} )
     }
-    
-//    opts.nline -= cnt
-//    if opts.nline <= 0 {
-//     throw CmdErr(1, "insufficient space for command")
-//     }
     return opts
   }
 
@@ -294,9 +255,6 @@ import CMigration
     var prevchar = prevc
     
     // Constructs the next argument from stdin
-
-
-
     while true {
       var ch : Character? = nil
       do {
@@ -305,10 +263,6 @@ import CMigration
         throw CmdErr(1, "reading input: \(e)")
       }
       guard let ch else {
-        return (argp, nil)
-      }
-
-      if ch == nil {
         if insingle || indouble {
           throw CmdErr(1, "unterminated quote")
         }
@@ -332,10 +286,6 @@ import CMigration
         }
       case "\0":
         if opts.zflag {
-/*          if argp.count == 0 && !wasquoted {
-            break
-          }
- */
           return (argp, ch)
         } else {
           argp.append(ch)
@@ -417,14 +367,7 @@ import CMigration
     var avj = jbxp
     
     var tmp = [String]()
-/*    [String?](repeating: nil, count: argc + 1)
-    if tmp.isEmpty {
-      print("malloc failed")
-      xexit(argv: &argv, 1)
-    }
-    tmp2 = tmp
-  */
-    
+
     if let firstArg = avj.first {
       tmp.append(firstArg)
       avj.removeFirst()
@@ -440,75 +383,30 @@ import CMigration
     }
     
     try await run(tmp, opts)
-
-    /*
-    for _ in tmp2 {
-      tmp.removeLast()
-    }
-    */
-
-    // inpline = ""
-    /*
-    if inpline != nil {
-      inpline = nil
-    }
-     */
   }
   
   func run(_ args : [String], _ opts : CommandOptions) async throws(CmdErr) {
 
-
-    /*
-    var pid: pid_t = 0
-    var rc: Int32 = 0
-
-    var file_actions = posix_spawn_file_actions_t(bitPattern: 0)
-    var inpath = _PATH_DEVNULL
-    
     if opts.tflag || opts.pflag {
       print(args.joined(separator: " "))
       if opts.pflag {
-        switch rpmatch("?...") {
-        case .yes:
-          return
-        case .no:
-          break
+        switch await prompt() {
+          case .yes:
+            return
+          case .no:
+            break
           case .neither:
-          break
+            break
         }
       }
       print("\n")
     }
 
-    if opts.oflag {
-      inpath = Darwin._PATH_TTY
-    }
-
-    if posix_spawn_file_actions_init(&file_actions) != 0 {
-      throw CmdErr(1, "posix_spawn_file_actions_init failed")
-    }
-      
-    if posix_spawn_file_actions_addopen(&file_actions, STDIN_FILENO, inpath, O_RDONLY, 0444) != 0 {
-      throw CmdErr(1, "posix_spawn_file_actions_addopen failed")
-    }
-  
-    
-    /*
-    let pipe = Pipe()
-    let pip = pipe.fileHandleForWriting.fileDescriptor
-    if posix_spawn_file_actions_adddup2(&file_actions,
-                                        pip, STDOUT_FILENO ) != 0 {
-      throw CmdErr.opterr(1, "posix_spawn_file_actions_adddup2 failed")
-    }
-    */
-    
-    let xy = (args.map {a in a.withCString { s in strdup(s) } } ) + [UnsafeMutablePointer(bitPattern: 0)]
-    defer { xy.forEach { free($0) } }
-*/
+    let inpath = opts.oflag ? _PATH_TTY : _PATH_DEVNULL
 
     // use a TaskGroup here?
 
-    let p = ProcessRunner2(command: args[0], arguments: args, environment: nil )
+    let p = ProcessRunner(command: args[0], arguments: args, environment: nil )
 
     do {
       let m = try await p.run(captureStdout: false, captureStderr: false)
@@ -516,64 +414,8 @@ import CMigration
     } catch(let e) {
       throw CmdErr(1, "\(e)")
     }
-
-//    rc = Darwin.posix_spawnp(&pid, args[0], &file_actions, nil, xy, Darwin.environ)
-
-
-
-/*
-    if rc != 0 {
-      try waitchildren(jbxp[0], true, opts)
-      errno = rc
-//      fputs(args[0], stderr)
-      throw CmdErr(rc == ENOENT ? 127 : 126, args[0])
-    } else {
-      childpids.insert(Int(pid))
- //     let jj = try pipe.fileHandleForReading.availableData
-//      print( String(data: jj, encoding: .utf8)! )
-      try waitchildren(jbxp[0], false, opts)
-    }
-     */
   }
 
-  /*
-  // wait for a status from a subprocess
-  func xwait(_ block: Bool)-> (Int, Int32) {
-
-    if childpids.isEmpty {
-      errno = ECHILD
-      return (-1, 0)
-    }
-    
-    var status : Int32 = 0
-    
-    while let pid = Optional(waitpid(-1, &status, block ? 0 : WNOHANG)), pid > 0 {
-      if let p = childpids.remove(Int(pid)) {
-        return (p, status)
-      }
-    }
-    
-    return (NOPID, status)
-    // return pid
-  }
-  */
-
-  
-
-  
-  /*
-  mutating func arg1(_ av : [String]) throws {
-    if insingle || indouble {
-      fputs("unterminated quote", stderr)
-      try xexit(av[0], 1)
-    }
-    
-    try arg2(av)
-  }
-  */
-  
-  var count = 0
-  
   /*
   mutating func arg2(_ av : [String]) throws {
 
@@ -582,81 +424,27 @@ import CMigration
     if opts.Iflag && !lastWasNewline {
       foundeof = false
     }
-    
-    if foundeof { // } && (p - strlen(opts.eofstr) == bbp) {
-      try waitchildren(av[0], true)
-      exit(Int32(rval))
-    }
-    
+
     if (!argp.isEmpty || wasquoted) && !foundeof {
 //      p += 1
       // FIXME: what is xp doing?
       av.append(argp)
       if opts.Iflag {
         var curlen: size_t = 0
-        
-//        if inpline == nil {
-//          //            curlen = 0
-//        } else {
-        curlen = inpline.count
-        if inpline.count > 0 {
-          inpline.append(" ")
-        }
-//        }
-        curlen += 1
-        //          inpline = realloc(inpline, curlen + 2 + strlen(argp))
-        //          if inpline == nil {
-        //            fputs("realloc failed", stderr)
-        //            try xexit(av[0], 1)
-        //          }
-        
+    */
 
-        if curlen == 1 {
-          inpline = argp
-        } else {
-          inpline.append(argp)
-        }
-        
-      }
-    }
-    
-    // FIXME: what happens here?
-    
-//    fatalError("I'm lost")
-    
-    /*
-    if xp == endxp || p + (count * pad9314053) > ebp || ch == EOF ||
-        (opts.Lflag <= count && opts.xflag) || foundeof {
-      /*        if xflag && xp != endxp && p + (count * pad9314053) > ebp {
-       fputs("insufficient space for arguments", stderr)
-       try xexit(av[0], 1)
-       }
-       */
-      if jfound {
-        for avj in av {
-          xp += 1
-        }
-      }
-     */
-      try prerun(av)
-    // FIXME: also tested for ch == EOF -- which should not be necessary if foundeof?
-      if foundeof {
-        try waitchildren(av[0], true)
-        exit(Int32(rval))
-      }
-    // FIXME: what does xp do?
-//      xp = bxp
-      count = 0
-    argp = ""
-  }
-  */
-  
   func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
     var pc : Character? = "\n"
     var a : String = ""
     var ibxp = [String]()
 
     var argi = opts.inp.characters.makeAsyncIterator()
+
+    defer {
+      if opts.inp != FileDescriptor.standardInput {
+        try? opts.inp.close()
+      }
+    }
 
     while pc != nil {
       (a, pc) = try await parseArgument(pc!, &argi, opts)
@@ -670,82 +458,24 @@ import CMigration
       }
     }
   }
-  
-  /*
-  func prompt() -> PromptCases {
-    var cre = Darwin.regex_t()
-    var rsize: Darwin.size_t = 0
-    var match: Int32 = 0
-    
-    let ttyfp = stdio_h.fopen(Darwin._PATH_TTY, "r")
-    if ttyfp != nil {
-      return .two
-    }
-    stdio_h.fputs("?...", stdio_h.stderr)
-    stdio_h.fflush(stdio_h.stderr)
-    let response = stdio_h.fgetln(ttyfp, &rsize)
-    if response == nil || Darwin.regcomp(&cre, Darwin.nl_langinfo(Darwin.YESEXPR), Darwin.REG_EXTENDED) != 0 {
-      stdio_h.fclose(ttyfp)
-      return .zero
-    }
-    response![Int(rsize) - 1] = 0
-    match = Darwin.regexec(&cre, response, 0, nil, 0)
-    stdio_h.fclose(ttyfp)
-    Darwin.regfree(&cre)
-    return match == 0 ? .one : .zero
-  }
-  */
 
-  var usage = "usage: xargs [-0opt] [-E eofstr] [-I replstr [-R replacements] [-S replsize]] [-J replstr] [-L number] [-n number [-x]] [-P maxprocs] [-s size] [utility [argument ...]]"
-
-  /*
-  func xexit(_ name: String, _ exit_code: Int, _ opts : CommandOptions) throws(CmdErr) {
-    try waitchildren(name, true, opts)
-    throw CmdErr(exit_code, "")
-  }
-  
-  func waitchildren(_ name: String, _ waitl: Bool, _ opts : CommandOptions) throws(CmdErr) {
-    var waitall = waitl
-    var cause_exit : Int32 = 0
+  func prompt() async -> YesNo {
+    let ttyfp = try? FileDescriptor.open(_PATH_TTY, .readOnly)
+    guard let ttyfp else {
+      return .neither
+    }
+    defer {
+      try? ttyfp.close()
+    }
 
     var se = FileDescriptor.standardError
-
-    while let (pid, status) = Optional(xwait( waitall || childpids.count >= opts.maxprocs)) {
-/*      if (childerr != 0 && cause_exit == 0) {
-        errno = childerr
-        waitall = true
-        cause_exit = errno == ENOENT ? 127 : 126
-        fputs(name, stderr)
-      } else
- */
-      if pid <= 0 {
-        if (cause_exit != 0) {
-          throw CmdErr(Int(cause_exit), "")
-        }
-        if (pid == -1 && errno != ECHILD) {
-          throw CmdErr(1, "waitpid")
-        }
-        return
-      }
-      
-
-      if status & 0x7f != 0x7f && status & 0x7f != 0 { // (WIFSIGNALED(status) != 0) {
-        waitall = true
-        cause_exit = 1
-        print("\(name): terminated with signal \(status & 0x7f); aborting", to: &se)
-      } else if status >> 8 == 255 {
-        waitall = true
-        cause_exit = 1
-        print("\(name): exited with status 255; aborting", to: &se)
-      } else if (status >> 8) != 0 {
-        rval = 1
-      }
+    print("?...", terminator: "", to: &se)
+    var ma = ttyfp.bytes.lines.makeAsyncIterator()
+    guard let response = try? await ma.next() else {
+      return .neither
     }
-    
+    return rpmatch(response)
   }
-  */
+
+  var usage = "usage: xargs [-0opt] [-E eofstr] [-I replstr [-R replacements] [-S replsize]] [-J replstr] [-L number] [-n number [-x]] [-P maxprocs] [-s size] [utility [argument ...]]"
 }
-
-
-
-

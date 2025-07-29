@@ -109,7 +109,7 @@ func printMatches(path: String, filename: String, allpaths: Bool ) -> Bool {
   
   func runCommand(_ opts : CommandOptions) throws(CmdErr) {
 //    guard let path = ProcessInfo.processInfo.environment["PATH"]
-    guard let path = getenv("PATH")
+    guard let path = Environment["PATH"]
     else {
       throw CmdErr(1, "no PATH")
     }

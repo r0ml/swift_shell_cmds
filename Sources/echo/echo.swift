@@ -39,7 +39,7 @@ import CMigration
     var args = CommandLine.arguments
     args.removeFirst() // this is the executable name
     var nflag = false
-    let posix = getenv("POSIXLY_CORRECT") != nil || getenv("POSIX_PEDANTIC") != nil
+    let posix = Environment["POSIXLY_CORRECT"] != nil || Environment["POSIX_PEDANTIC"] != nil
 
     if !posix && args[0] == "-n" {
       nflag = true

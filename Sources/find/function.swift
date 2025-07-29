@@ -530,8 +530,12 @@ extension find {
       
 
       var status : Int32 = 0
+      // FIXME: this broke when I made ProcessRunner async
       do {
-        try ProcessRunner.run(command: searchPath(for: epee.e_argv.first!)!, arguments: Array(epee.e_argv.dropFirst()), currentDirectory: cwd )
+          let p = ProcessRunner(command: searchPath(for: epee.e_argv.first!)!, arguments: Array(epee.e_argv.dropFirst()), currentDirectory: cwd )
+        Task {
+          let _ = try await p.run()
+        }
       } catch ProcessError.nonZeroExit(let xstatus, let output, let error) {
         status = xstatus
       } catch {
@@ -613,7 +617,7 @@ extension find {
       }
       argmax -= 1024
       argmax -= argmax/16
-      let x = getenv().reduce(0, {(s, kv) -> Int in s + kv.0.count + kv.1.count + 16 } )
+      let x = Environment.getenv().reduce(0, {(s, kv) -> Int in s + kv.0.count + kv.1.count + 16 } )
       argmax -= x
       ee.e_argmax = argmax
       

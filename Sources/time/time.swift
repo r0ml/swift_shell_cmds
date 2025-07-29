@@ -308,7 +308,8 @@ actor Stuff {
       xstatus = 0
       do {
         let j = self.stuff
-        let res = try ProcessRunner.run(command: ff, arguments: Array(opts.args.dropFirst()), prelaunch: { p in
+        let p = ProcessRunner(command: ff, arguments: Array(opts.args.dropFirst()))
+        let res = try await p.run(prelaunch: { p in
  //         self.pid = p
           let _ = await j.w4(p)
         })

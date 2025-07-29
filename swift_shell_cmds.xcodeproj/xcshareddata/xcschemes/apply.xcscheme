@@ -58,11 +58,15 @@
       </BuildableProductRunnable>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "&quot;echo %1 %1 %1&quot;"
+            argument = "&quot;echo %1 %1 %1 %1&quot;"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "env"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "/Users/r0ml/AppleOpenSource/swift_shell_cmds/Tests/applyTest/Resources/regress.00.in"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

@@ -79,7 +79,7 @@ import Darwin
       case "p", "tmpdir":
           opts.tmpdir = optarg
           if opts.tmpdir == nil || opts.tmpdir!.isEmpty {
-            opts.tmpdir = getenv("TMPDIR")
+            opts.tmpdir = Environment["TMPDIR"]
         }
           opts.prefer_tmpdir = false
       case "q", "quiet":
@@ -111,7 +111,7 @@ import Darwin
     }
     
     if opts.tflag {
-      let envtmp = getenv("TMPDIR")
+      let envtmp = Environment["TMPDIR"]
       if opts.prefer_tmpdir || opts.tmpdir == nil {
         opts.tmpdir = envtmp
       }

@@ -105,7 +105,7 @@ import Darwin
     var result : String? = ""
     var dirpathv: [String?] = [defaults_path, dir_path]
     
-    if let root = getenv("PATH_HELPER_ROOT") {
+    if let root = Environment["PATH_HELPER_ROOT"] {
       dirpathv[0] = root + defaults_path
       dirpathv[1] = root + dir_path
     }
@@ -153,7 +153,7 @@ import Darwin
     
     
     // merge in any existing custom PATH elements
-    if let str = getenv(env_var) {
+    if let str = Environment[env_var] {
       let strx = str.split(separator: ":")
       for ss in strx {
         append_path_segment(path: &result, segment: String(ss) )
@@ -167,7 +167,7 @@ import Darwin
     var opts = CommandOptions()
     
     // default to csh style, if $SHELL ends with "csh".
-    if let shell = getenv("SHELL") {
+    if let shell = Environment["SHELL"] {
       if shell.contains(/csh/) {
         opts.style = .csh
       }

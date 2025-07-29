@@ -41,7 +41,7 @@ import Darwin
     // from envopts.swift
     var env_verbosity : Int = 0
  
-    var environ: [String:String] = getenv()
+  var environ: [String:String] = Environment.getenv()
 
     var usage = """
 usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
@@ -129,7 +129,7 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
         let key = String(argv[..<p])
         let value = String(argv[argv.index(after: p)...])
         do {
-          try setenv(key, value)
+          try Environment.setenv(key, value)
         } catch(let e) {
           throw CmdErr(1, "setenv \(key) \(e)")
         }
@@ -175,7 +175,8 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
  //     let pe = execvp(argv, Array(opts.aa) )
 
       do {
-        let _ = try ProcessRunner.run(command: argv, arguments: Array(opts.aa.dropFirst()), captureStdout: false, captureStderr: false)
+        let p = ProcessRunner(command: argv, arguments: Array(opts.aa.dropFirst()))
+        try await p.run(captureStdout: false, captureStderr: false)
       } catch {
         throw CmdErr(127, "\(error)")
       }

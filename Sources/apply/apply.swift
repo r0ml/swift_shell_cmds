@@ -116,7 +116,7 @@ struct CommandOptions {
       opts.nargs = n
     }
     opts.args.removeFirst()
-    opts.arg_max = scArgMax
+    opts.arg_max = Sysconf.scArgMax
     return opts
   }
 
@@ -167,7 +167,9 @@ struct CommandOptions {
   /// Execute a shell `command` using passed `shell` and `use_name`  arguments.
   func execShell(_ command: String, _ useShell: String, _ useName: String) async -> Int {
     do {
-      let _ = try ProcessRunner.run(command: useShell, arguments: ["-c", command], captureStdout: false, captureStderr: false)
+      try Environment.setenv("LANG", "C")
+      let p = ProcessRunner(command: useShell, arguments: ["-c", command])
+      try await p.run(captureStdout: false, captureStderr: false)
     } catch let e as Errno {
       return Int(e.rawValue)
     } catch(let e) {

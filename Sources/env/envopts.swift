@@ -316,7 +316,7 @@ extension Env {
         if vbb.first == "}" {
           // Env var name replacement happens here
           srcP = vbb.dropFirst()
-          if let vvalue = getenv(String(vname)) {
+          if let vvalue = Environment[String(vname)] {
             if env_verbosity > 2 {
               var se = FileDescriptor.standardError
               print("#env expanding ${\(vname)} into '\(vvalue)'", to: &se)

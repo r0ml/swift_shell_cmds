@@ -188,7 +188,8 @@ func cleanup() {
     
     
     do {
-      let j = try ProcessRunner.run(command: execu, arguments: args)
+      let p = ProcessRunner(command: execu, arguments: args)
+      try await p.run()
     } catch(let e as Errno) {
       return e.rawValue
     } catch {

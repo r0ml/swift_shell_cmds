@@ -97,7 +97,7 @@ let DEFFILEMODE : FilePermissions = [.ownerRead, .ownerWrite, .groupRead, .group
       } catch {
         //       let fd = Darwin.open(arg, opts.append ? Darwin.O_WRONLY|Darwin.O_CREAT|Darwin.O_APPEND : Darwin.O_WRONLY|Darwin.O_CREAT|Darwin.O_TRUNC, DEFFILEMODE)
         var se = FileDescriptor.standardError
-        print("\(progname): \(arg): \(error)", to: &se)
+        print("\(Environment.progname): \(arg): \(error)", to: &se)
         // warn(arg)
         exitval = 1
       }

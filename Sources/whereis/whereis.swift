@@ -299,7 +299,8 @@ func colonify(_ cpp: [String]) -> String {
     opts.unusual = opts.unusual | NO_MAN_FOUND
     let cp = opts.opt_a ? ["-a","-w", name] : ["-S1:8:6", "-w", name]
 //    let cpx = cp + ["-M", colonify(mandirs ?? [])]
-    let res = try! ProcessRunner.run(command: "/usr/bin/man", arguments: cp)
+    let p = ProcessRunner(command: "/usr/bin/man", arguments: cp)
+    let res = try! await p.run()
     return res.stdout
   }
   
@@ -387,7 +388,7 @@ func colonify(_ cpp: [String]) -> String {
 
       opts.bindirs = decolonify(b)
       opts.bindirs?.append(PATH_LIBEXEC)
-          if let path = getenv("PATH") {
+      if let path = Environment["PATH"] {
               // don't destroy the original environment...
             opts.bindirs?.append(contentsOf: decolonify(path))
           }
@@ -399,7 +400,8 @@ func colonify(_ cpp: [String]) -> String {
       /* How to query the current manpath. */
       let MANPATHCMD = ["manpath","-q"]
       do {
-        let res = try ProcessRunner.run(command: "/usr/bin/manpath", arguments: MANPATHCMD)
+        let p = ProcessRunner(command: "/usr/bin/manpath", arguments: MANPATHCMD)
+        let res = try await p.run()
         var b = Substring(res.stdout)
         if let x = b.lastIndex(of: "\n") {
           b = b[b.startIndex..<x]
