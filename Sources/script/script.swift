@@ -570,7 +570,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
     } else {
       do {
         let p = ProcessRunner(command: shell, arguments: ["-i"], environment: env)
-        try await p.run()
+        try await p.run(input: FileDescriptor.standardInput)
       } catch ProcessError.nonZeroExit(code: let r, stdout: _, stderr: _) {
         return r
       }
