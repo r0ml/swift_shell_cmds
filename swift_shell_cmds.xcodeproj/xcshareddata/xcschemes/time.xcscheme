@@ -59,15 +59,15 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "-l"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "sh"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-c"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "&quot;sleep 5 &amp;&amp; true&quot;"
@@ -75,6 +75,14 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "&quot;kill -USR1 $$ &amp;&amp; sleep 5 &amp;&amp; true&quot;"
+            isEnabled = "NO">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "sleep"
+            isEnabled = "YES">
+         </CommandLineArgument>
+         <CommandLineArgument
+            argument = "1"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument

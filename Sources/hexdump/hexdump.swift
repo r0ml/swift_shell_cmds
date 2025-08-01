@@ -35,8 +35,6 @@
 
 import CMigration
 
-import Darwin
-
 /*
 struct prOptions : OptionSet {
   let rawValue: UInt8
@@ -79,7 +77,7 @@ class PR {
     var fmt: String!
   var nospace: Bool = false
     var mbleft: Int = 0
-    var mbstate: mbstate_t?
+//    var mbstate: mbstate_t?
 }
 
 struct fuOptions : OptionSet {
@@ -139,8 +137,8 @@ final class hexdump : ShellCommand {
     }
     
 
-    var address: off_t = 0
-    var eaddress: off_t = 0
+    var address: Int64 = 0
+    var eaddress: Int64 = 0
     // var _argv: [String]
     
 
@@ -150,8 +148,8 @@ final class hexdump : ShellCommand {
 //  var exitval: Int32 = 0        /* final exit value */
 
   // options
-  var skip : off_t = 0
-  
+  var skip : Int64 = 0
+
   struct CommandOptions {
     var vflag : _vflag = .FIRST
     var args :  Array<String>.SubSequence = []
@@ -224,11 +222,13 @@ final class hexdump : ShellCommand {
 #endif
     
     try display(&opts)
+    /*
 #if os(macOS)
     if ferror(stdout) != 0 || fflush(stdout) != 0 {
       throw CmdErr(1, "stdout")
     }
 #endif
+     */
   }
   
   var newUsage = """

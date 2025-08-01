@@ -63,7 +63,7 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "-A"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-F"
@@ -99,7 +99,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "-u"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
       </CommandLineArguments>
    </LaunchAction>

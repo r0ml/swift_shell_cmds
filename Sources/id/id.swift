@@ -40,12 +40,8 @@ import Darwin
 
 @main final class idCommand : ShellCommand {
 
-  #if os(macOS)
   var optstring = "AFPGagnpru"
-  #else
-  var optstring = "APGMacgnpru"
-  #endif
-  
+
   var isgroups = false
   var iswhoami = false
 
@@ -54,7 +50,6 @@ import Darwin
     
     var args = [String]()
     
-#if os(macOS)
     var Gflag = false
     var Pflag = false
     var gflag = false
@@ -67,22 +62,6 @@ import Darwin
     var id = 0
 
     let __APPLE__ = true
-#else
-    var Gflag = 0
-    var Mflag = 0
-    var Pflag = 0
-    var gflag = 0
-    var nflag = 0
-    var pflag = 0
-    var rflag = 0
-    var uflag = 0
-    var Aflag = 0
-    var cflag = 0
-    
-//    var id = id_t(0)
-    var error : Int = 0
-    let __APPLE__ = false
-#endif
   }
   
   func parseOptions() throws(CmdErr) -> CommandOptions {
@@ -108,28 +87,16 @@ import Darwin
     let go = BSDGetopt((isgroups || iswhoami) ? "" : optstring )
     while let (ch, _) = try go.getopt() {
       switch(ch) {
-#if USE_BSM_AUDIT
       case "A":
           opts.Aflag = true
-#endif
-#if os(macOS)
       case "F":
           opts.Fflag = true
-#endif
       case "G":
           opts.Gflag = true
-#if !os(macOS)
-      case "M":
-          opts.Mflag = true
-#endif
       case "P":
           opts.Pflag = true
       case "a":
         break
-#if !os(macOS)
-      case "c":
-          opts.cflag = true
-#endif
       case "g":
           opts.gflag = true
       case "n":
@@ -152,21 +119,12 @@ import Darwin
       throw CmdErr(1)
     }
     
-#if os(macOS)
     if opts.Aflag && opts.args.count > 0 {
       throw CmdErr(1)
     }
-#else
-    if ((cflag != 0 || Aflag != 0 || Mflag != 0) && args.count > 0) {
-      usage()
-    }
-#endif
-    
-#if os(macOS)
+
     opts.flagCount = [opts.Aflag, opts.Fflag, opts.Gflag, opts.Pflag, opts.gflag, opts.pflag, opts.uflag].count { $0 }
-#else
-    flagCount = [Aflag, Gflag, Mflag, Pflag, gflag, pflag, uflag].count { $0 }
-#endif
+
     switch(opts.flagCount) {
     case 1:
       break;
@@ -174,13 +132,9 @@ import Darwin
         if (!opts.nflag) && (!opts.rflag) {
         break;
       }
-      /* FALLTHROUGH */
+        fallthrough
     default:
-#if DEBUG
-      break
-#else
       throw CmdErr(1)
-#endif
     }
     return opts
   }
@@ -189,13 +143,7 @@ import Darwin
   func runCommand(_ opts: CommandOptions) throws(CmdErr) {
     let pw = try opts.args.isEmpty ? nil : who(opts.args.first!)
 
-#if !os(macOS)
-    if (opts.Mflag != 0 && pw != nil) {
-      throw CmdErr(1)
-    }
-#endif
 
-  
   try forGoto(pw, opts)
 
     // FIXME: do I need this?
@@ -210,35 +158,18 @@ import Darwin
   
   func forGoto(_ pwx : Passwd?, _ opts : CommandOptions) throws(CmdErr) {
     var pw = pwx
-#if USE_BSM_AUDIT
+
     if opts.Aflag {
       auditid();
-#if !DEBUG
       return
-#endif
     }
-#endif
+
     
-#if os(macOS)
     if opts.Fflag {
       try fullname(pw);
-#if !DEBUG
       return
-#endif
     }
-#else
-    if opts.cflag {
-      error = getloginclass(loginclass, sizeof(loginclass));
-      if (error != 0) {
-        err(1, "loginclass");
-      }
-      print(loginclass);
-#if !DEBUG
-      return
-#endif
-    }
-#endif
-    
+
     if opts.gflag {
       let id = pw != nil ? pw!.groupId : (opts.rflag ? groupId : effectiveGroupId)
       if opts.nflag {
@@ -252,9 +183,7 @@ import Darwin
       else {
         print(id)
       }
-#if !DEBUG
       return
-#endif
     }
     
     if opts.uflag {
@@ -269,39 +198,22 @@ import Darwin
       else {
         print(id)
       }
-#if !DEBUG
       return
-#endif
     }
     
     if opts.Gflag {
       group(pw, opts.nflag )
-#if !DEBUG
       return
-#endif
     }
-    
-#if !os(macOS)
-    if opts.Mflag {
-      maclabel();
-#if !DEBUG
-      return
-#endif
-    }
-#endif
     
     if opts.Pflag {
       try pline(pw)
-#if !DEBUG
       return
-#endif
     }
     
     if opts.pflag {
       try pretty(pw);
-#if !DEBUG
       return
-#endif
     }
     
     
@@ -325,12 +237,9 @@ import Darwin
       print("groups\t", terminator: "")
       group(pw, true);
     } else {
-      guard let loginx = getlogin() else {
-        throw CmdErr(1, "getlogin")
-      }
+      let login = userName
       let ridu = userId
       pw = getPasswd(of: ridu)
-      let login = String(cString: loginx)
       if pw == nil || login != pw!.name {
         print("login\t\(login)");
       }
@@ -394,7 +303,6 @@ import Darwin
       // FIXME: was getgrouplist_2
       // 5235093
       //        ngroups = getgrouplist_2(pw.pw_name, gid, &groups);
-      let ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
       groups = withUnsafeTemporaryAllocation(of: gid_t.self, capacity: ngroups_max) { p in
         
         var ngroups = Int32(ngroups_max)
@@ -408,8 +316,6 @@ import Darwin
       }
     }
     else {
-      let ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
-
       // ngroups = getgroups(Int32(ngroups_max), groups);
       
       groups = withUnsafeTemporaryAllocation(of: gid_t.self, capacity: ngroups_max) { p in
@@ -429,12 +335,11 @@ import Darwin
       
     }
     
-#if os(macOS)
     guard let groups else {
       warn("failed to retrieve group list");
       fatalError("failed to retrieve group list");
     }
-#endif
+
     if let pw {
       print("uid=\(uid)(\(pw.name))", terminator: "");
     } else {
@@ -485,34 +390,16 @@ import Darwin
     print("");
   }
   
-#if USE_BSM_AUDIT
   func auditid() {
-#if os(macOS)
+
     var ainfo_addr = auditinfo_addr_t()
     /* Keeps the diff looking somewhat sane, always 1 for Apple. */
     var extended = 1;
-#else
-    var auditinfo = auditinfo_t()
-    var ainfo_addr = auditinfo_addr_t()
-    var extended, ret : Int32
-#endif
-    
-#if os(macOS)
+
     if (getaudit_addr(&ainfo_addr, Int32(MemoryLayout.size(ofValue:ainfo_addr))) < 0) {
       err(1, "getaudit_addr");
     }
-#else
-    extended = 0;
-    ret = getaudit(&auditinfo);
-    if (ret < 0 && errno == E2BIG) {
-      if (getaudit_addr(&ainfo_addr, sizeof(ainfo_addr)) < 0) {
-        err(1, "getaudit_addr");
-      }
-      extended = 1;
-    } else if (ret < 0) {
-      err(1, "getaudit");
-    }
-#endif
+
     if (extended != 0) {
       print(cFormat( """
 auid=%d
@@ -527,33 +414,16 @@ termid_addr.addr[3]=0x%08x
 """,
                    ainfo_addr.ai_auid, ainfo_addr.ai_mask.am_success,
                    ainfo_addr.ai_mask.am_failure, ainfo_addr.ai_asid,
-                   uintmax_t(ainfo_addr.ai_termid.at_port),
+                   UInt(ainfo_addr.ai_termid.at_port),
                    ainfo_addr.ai_termid.at_addr.0,
                    ainfo_addr.ai_termid.at_addr.1,
                    ainfo_addr.ai_termid.at_addr.2,
                    ainfo_addr.ai_termid.at_addr.3))
-#if os(macOS)
       print(cFormat("flags=0x%llx", ainfo_addr.ai_flags))
-#endif
     } else {
-#if !os(macOS)
-      print(cFormat("""
-auid=%d
-mask.success=0x%08x
-mask.failure=0x%08x
-asid=%d
-termid.port=0x%08jx
-termid.machine=0x%08x
-""", auditinfo.ai_auid, auditinfo.ai_mask.am_success,
-                   auditinfo.ai_mask.am_failure,
-                   auditinfo.ai_asid, auditinfo.ai_termid.port,
-                   auditinfo.ai_termid.machine))
-#endif
     }
   }
-#endif
-  
-#if os(macOS)
+
   func fullname(_ pwx : Passwd?) throws(CmdErr) {
     var pw = pwx
     if pw == nil {
@@ -564,8 +434,7 @@ termid.machine=0x%08x
     }
     print(pw!.fullname)
   }
-#endif
-  
+
   func group(_ pwx : Passwd?, _ nflag : Bool) {
     var groups : [Int]?
     var pw = pwx
@@ -575,7 +444,7 @@ termid.machine=0x%08x
     }
 
     if let pw {
-#if os(macOS)
+
       // 5235093
       let ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
       
@@ -591,16 +460,10 @@ termid.machine=0x%08x
         }
         return res
       }
-#else
-      var ngroups = ngroups_max;
-      getgrouplist(pw.pw_name, pw.pw_gid, groups, &ngroups);
-#endif
     } else {
-#if os(macOS)
       let ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
       //        if ((groups = malloc(sizeof(gid_t) * (ngroups_max))) == NULL)
       //            err(1, "malloc");
-#endif
       groups = withUnsafeTemporaryAllocation(of: gid_t.self, capacity: ngroups_max) { p in
         let ngroups = getgroups(Int32(ngroups_max), p.baseAddress!);
         
@@ -633,31 +496,6 @@ termid.machine=0x%08x
     }
     print("");
   }
-  
-#if !os(macOS)
-  func maclabel() {
-    var string : String
-    var label : mac_t
-    var error : Int32
-    
-    error = mac_prepare_process_label(&label);
-    if (error == -1) {
-      errx(1, "mac_prepare_type: %s", strerror(errno));
-    }
-    
-    error = mac_get_proc(label);
-    if (error == -1) {
-      errx(1, "mac_get_proc: %s", strerror(errno));
-    }
-    error = mac_to_text(label, &string);
-    if (error == -1) {
-      errx(1, "mac_to_text: %s", strerror(errno));
-    }
-    print(string);
-    mac_free(label);
-    free(string);
-  }
-#endif /* __APPLE__ */
   
   func who(_ u : String) throws(CmdErr) -> Passwd {
 
@@ -700,23 +538,16 @@ termid.machine=0x%08x
     } else {
       //        print("%s\n%s%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
       var a = "usage: id [user]"
-#if USE_BSM_AUDIT
+
       a.append("       id -A")
-#endif
-      
-#if os(macOS)
+
       a.append("       id -F [user]")
-#endif
       a.append("       id -G [-n] [user]")
       
-#if !os(macOS)
       a.append("       id -M")
-#endif
       a.append("       id -P [user]")
       
-#if !os(macOS)
       a.append("       id -c")
-#endif
       a.append("""
 id -g [-nr] [user]
 id -p [user]

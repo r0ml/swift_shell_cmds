@@ -34,7 +34,6 @@
  */
 
 import CMigration
-import Darwin
 
 // FIXME: there are no tests for this target
 @main final class Env : ShellCommand {
@@ -89,7 +88,7 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
           print("#env unset:\(optarg)", to: &se)
         }
           do {
-            try unsetenv(optarg)
+            try Environment.unsetenv(optarg)
           } catch(let e) {
             throw CmdErr(1, "unsetenv \(optarg) \(e)")
         }

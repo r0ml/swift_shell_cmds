@@ -406,7 +406,7 @@ import CMigration
 
     // use a TaskGroup here?
 
-    let p = ProcessRunner(command: args[0], arguments: args, environment: nil )
+    let p = ProcessRunner(command: args[0], arguments: Array(args.dropFirst()), environment: nil )
 
     do {
       let m = try await p.run(captureStdout: false, captureStderr: false)

@@ -309,10 +309,14 @@ actor Stuff {
       do {
         let j = self.stuff
         let p = ProcessRunner(command: ff, arguments: Array(opts.args.dropFirst()))
-        let res = try await p.run(prelaunch: { p in
+/*
+ let res = try await p.run(prelaunch: { p in
  //         self.pid = p
           let _ = await j.w4(p)
         })
+ */
+        let res = try await p.run()
+
       } catch ProcessError.nonZeroExit(let s, let o, let e) {
         xstatus = s
       } catch(let e) {
