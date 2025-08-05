@@ -32,6 +32,7 @@
 
 import CMigration
 
+// for utmpx, winsize, ttyname, gettimeofday, ioctl, localtime
 import Darwin
 
 @main final class Who : ShellCommand {
@@ -412,16 +413,15 @@ import Darwin
     //    var cols: UnsafeMutablePointer<Int8>?
     var ep: UnsafeMutablePointer<Int8>?
     
-    if let cols = Darwin.getenv("COLUMNS"), cols.pointee != 0 {
-      Darwin.errno = 0
-      let width = Darwin.strtol(cols, &ep, 10)
-      if Darwin.errno != 0 || width <= 0 || width > Int.max || ep == cols ||  ep?.pointee != 0 {
-        Darwin.fputs("invalid COLUMNS environment variable ignored\n", Darwin.stderr)
+    if let cols = Environment["COLUMNS"] {
+      if let width = Int(cols) {
+        return width
       } else {
-        return Int(width)
+        var se = FileDescriptor.standardError
+        print("invalid COLUMNS environment variable ignored", to: &se)
       }
     }
-    if Darwin.ioctl(Darwin.STDOUT_FILENO, Darwin.TIOCGWINSZ, &ws) != -1 {
+    if Darwin.ioctl(FileDescriptor.standardOutput.rawValue, Darwin.TIOCGWINSZ, &ws) != -1 {
       return Int(ws.ws_col)
     }
     

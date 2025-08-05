@@ -97,6 +97,7 @@
 		E73F99CA2D459D9200E89FF3 /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E73F99C92D459D9200E89FF3 /* CMigration */; };
 		E73F99CC2D459D9800E89FF3 /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E73F99CB2D459D9700E89FF3 /* CMigration */; };
 		E73F99CE2D459DCF00E89FF3 /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E73F99CD2D459DCF00E89FF3 /* CMigration */; };
+		E75889042E42589800359FC5 /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E75889032E42589800359FC5 /* ShellTesting */; };
 		E79B2C152E2ABBBA00C33F4B /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E79B2C142E2ABBBA00C33F4B /* CMigration */; };
 		E79B31A12E2FD6C300C33F4B /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E79B31A02E2FD6C300C33F4B /* ShellTesting */; };
 		E7B3FF2E2DEF8C840054A8EB /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E7B3FF2D2DEF8C840054A8EB /* CMigration */; };
@@ -221,6 +222,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = FCBA162E14A145C700AA698B;
 			remoteInfo = xargs;
+		};
+		E75888F92E4256F700359FC5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FC80BF5714A05A2F00C6F7F5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FCBA161E14A145C000AA698B;
+			remoteInfo = which;
 		};
 		E78D06472C12430A00A7C01B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -1217,6 +1225,7 @@
 		E70AEB552C35DCE300196BD4 /* whereisTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = whereisTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E70AEBA92C37A50C00196BD4 /* mktempTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = mktempTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E734F0EF2C0DF699007A3C58 /* jotTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = jotTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E75888F22E4256EB00359FC5 /* whichTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = whichTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E763BAB72C3DD91E00649ACB /* applyTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = applyTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E78D063F2C1242A500A7C01B /* echoTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = echoTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7918B7B2C22778C002619C1 /* testTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = testTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1325,6 +1334,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E75888FD2E42570F00359FC5 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				whichTest/which.xctestplan,
+				whichTest/whichTest.swift,
+			);
+			target = E75888F12E4256EB00359FC5 /* whichTest */;
+		};
 		E79B2BEA2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -1916,7 +1933,7 @@
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E79B2BB22E2AB20100C33F4B /* Sources */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E79B2BEA2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BEB2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BEC2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BED2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BEE2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BEF2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BF02E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BF12E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BF22E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BF32E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BF42E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BF52E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BF62E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BF72E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BF82E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BF92E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BFA2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BFB2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BFC2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BFD2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BFE2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2BFF2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C002E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C012E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C022E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C032E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C042E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C052E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C062E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C072E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C082E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C092E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C0A2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C0B2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C0C2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C0D2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C0E2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C0F2E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C102E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C112E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C122E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2C132E2AB20100C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Sources; sourceTree = "<group>"; };
-		E79B2CDC2E2C0E3400C33F4B /* Tests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E79B2D762E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D772E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D782E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D792E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D7A2E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2FA02E2C155300C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D7B2E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D7C2E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D7D2E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D7E2E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D7F2E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D802E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D812E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D822E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D832E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D842E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D852E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D862E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D872E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D882E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D892E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Tests; sourceTree = "<group>"; };
+		E79B2CDC2E2C0E3400C33F4B /* Tests */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (E79B2D762E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D772E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D782E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D792E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D7A2E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2FA02E2C155300C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D7B2E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D7C2E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D7D2E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D7E2E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D7F2E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D802E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D812E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D822E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D832E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D842E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D852E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D862E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D872E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D882E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E75888FD2E42570F00359FC5 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, E79B2D892E2C0E3400C33F4B /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Tests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1956,6 +1973,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				E7E33DC52D30EB4B00478AF2 /* ShellTesting in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E75888EF2E4256EB00359FC5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E75889042E42589800359FC5 /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2562,6 +2587,7 @@
 				E7EC85172C4623090098A4EB /* sleepTest.xctest */,
 				E7EC85222C4623280098A4EB /* timeTest.xctest */,
 				E79B2D952E2C0EE100C33F4B /* envTest.xctest */,
+				E75888F22E4256EB00359FC5 /* whichTest.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -2657,6 +2683,27 @@
 			name = jotTest;
 			productName = jotTest;
 			productReference = E734F0EF2C0DF699007A3C58 /* jotTest.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E75888F12E4256EB00359FC5 /* whichTest */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E75888F62E4256EB00359FC5 /* Build configuration list for PBXNativeTarget "whichTest" */;
+			buildPhases = (
+				E75888EE2E4256EB00359FC5 /* Sources */,
+				E75888EF2E4256EB00359FC5 /* Frameworks */,
+				E75888F02E4256EB00359FC5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E75888FA2E4256F700359FC5 /* PBXTargetDependency */,
+			);
+			name = whichTest;
+			packageProductDependencies = (
+				E75889032E42589800359FC5 /* ShellTesting */,
+			);
+			productName = whichTest;
+			productReference = E75888F22E4256EB00359FC5 /* whichTest.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		E763BAB62C3DD91E00649ACB /* applyTest */ = {
@@ -3755,6 +3802,9 @@
 					E734F0EE2C0DF699007A3C58 = {
 						CreatedOnToolsVersion = 15.4;
 					};
+					E75888F12E4256EB00359FC5 = {
+						CreatedOnToolsVersion = 26.0;
+					};
 					E763BAB62C3DD91E00649ACB = {
 						CreatedOnToolsVersion = 16.0;
 					};
@@ -4009,6 +4059,7 @@
 				FCBA161614A145BC00AA698B /* whereis */,
 				E70AEB542C35DCE300196BD4 /* whereisTest */,
 				FCBA161E14A145C000AA698B /* which */,
+				E75888F12E4256EB00359FC5 /* whichTest */,
 				FCBA162614A145C500AA698B /* who */,
 				FCBA162E14A145C700AA698B /* xargs */,
 				E7DF6BBD2C005C19000F6D03 /* xargsTest */,
@@ -4033,6 +4084,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E734F0ED2C0DF699007A3C58 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E75888F02E4256EB00359FC5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -4197,6 +4255,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E734F0EB2C0DF699007A3C58 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E75888EE2E4256EB00359FC5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -4792,6 +4857,11 @@
 			isa = PBXTargetDependency;
 			productRef = E757160D2DF9F06600C1941A /* CMigration */;
 		};
+		E75888FA2E4256F700359FC5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FCBA161E14A145C000AA698B /* which */;
+			targetProxy = E75888F92E4256F700359FC5 /* PBXContainerItemProxy */;
+		};
 		E78D06482C12430A00A7C01B /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = FCBA14CF14A1433F00AA698B /* echo */;
@@ -5346,6 +5416,87 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		E75888F72E4256EB00359FC5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = MHEBPE6SV2;
+				ENABLE_NS_ASSERTIONS = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = software.tinker.whichTest;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		E75888F82E4256EB00359FC5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = MHEBPE6SV2;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GENERATE_INFOPLIST_FILE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = software.tinker.whichTest;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
@@ -7790,6 +7941,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		E75888F62E4256EB00359FC5 /* Build configuration list for PBXNativeTarget "whichTest" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E75888F72E4256EB00359FC5 /* Release */,
+				E75888F82E4256EB00359FC5 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		E763BABB2C3DD91E00649ACB /* Build configuration list for PBXNativeTarget "applyTest" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -8699,6 +8859,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
 			productName = CMigration;
+		};
+		E75889032E42589800359FC5 /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E79B319D2E2FD65300C33F4B /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
 		};
 		E79B2C142E2ABBBA00C33F4B /* CMigration */ = {
 			isa = XCSwiftPackageProductDependency;

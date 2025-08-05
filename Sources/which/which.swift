@@ -32,19 +32,13 @@
 
 import CMigration
 
-import Darwin
+func isTherex(candidate: String, silent: Bool) -> Bool {
+  if let fin = try? FileMetadata(for: candidate),
+     fin.fileType == .regular,
+     (userId != 0 || !fin.mode.intersection([.ownerExecute, .groupExecute, .otherExecute]).isEmpty)
+  {
 
-
-// #define S_ISREG(m)      (((m) & S_IFMT) == S_IFREG)     /* regular file */
-
-func S_ISREG(_ m : mode_t) -> Bool {
-  return (m & Darwin.S_IFMT) == Darwin.S_IFREG
-}
-
-func isThere(candidate: String, silent: Bool) -> Bool {
-  var fin = Darwin.stat()
-
-    if access(candidate, X_OK) == 0 && stat(candidate, &fin) == 0 && S_ISREG(fin.st_mode) && (getuid() != 0 || (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0) {
+//    if access(candidate, X_OK) == 0 &&  && S_ISREG(fin.st_mode) && (getuid() != 0 || (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0) {
         if !silent {
             print("\(candidate)")
         }
@@ -53,12 +47,12 @@ func isThere(candidate: String, silent: Bool) -> Bool {
     return false
 }
 
-func printMatches(path: String, filename: String, allpaths: Bool ) -> Bool {
+func printMatches(path: String, filename: String, allpaths: Bool, silent: Bool) -> Bool {
     var candidate = ""
     var found = false
 
     if filename.contains("/") {
-        return isThere(candidate: filename)
+      return isTherex(candidate: filename, silent: silent)
     }
 
     for dx in path.split(separator: ":") {
@@ -67,7 +61,7 @@ func printMatches(path: String, filename: String, allpaths: Bool ) -> Bool {
         if candidate.count >= PATH_MAX {
             continue
         }
-        if isThere(candidate: candidate) {
+      if isTherex(candidate: candidate, silent: silent) {
             found = true
             if !allpaths {
                 break
@@ -115,7 +109,7 @@ func printMatches(path: String, filename: String, allpaths: Bool ) -> Bool {
     }
     
     for a in opts.args {
-      if a.count >= MAXPATHLEN || !printMatches(path: path, filename: a, allpaths: opts.allpaths) {
+      if a.count >= MAXPATHLEN || !printMatches(path: path, filename: a, allpaths: opts.allpaths, silent: opts.silent) {
         throw CmdErr(1)
       }
     }

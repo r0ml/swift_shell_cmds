@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "67E5A5A5-5678-41B4-A28A-C57D58832813",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:swift_shell_cmds.xcodeproj",
+        "identifier" : "E75888F12E4256EB00359FC5",
+        "name" : "whichTest"
+      }
+    }
+  ],
+  "version" : 1
+}
