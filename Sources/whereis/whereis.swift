@@ -84,8 +84,8 @@ func colonify(_ cpp: [String]) -> String {
 
   }
   
-  
-  
+  var options : CommandOptions!
+
 //  var re : Regex<String>
 //  = Regex(MANWHEREISMATCH)
   /*
@@ -189,8 +189,8 @@ func colonify(_ cpp: [String]) -> String {
   }
   
 
-  func runCommand(_ optsx : CommandOptions) async throws(CmdErr) {
-    var opts = optsx
+  func runCommand() async throws(CmdErr) {
+    var opts = options!
     
     while let nam = opts.query.first {
       opts.query.removeFirst()
@@ -214,8 +214,8 @@ func colonify(_ cpp: [String]) -> String {
       var man : String? = nil
       //      s = strlen(name)
       
-      if opts.opt_b {
-        bin = do_optB(namex, &opts)
+      if options.opt_b {
+        bin = do_optB(namex)
       }
       
       if opts.opt_m  {
@@ -271,23 +271,23 @@ func colonify(_ cpp: [String]) -> String {
     Darwin.exit(0)
   }
   
-  func do_optB(_ name : String, _ opts : inout CommandOptions) -> String? {
-    opts.unusual = opts.unusual | NO_BIN_FOUND
-    
+  func do_optB(_ name : String) -> String? {
+    options.unusual = options.unusual | NO_BIN_FOUND
+
     var bin : String?
-    while let dp = opts.bindirs?.first {
-      opts.bindirs?.removeFirst()
+    while let dp = options.bindirs?.first {
+      options.bindirs?.removeFirst()
       let cp = "\(dp)/\(name)"
       var sb : stat! = stat()
       if stat(cp, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG && (sb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 {
-        opts.unusual = opts.unusual & ~NO_BIN_FOUND
+        options.unusual = options.unusual & ~NO_BIN_FOUND
         if var bin {
           bin.append(" ")
           bin.append(cp)
         } else {
           bin = cp
         }
-        if !opts.opt_a {
+        if !options.opt_a {
           break
         }
       }

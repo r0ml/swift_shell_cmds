@@ -222,7 +222,7 @@ extension find {
    *  process the command line and create a "plan" corresponding to the
    *  command arguments.
    */
-  func find_formplan(_ argv : inout ArraySlice<String>, _ opts : CommandOptions) -> [PLAN] {
+  func find_formplan(_ argv : inout ArraySlice<String>) -> [PLAN] {
     var plan = ArraySlice<PLAN>()
     var new: PLAN
     
@@ -232,7 +232,7 @@ extension find {
     
     if (isoutput == 0) {
       var argv1: ArraySlice<String> = []
-      if let p = options["-print"] {
+      if let p = optionsx["-print"] {
         new = p.create(p, &argv1)
         plan.append(new)
       }
@@ -260,7 +260,7 @@ extension find {
    *  take a search plan and an array of search paths and executes the plan
    *  over all FTSENT's returned for the given search paths.
    */
-  func find_execute(plan: [PLAN], paths: [String], options opts: CommandOptions) -> Int32 {
+  func find_execute(plan: [PLAN], paths: [String]) -> Int32 {
     var e: Int
     var myPaths: [String] = []
     var nonSearchableDirFound : Int32 = 0
@@ -289,7 +289,7 @@ extension find {
     
     let mp = myPaths.map { strdup($0) }
     
-    tree = Darwin.fts_open(mp, ftsoptions, ((opts.issort != 0) ? find_compare : nil))
+    tree = Darwin.fts_open(mp, ftsoptions, ((options.issort != 0) ? find_compare : nil))
     if tree == nil {
       err(1, "ftsopen")
     }
@@ -344,7 +344,7 @@ extension find {
         break
       }
       
-      if (opts.isxargs != 0) && fts_path.contains(where: { " \t\n\\'\"".contains($0) }) {
+      if (options.isxargs != 0) && fts_path.contains(where: { " \t\n\\'\"".contains($0) }) {
         fflush(Darwin.stdout)
         warnx("\(fts_path): illegal path")
         exitstatus = 1

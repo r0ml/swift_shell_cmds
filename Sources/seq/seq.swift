@@ -47,7 +47,8 @@ import CMigration
     var args : [String] = []
   }
 
-  
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
     let go = BSDGetopt_long(optstring, longOpts)
@@ -343,8 +344,8 @@ import CMigration
     return places
   }
   
-  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
-    var opts = optsx
+  func runCommand() throws(CmdErr) {
+    var opts = options!
     let last = e_atof(opts.args.last!) // replace "1" with actual input
     
     var first : Double = 1

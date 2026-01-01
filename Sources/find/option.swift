@@ -240,7 +240,7 @@ extension find {
   /// this switch stuff.
   func find_create(_ argv: inout ArraySlice<String>) -> PLAN {
     
-    guard let p = options[argv.first!] else {
+    guard let p = optionsx[argv.first!] else {
       fatalError("\(argv.first ?? ""): unknown primary or operator")
     }
     argv.removeFirst()

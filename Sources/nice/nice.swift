@@ -44,7 +44,9 @@ import sys_resource
   struct CommandOptions {
     var args = [String]()
   }
-  
+
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     
     var opts = CommandOptions()
@@ -88,7 +90,7 @@ import sys_resource
     return opts
   }
   
-  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
+  func runCommand() throws(CmdErr) {
     
     errno = 0
     niceness += getpriority(PRIO_PROCESS, 0)
@@ -98,13 +100,13 @@ import sys_resource
       print("setpriority warning")
     }
       
-    let evpa = opts.args.dropFirst().map { strdup($0) }
-    execvp(opts.args[0], evpa)
-    
-    let n = "\(opts.args[0])"
+    let evpa = options.args.dropFirst().map { strdup($0) }
+    execvp(options.args[0], evpa)
+
+    let n = "\(options.args[0])"
     let e = POSIXErrno().description
     var se = FileDescriptor.standardError
-    print("\(Environment.progname): \(n): \(e)", to: &se)
+    print("\(programName): \(n): \(e)", to: &se)
   }
   
   var usage = "usage: nice [-n increment] utility [argument ...]"

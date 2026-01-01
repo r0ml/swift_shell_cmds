@@ -154,7 +154,9 @@ final class hexdump : ShellCommand {
     var vflag : _vflag = .FIRST
     var args :  Array<String>.SubSequence = []
   }
-  
+
+  var options : CommandOptions!
+
   // Format specifications
   var fsArray: [FS] = []        /* head of format strings */
 
@@ -206,14 +208,14 @@ final class hexdump : ShellCommand {
     return opts
   }
   
-  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
+  func runCommand() throws(CmdErr) {
     /*
      * Cache NLS data, for strerror, for err(3), before entering capability
      * mode.
      */
     
-    var opts = optsx
-    
+    var opts = options!
+
 #if !os(macOS)
     caph_cache_catpages()
     if caph_limit_stdio() < 0 {

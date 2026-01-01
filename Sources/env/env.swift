@@ -52,7 +52,9 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
     var altpath: String? = nil
     var term: Character = "\n"
   }
-    
+
+  var options : CommandOptions!
+
   enum ExitCode : Int {
     case EXIT_CANCELED = 125
     case EXIT_CANNOT_INVOKE = 126
@@ -115,12 +117,12 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
     return opts
   }
   
-  func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
+  func runCommand() async throws(CmdErr) {
 
     var se = FileDescriptor.standardError
 
     // FIXME: need to remove the setenv args from opts.aa
-    for argv in opts.aa {
+    for argv in options.aa {
       if let p = argv.firstIndex(of: "=") {
         if env_verbosity != 0 {
           print("#env setenv:\(argv)", to: &se)
@@ -135,9 +137,9 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
       }
     }
     
-    if opts.aa.isEmpty {
+    if options.aa.isEmpty {
       for ep in environ {
-        print("\(ep.0)=\(ep.1)", terminator: String(opts.term))
+        print("\(ep.0)=\(ep.1)", terminator: String(options.term))
       }
 
       // FIXME: do I need this?
@@ -151,19 +153,19 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
 
       return
     } else {
-      let oargv = opts.aa.first! // CommandLine.arguments[Int(optind)]
+      let oargv = options.aa.first! // CommandLine.arguments[Int(optind)]
       var argv = oargv
-      if opts.term == "\0" {
+      if options.term == "\0" {
         err( ExitCode.EXIT_CANCELED.rawValue, "cannot specify command with -0")
       }
-      if let altpath = opts.altpath {
+      if let altpath = options.altpath {
         argv = search_paths(altpath, argv)
       } else {
         argv = searchPath(for: argv) ?? argv
       }
       if env_verbosity != 0 {
         print("#env executing:  \(oargv)", to: &se)
-        for (argc, parg) in opts.aa.enumerated() {
+        for (argc, parg) in options.aa.enumerated() {
           print("#env    arg[\(argc)]=  '\(parg)'", to: &se)
         }
         if env_verbosity > 1 {
@@ -174,7 +176,7 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
  //     let pe = execvp(argv, Array(opts.aa) )
 
       do {
-        let p = ProcessRunner(command: argv, arguments: Array(opts.aa.dropFirst()))
+        let p = ProcessRunner(command: argv, arguments: Array(options.aa.dropFirst()))
         try await p.run(captureStdout: false, captureStderr: false)
       } catch {
         throw CmdErr(127, "\(error)")

@@ -64,6 +64,8 @@ import Darwin
     var physical = false
   }
 
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
     let go = BSDGetopt("LP")
@@ -87,13 +89,13 @@ import Darwin
     return opts
   }
   
-  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
+  func runCommand() throws(CmdErr) {
     var p : String?
-    if (!opts.physical) {
+    if (!options.physical) {
       p = getcwd_logical()
     }
     
-    if p == nil || (opts.physical || errno == ENOENT ) {
+    if p == nil || (options.physical || errno == ENOENT ) {
       p = String(cString: getcwd(nil, 0))
     }
     

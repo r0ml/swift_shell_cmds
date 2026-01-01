@@ -76,7 +76,9 @@ let HAVE_REPS = 8
     var useRandom = false
     var mask = 0
   }
-    
+
+  var options : CommandOptions!
+
     var ch: Int = 0
     var n = 0
   var begin : Double = Double(BEGIN_DEF)
@@ -209,9 +211,9 @@ let HAVE_REPS = 8
     return opts
   }
   
-  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
-    var opts = optsx
-    
+  func runCommand() throws(CmdErr) {
+    var opts = options!
+
     while opts.mask != 0 {
       switch opts.mask {
       case HAVE_STEP, HAVE_ENDER, HAVE_ENDER | HAVE_STEP, HAVE_BEGIN, HAVE_BEGIN | HAVE_STEP:
@@ -312,14 +314,14 @@ let HAVE_REPS = 8
         } else {
           y = Double(arc4random()) / divisor
         }
-        if (putdata(y * x + begin, ((reps - i) == 0), opts) != 0) {
+        if (putdata(y * x + begin, ((reps - i) == 0)) != 0) {
           errx(1, "range error in conversion")
         }
       }
     } else {
       x = begin
       for i in 1...reps {
-        if (putdata(x, ((reps - i) == 0), opts) != 0) {
+        if (putdata(x, ((reps - i) == 0)) != 0) {
           errx(1, "range error in conversion")
         }
         x += s
@@ -331,28 +333,28 @@ let HAVE_REPS = 8
     exit(0)
   }
     
-  func putdata(_ x: Double, _ last: Bool, _ opts : CommandOptions) -> Int {
-    if opts.boring {
-        print(opts.format, terminator: "")
-      } else if opts.longdata && opts.nosign {
+  func putdata(_ x: Double, _ last: Bool) -> Int {
+    if options.boring {
+        print(options.format, terminator: "")
+      } else if options.longdata && options.nosign {
         if x <= Double(UInt.max) && x >= 0 {
-          print(cFormat(opts.format, UInt(x)), terminator: "")
+          print(cFormat(options.format, UInt(x)), terminator: "")
         } else {
           return 1
         }
-      } else if opts.longdata {
+      } else if options.longdata {
         if x <= Double(Int.max) && x >= Double(Int.min) {
           let _ = withVaList([Int(x)]) {
-            vprintf(opts.format, $0)
+            vprintf(options.format, $0)
           }
 //          print(String(format: format, Int(x)), terminator: "")
         } else {
           return 1
         }
-      } else if opts.chardata || (opts.intdata && !opts.nosign) {
+      } else if options.chardata || (options.intdata && !options.nosign) {
         if x <= Double(Int32.max) && x >= Double(Int32.min) {
             let _ = withVaList([Int(x)]) {
-              vprintf(opts.format, $0)
+              vprintf(options.format, $0)
             }
 //          } else {
 //            print(String(format: format, Int(x)), terminator: "")
@@ -360,17 +362,17 @@ let HAVE_REPS = 8
         } else {
           return 1
         }
-      } else if opts.intdata {
+      } else if options.intdata {
         if x <= Double(UInt32.max) && x >= 0 {
-          print(cFormat(opts.format, UInt(x)), terminator: "")
+          print(cFormat(options.format, UInt(x)), terminator: "")
         } else {
           return 1
         }
       } else {
-        print(cFormat(opts.format, x), terminator: "")
+        print(cFormat(options.format, x), terminator: "")
       }
       if !last {
-        print(opts.sepstring, terminator: "")
+        print(options.sepstring, terminator: "")
       }
       
       return 0

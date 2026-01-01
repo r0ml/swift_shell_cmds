@@ -63,7 +63,9 @@ import Darwin
 
     let __APPLE__ = true
   }
-  
+
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     //    let argc = CommandLine.argc
     //    let argv = CommandLine.unsafeArgv
@@ -140,11 +142,11 @@ import Darwin
   }
 
   
-  func runCommand(_ opts: CommandOptions) throws(CmdErr) {
-    let pw = try opts.args.isEmpty ? nil : who(opts.args.first!)
+  func runCommand() throws(CmdErr) {
+    let pw = try options.args.isEmpty ? nil : who(options.args.first!)
 
 
-  try forGoto(pw, opts)
+  try forGoto(pw)
 
     // FIXME: do I need this?
 /*
@@ -156,23 +158,23 @@ import Darwin
  */
   }
   
-  func forGoto(_ pwx : Passwd?, _ opts : CommandOptions) throws(CmdErr) {
+  func forGoto(_ pwx : Passwd?) throws(CmdErr) {
     var pw = pwx
 
-    if opts.Aflag {
+    if options.Aflag {
       auditid();
       return
     }
 
     
-    if opts.Fflag {
+    if options.Fflag {
       try fullname(pw);
       return
     }
 
-    if opts.gflag {
-      let id = pw != nil ? pw!.groupId : (opts.rflag ? groupId : effectiveGroupId)
-      if opts.nflag {
+    if options.gflag {
+      let id = pw != nil ? pw!.groupId : (options.rflag ? groupId : effectiveGroupId)
+      if options.nflag {
         let gr = getGroupEntry(of: id)
         if let gr {
           print(gr.name)
@@ -186,9 +188,9 @@ import Darwin
       return
     }
     
-    if opts.uflag {
-      let id = pw != nil ? pw!.userId : opts.rflag ? userId : effectiveUserId
-      if opts.nflag {
+    if options.uflag {
+      let id = pw != nil ? pw!.userId : options.rflag ? userId : effectiveUserId
+      if options.nflag {
         if let pw = getPasswd(of: Int(id) ) {
           print(pw.name)
         } else {
@@ -201,23 +203,23 @@ import Darwin
       return
     }
     
-    if opts.Gflag {
-      group(pw, opts.nflag )
+    if options.Gflag {
+      group(pw, options.nflag )
       return
     }
     
-    if opts.Pflag {
+    if options.Pflag {
       try pline(pw)
       return
     }
     
-    if opts.pflag {
+    if options.pflag {
       try pretty(pw);
       return
     }
     
     
-    if opts.flagCount == 0 {
+    if options.flagCount == 0 {
       if let pw {
         id_print(pw, true, 0, 0);
       }
@@ -394,13 +396,13 @@ import Darwin
 
     var ainfo_addr = auditinfo_addr_t()
     /* Keeps the diff looking somewhat sane, always 1 for Apple. */
-    var extended = 1;
+    let extended = true
 
     if (getaudit_addr(&ainfo_addr, Int32(MemoryLayout.size(ofValue:ainfo_addr))) < 0) {
       err(1, "getaudit_addr");
     }
 
-    if (extended != 0) {
+    if extended {
       print(cFormat( """
 auid=%d
 mask.success=0x%08x

@@ -67,6 +67,8 @@ import Darwin
     var args = ArraySlice<String>()
   }
 
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
 
@@ -144,8 +146,8 @@ import Darwin
   }
   
   
-  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
-    if let arg = opts.arg {
+  func runCommand() throws(CmdErr) {
+    if let arg = options.arg {
 #if !os(macOS)
       if Darwin.setutxdb(UTXDB_ACTIVE, arg) != 0 {
         throw .opterr(1, arg)
@@ -157,21 +159,20 @@ import Darwin
 #endif
     }
     
-    if opts.qflag {
+    if options.qflag {
       quick()
     } else {
-      var oo = opts
-      if oo.sflag {
-        oo.Tflag = false
-        oo.uflag = false
+      if options.sflag {
+        options.Tflag = false
+        options.uflag = false
       }
-      if oo.Hflag {
-        heading(oo)
+      if options.Hflag {
+        heading()
       }
-      if oo.mflag {
-        whoami(oo)
+      if options.mflag {
+        whoami()
       } else {
-        process_utmp(oo)
+        process_utmp()
       }
     }
     
@@ -194,17 +195,17 @@ import Darwin
     return s + String(repeating: " ", count: n - s.count)
   }
   
-  func heading(_ o : CommandOptions) {
+  func heading() {
     
     print(rightPad("NAME", 16), terminator: " ")
-    if o.Tflag {
+    if options.Tflag {
       print("S ", terminator: "")
     }
     print("\(rightPad("LINE", 12)) \(rightPad("TIME",12)) ", terminator: "")
-    if o.uflag {
+    if options.uflag {
       print("IDLE  ", terminator: "")
     }
-    if o.unix2003_std && o.uflag && !o.Tflag {
+    if options.unix2003_std && options.uflag && !options.Tflag {
       print("     PID ", terminator: "")
     }
     print(rightPad("FROM", 16), terminator: "\n")
@@ -212,7 +213,7 @@ import Darwin
   
   let d_first = Darwin.nl_langinfo(Darwin.D_MD_ORDER).pointee == ("d" as UnicodeScalar).value
   
-  func row(ut: inout Darwin.utmpx, _ o : CommandOptions) {
+  func row(ut: inout Darwin.utmpx) {
     var buf = [UInt8](repeating: 0, count: 80)
     //  var tty = [CChar](repeating: 0, count: Int(_PATH_DEV.count) + Int(_UTX_LINESIZE))
     var sb = Darwin.stat()
@@ -224,7 +225,7 @@ import Darwin
     
     var state = "?"
     idle = 0
-    if o.Tflag || o.uflag {
+    if options.Tflag || options.uflag {
       withUnsafeBytes(of: ut.ut_line) { u in
         let tty = "\(_PATH_DEV)\(String(decoding:u, as: UTF8.self))"
         // FIXME: Darwin.stat is ambiguous
@@ -233,7 +234,7 @@ import Darwin
           idle = Darwin.time(nil) - sb.st_mtimespec.tv_sec
         }
       }
-      if o.unix2003_std && !o.Tflag {
+      if options.unix2003_std && !options.Tflag {
         if ut.ut_pid != 0 {
           login_pidstr = cFormat("%8d", ut.ut_pid)
         } else {
@@ -255,7 +256,7 @@ import Darwin
         print( rightPad(m, 16), terminator: " ")
       }
     }
-    if o.Tflag {
+    if options.Tflag {
       print(cFormat("%c ", state), terminator: "")
     }
     if ut.ut_type == Darwin.BOOT_TIME {
@@ -274,7 +275,7 @@ import Darwin
     Darwin.strftime(&buf, buf.count, d_first ? "%e %b %R" : "%b %e %R", tm)
     let bbuf = UnsafeBufferPointer(start: buf, count: Int(buf.count))
     print( rightPad(String(decoding: bbuf, as: ISOLatin1.self), 12), terminator: " ")
-    if o.uflag {
+    if options.uflag {
       if idle < 60 {
         print("  .   ", terminator: "")
       } else if idle < 24 * 60 * 60 {
@@ -282,7 +283,7 @@ import Darwin
       } else {
         print(" old  ", terminator: "")
       }
-      if o.unix2003_std && !o.Tflag {
+      if options.unix2003_std && !options.Tflag {
         print( "\(login_pidstr) ", terminator: "")
       }
     }
@@ -291,7 +292,7 @@ import Darwin
         print("(\(String(decoding:a, as: UTF8.self))", terminator: "")
       }
     }
-    if o.dflag && ut.ut_type == DEAD_PROCESS {
+    if options.dflag && ut.ut_type == DEAD_PROCESS {
       print("\tterm=\(0) exit=\(0)", terminator: "")
     }
     print("\n", terminator: "")
@@ -307,29 +308,29 @@ import Darwin
     }
   }
   
-  func process_utmp(_ o : CommandOptions) {
+  func process_utmp() {
     //    var utx: UnsafeMutablePointer<utmpx>?
     
     while let utx = Darwin.getutxent() {
-      if o.aflag {
-        row(ut: &utx.pointee, o)
-      } else if !o.bflag && utx.pointee.ut_type == USER_PROCESS {
+      if options.aflag {
+        row(ut: &utx.pointee)
+      } else if !options.bflag && utx.pointee.ut_type == USER_PROCESS {
         withUnsafeBytes(of: utx.pointee.ut_line) { uu in
           if ttystat(String(decoding: uu, as: UTF8.self)) == 0 {
-            if !o.rflag && !o.lflag && !o.dflag {
-              row(ut: &utx.pointee, o)
+            if !options.rflag && !options.lflag && !options.dflag {
+              row(ut: &utx.pointee)
             }
           }
         }
-      } else if o.bflag && utx.pointee.ut_type == BOOT_TIME {
-        row(ut: &utx.pointee, o)
-      } else if o.dflag && utx.pointee.ut_type == DEAD_PROCESS {
-        row(ut: &utx.pointee, o)
-      } else if o.lflag && utx.pointee.ut_type == LOGIN_PROCESS {
-        row(ut: &utx.pointee, o)
+      } else if options.bflag && utx.pointee.ut_type == BOOT_TIME {
+        row(ut: &utx.pointee)
+      } else if options.dflag && utx.pointee.ut_type == DEAD_PROCESS {
+        row(ut: &utx.pointee)
+      } else if options.lflag && utx.pointee.ut_type == LOGIN_PROCESS {
+        row(ut: &utx.pointee)
       }
     }
-    if o.rflag {
+    if options.rflag {
       print("   .       run-level 3")
     }
   }
@@ -367,7 +368,7 @@ import Darwin
     print("# users = \(num)\n")
   }
   
-  func whoami(_ o : CommandOptions) {
+  func whoami() {
     var ut = utmpx()
     //    var utx: UnsafeMutablePointer<utmpx>?
     //  var pwd: UnsafeMutablePointer<passwd>?
@@ -389,7 +390,7 @@ import Darwin
     }
     
     if let utx = getutxline(&ut), utx.pointee.ut_type == USER_PROCESS {
-      row(ut: &utx.pointee, o)
+      row(ut: &utx.pointee)
       return
     }
     
@@ -404,7 +405,7 @@ import Darwin
       Darwin.strlcpy(&ut, n, strlen(n))
     }
     Darwin.gettimeofday(&ut.ut_tv, nil)
-    row(ut: &ut, o)
+    row(ut: &ut)
   }
   
   func ttywidth() -> Int {

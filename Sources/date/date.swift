@@ -103,7 +103,9 @@ import Darwin
     var v: Vary?
     var iso8601_subset : [iso8601_fmt]!
   }
-  
+
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
     var sb: Darwin.stat! = Darwin.stat()
@@ -211,24 +213,24 @@ import Darwin
     return opts
   }
 
-  func runCommand(_ opts: CommandOptions) throws(CmdErr) {
+  func runCommand() throws(CmdErr) {
 
     var lt = time_h.localtime(&tval).pointee
-    if let v = opts.v {
+    if let v = options.v {
       if let badv = vary_apply(v, &lt) {
         throw CmdErr(1, "\(badv): Cannot apply date adjustment")
       }
     }
 
-    if opts.Iflag {
-      printisodate(&lt, opts.iso8601_subset)
+    if options.Iflag {
+      printisodate(&lt, options.iso8601_subset)
     }
 
-    if opts.format == rfc2822_format {
+    if options.format == rfc2822_format {
       locale_h.setlocale(locale_h.LC_TIME, "C")
     }
 
-    strftime(&buf, buf.count, opts.format, &lt)
+    strftime(&buf, buf.count, options.format, &lt)
     let k = String(platformString: buf)
     printdate(k)
   }

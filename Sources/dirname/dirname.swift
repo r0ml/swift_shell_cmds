@@ -57,6 +57,8 @@ import CMigration
     var args : [String] = []
   }
 
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
     let go = BSDGetopt("")
@@ -72,8 +74,8 @@ import CMigration
     return opts
   }
 
-  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
-    for v in opts.args {
+  func runCommand() throws(CmdErr) {
+    for v in options.args {
         if let p = try? dirname(v) {
           print( p )
         }

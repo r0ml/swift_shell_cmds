@@ -41,6 +41,8 @@ import CMigration
     var suffix: String?
   }
 
+  var options : CommandOptions!
+
   // the actual main function, with the commandline arguments passed in so that testing
   // can invoke the main with mocked command line arguments
   func parseOptions() throws(CmdErr) -> CommandOptions {
@@ -72,10 +74,10 @@ import CMigration
     return opts
   }
 
-  func runCommand(_ opts : CommandOptions) {
-    for arg in opts.args {
+  func runCommand() {
+    for arg in options.args {
       if let pa = try? CMigration.basename(arg) {
-        let px = stripSuffix(pa, opts.suffix)
+        let px = stripSuffix(pa, options.suffix)
         print(px)
       }
     }

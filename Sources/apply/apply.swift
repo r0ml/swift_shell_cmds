@@ -57,9 +57,10 @@ struct CommandOptions {
 }
 
 @main final class apply : ShellCommand {
-  var opts = CommandOptions()
+  var options : CommandOptions!
 
   func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     let go = BSDGetopt("a:d0123456789")
     while let (k, v) = try go.getopt() {
       switch k {
@@ -120,18 +121,18 @@ struct CommandOptions {
     return opts
   }
 
-  func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
+  func runCommand() async throws(CmdErr) {
     var cmdbuf = ""
     var rval = 0
-    var arg = opts.args
+    var arg = options.args
 
     while true {
-      guard arg.count >= opts.nargs else { break }
-      let pkt = Array(arg.prefix(opts.nargs))
-      arg.removeFirst(opts.nargs)
+      guard arg.count >= options.nargs else { break }
+      let pkt = Array(arg.prefix(options.nargs))
+      arg.removeFirst(options.nargs)
 
       cmdbuf = "exec "
-      var cmdx = Substring(opts.cmd)
+      var cmdx = Substring(options.cmd)
 
       while !cmdx.isEmpty {
         if let j = cmdx.firstMatch(of: /%([1-9])/) {
@@ -144,21 +145,21 @@ struct CommandOptions {
         }
       }
 
-      if cmdbuf.count > opts.arg_max {
+      if cmdbuf.count > options.arg_max {
         throw CmdErr(1, "Argument list too long")
       }
 
-      if opts.debug {
+      if options.debug {
         print(cmdbuf)
       } else {
-        if await 0 != execShell(String(cmdbuf), opts.shell, opts.name) {
+        if await 0 != execShell(String(cmdbuf), options.shell, options.name) {
           rval = 1
         }
       }
     }
 
     if arg.count != 0 {
-      throw CmdErr(1, "expecting additional argument\(opts.nargs - arg.count != 1 ? "s" : "") after \"\(opts.args.last!)\"")
+      throw CmdErr(1, "expecting additional argument\(options.nargs - arg.count != 1 ? "s" : "") after \"\(options.args.last!)\"")
     }
     throw CmdErr(rval)
 

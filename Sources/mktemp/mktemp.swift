@@ -57,7 +57,9 @@ import Darwin
     
     var args : [String] = []
   }
-  
+
+  var options : CommandOptions!
+
   var ret : Int32 = 0
   
   func parseOptions() throws(CmdErr) -> CommandOptions {
@@ -99,9 +101,9 @@ import Darwin
   }
   
   
-  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
-    var opts = optsx
-    
+  func runCommand() throws(CmdErr) {
+    var opts = options!
+
     var name : String?
     
     if !opts.tflag && opts.args.count < 1 {

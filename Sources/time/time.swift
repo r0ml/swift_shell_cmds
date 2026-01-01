@@ -94,7 +94,9 @@ actor Stuff {
 
     var args : [String] = []
   }
-  
+
+  var options : CommandOptions!
+
   var xstatus : Int32 = 0
   var fh : FileDescriptor = FileDescriptor.standardOutput
   var before_ts = Darwin.timespec()
@@ -120,7 +122,7 @@ actor Stuff {
     }
   }
   
-  func humantime(out: inout FileDescriptor, sec: Int, centisec: Int, options opts : CommandOptions) {
+  func humantime(out: inout FileDescriptor, sec: Int, centisec: Int) {
     let days = sec / (60 * 60 * 24)
     let secx = sec % (60 * 60 * 24)
     let hrs = secx / (60 * 60)
@@ -138,10 +140,10 @@ actor Stuff {
     if mins != 0 {
       out.write("\(mins)m")
     }
-    out.write("\(secz)\(opts.decimal_point)\(cFormat("%02d", centisec))s")
+    out.write("\(secz)\(options.decimal_point)\(cFormat("%02d", centisec))s")
   }
   
-  func showtime(out: inout FileDescriptor, before: timespec, after: inout timespec, ru: rusage, options opts: CommandOptions) {
+  func showtime(out: inout FileDescriptor, before: timespec, after: inout timespec, ru: rusage) {
     
     after.tv_sec -= before.tv_sec
     after.tv_nsec -= before.tv_nsec
@@ -150,23 +152,23 @@ actor Stuff {
       after.tv_nsec += 1000000000
     }
     
-    if opts.pflag {
-      print(cFormat("real %jd%c%02ld", after.tv_sec, opts.decimal_point, after.tv_nsec/10000000), to: &out)
-      print(cFormat("user %jd%c%02ld", ru.ru_utime.tv_sec, opts.decimal_point, ru.ru_utime.tv_usec/10000), to: &out)
-      print(cFormat("sys %jd%c%02ld", ru.ru_stime.tv_sec, opts.decimal_point, ru.ru_stime.tv_usec/10000), to: &out)
-    } else if opts.hflag {
-      humantime(out: &out, sec: Int(after.tv_sec), centisec: Int(after.tv_nsec/10000000), options: opts)
+    if options.pflag {
+      print(cFormat("real %jd%c%02ld", after.tv_sec, options.decimal_point, after.tv_nsec/10000000), to: &out)
+      print(cFormat("user %jd%c%02ld", ru.ru_utime.tv_sec, options.decimal_point, ru.ru_utime.tv_usec/10000), to: &out)
+      print(cFormat("sys %jd%c%02ld", ru.ru_stime.tv_sec, options.decimal_point, ru.ru_stime.tv_usec/10000), to: &out)
+    } else if options.hflag {
+      humantime(out: &out, sec: Int(after.tv_sec), centisec: Int(after.tv_nsec/10000000))
       print(" real\t", terminator: "", to: &out)
-      humantime(out: &out, sec: Int(ru.ru_utime.tv_sec), centisec: Int(ru.ru_utime.tv_usec)/10000, options: opts)
+      humantime(out: &out, sec: Int(ru.ru_utime.tv_sec), centisec: Int(ru.ru_utime.tv_usec)/10000)
       
       print(" user\t", terminator: "", to: &out)
       
-      humantime(out: &out, sec: Int(ru.ru_stime.tv_sec), centisec: Int(ru.ru_stime.tv_usec)/10000, options: opts)
+      humantime(out: &out, sec: Int(ru.ru_stime.tv_sec), centisec: Int(ru.ru_stime.tv_usec)/10000)
       print(" sys\n", to: &out)
     } else {
-      print(cFormat("%9jd%c%02ld real ", after.tv_sec, opts.decimal_point, after.tv_nsec/10000000), terminator: "", to: &out)
-      print(cFormat("%9jd%c%02ld user ", ru.ru_utime.tv_sec, opts.decimal_point, ru.ru_utime.tv_usec/10000), terminator: "", to: &out)
-      print(cFormat("%9jd%c%02ld sys",  ru.ru_stime.tv_sec, opts.decimal_point, ru.ru_stime.tv_usec/10000), to: &out)
+      print(cFormat("%9jd%c%02ld real ", after.tv_sec, options.decimal_point, after.tv_nsec/10000000), terminator: "", to: &out)
+      print(cFormat("%9jd%c%02ld user ", ru.ru_utime.tv_sec, options.decimal_point, ru.ru_utime.tv_usec/10000), terminator: "", to: &out)
+      print(cFormat("%9jd%c%02ld sys",  ru.ru_stime.tv_sec, options.decimal_point, ru.ru_stime.tv_usec/10000), to: &out)
     }
   }
   
@@ -223,9 +225,9 @@ actor Stuff {
     return opts
   }
   
-  func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
-    if opts.args.count == 0 { return }
-  
+  func runCommand() async throws(CmdErr) {
+    if options.args.count == 0 { return }
+
     /* r0ml: Supposing I get rid of all this muck
     sigemptyset(&sigmask)
     /*
@@ -248,7 +250,7 @@ actor Stuff {
     */
     
     do {
-      if let ofn = opts.ofn {
+      if let ofn = options.ofn {
         if fileExists(atPath: ofn) {
           fh = try FileDescriptor.open(ofn, .writeOnly, options: [.truncate])
         } else {
@@ -257,7 +259,7 @@ actor Stuff {
       } else {
         fh = FileDescriptor.standardOutput
       }
-      if opts.aflag { try fh.seek(offset: 0, from: .end) }
+      if options.aflag { try fh.seek(offset: 0, from: .end) }
     } catch(let e) {
       throw CmdErr(1, "\(e)")
     }
@@ -284,8 +286,8 @@ actor Stuff {
 //    var pid : pid_t = -1
 //    var ru = rusage()
     
-    if let ff = searchPath(for: opts.args[0]) {
-      
+    if let ff = searchPath(for: options.args[0]) {
+
       var sigmask = sigset_t()
       var origmask = sigset_t()
       
@@ -308,7 +310,7 @@ actor Stuff {
       xstatus = 0
       do {
         let j = self.stuff
-        let p = ProcessRunner(command: ff, arguments: Array(opts.args.dropFirst()))
+        let p = ProcessRunner(command: ff, arguments: Array(options.args.dropFirst()))
 /*
  let res = try await p.run(prelaunch: { p in
  //         self.pid = p
@@ -369,7 +371,7 @@ actor Stuff {
 //      xstatus = process.terminationStatus
 
     } else {
-      err(1, "not found: \(opts.args[0])")
+      err(1, "not found: \(options.args[0])")
     }
     
     //      err(errno == ENOENT ? 127 : 126, args.first! );
@@ -455,10 +457,10 @@ actor Stuff {
       let _ = await stuff.rusage_ret
 //      print("stuff rusage \(rusage_ret)")
       let exitonsig : Int32 = WIFSIGNALED(xstatus) ? xstatus & 0x7f : 0;
-    showtime(out: &fh, before: before_ts, after: &after, ru: ru, options: opts);
+    showtime(out: &fh, before: before_ts, after: &after, ru: ru);
       
       
-    if opts.lflag {
+    if options.lflag {
         
         await lflagPrint(&fh,
                          ru: ru,

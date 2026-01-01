@@ -16,6 +16,8 @@ import CMigration
     var help = false
   }
 
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
 
@@ -39,9 +41,9 @@ import CMigration
     return opts
   }
 
-  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
+  func runCommand() throws(CmdErr) {
     print(" --", terminator: "")
-    for i in opts.args {
+    for i in options.args {
       print(" \(i)", terminator: "")
     }
     print("")

@@ -61,7 +61,9 @@ let DEFFILEMODE : FilePermissions = [.ownerRead, .ownerWrite, .groupRead, .group
     //  var exitval: Int = 0
     var append = false
   }
-  
+
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
     
@@ -85,19 +87,19 @@ let DEFFILEMODE : FilePermissions = [.ownerRead, .ownerWrite, .groupRead, .group
     return opts
   }
   
-  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
+  func runCommand() throws(CmdErr) {
     var exitval = 0
 
     add(FileDescriptor.standardOutput, "stdout")
 
-    for arg in opts.args {
+    for arg in options.args {
       do {
-        let fd = try FileDescriptor.open(arg, .writeOnly, options: opts.append ? [.create, .append] : [.create, .truncate], permissions: DEFFILEMODE )
+        let fd = try FileDescriptor.open(arg, .writeOnly, options: options.append ? [.create, .append] : [.create, .truncate], permissions: DEFFILEMODE )
         add(fd, arg)
       } catch {
         //       let fd = Darwin.open(arg, opts.append ? Darwin.O_WRONLY|Darwin.O_CREAT|Darwin.O_APPEND : Darwin.O_WRONLY|Darwin.O_CREAT|Darwin.O_TRUNC, DEFFILEMODE)
         var se = FileDescriptor.standardError
-        print("\(Environment.progname): \(arg): \(error)", to: &se)
+        print("\(programName): \(arg): \(error)", to: &se)
         // warn(arg)
         exitval = 1
       }

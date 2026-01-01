@@ -67,6 +67,8 @@ func cleanup() {
     var args : [String] = []
   }
 
+  var options : CommandOptions!
+
   var timed_out = false
 
   func parseOptions() throws(CmdErr) -> CommandOptions {
@@ -104,8 +106,8 @@ func cleanup() {
   }
   
   
-  func runCommand(_ optsx : CommandOptions) async throws(CmdErr) {
-    var opts = optsx
+  func runCommand() async throws(CmdErr) {
+    var opts = options!
     lockname = opts.args.removeFirst()
     
     if opts.waitsec > 0 {

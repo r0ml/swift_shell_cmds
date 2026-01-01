@@ -37,7 +37,9 @@ import CMigration
     
     var args = [String]()
   }
-  
+
+  var options : CommandOptions!
+
   var usage = "usage: path_helper [-c | -s]"
 
   func append_path_segment(path: inout String?, segment: String?) {
@@ -181,7 +183,7 @@ import CMigration
     return opts
   }
   
-  func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
+  func runCommand() async throws(CmdErr) {
 
     let path = try await construct_path("PATH", "/etc/paths", "/etc/paths.d")
     var manpath: String?
@@ -192,7 +194,7 @@ import CMigration
       manpath = try await construct_path("MANPATH", "/etc/manpaths", "/etc/manpaths.d")
     }
     
-    if opts.style == .csh {
+    if options.style == .csh {
       print("setenv PATH \"\(path!)\";")
       if doManpath {
         print("setenv MANPATH \"\(manpath ?? "")\";")

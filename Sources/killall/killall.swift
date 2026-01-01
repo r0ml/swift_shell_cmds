@@ -68,7 +68,9 @@ import Darwin
 
     var args = [String]()
   }
-  
+
+  var options : CommandOptions!
+
 //  var thispid: pid_t
 //  var thistdev: dev_t
   var sig = SIGTERM
@@ -249,8 +251,9 @@ At least one option or argument to specify processes must be given."
     }
     
     
-  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
-    var opts = optsx
+  func runCommand() throws(CmdErr) {
+    var opts = options!
+
       if justPrint { return }
       
       if let tty = opts.tty {

@@ -45,6 +45,8 @@ import Darwin
     var dflag = 0
   }
 
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
     
@@ -73,8 +75,8 @@ import Darwin
     return opts
   }
   
-  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
-    if let arg = opts.args.first {
+  func runCommand() throws(CmdErr) {
+    if let arg = options.args.first {
       if sethostname(arg, Int32(arg.count)) != 0 {
         err(1, "sethostname")
       }
@@ -89,9 +91,9 @@ import Darwin
         
         return String(cString: px)
       }
-      if opts.sflag != 0 {
+      if options.sflag != 0 {
         hostname = String(hostname.prefix { $0 != "." })
-      } else if opts.dflag != 0 {
+      } else if options.dflag != 0 {
         if let dot = hostname.firstIndex(of: ".") {
           hostname = String(hostname.suffix(from: dot).dropFirst())
         }

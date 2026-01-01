@@ -99,7 +99,9 @@ let optString = "abiKmnoprsUv"
   struct CommandOptions {
     var flags : Flags = []
   }
-  
+
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     // setup_get()
     var opts = CommandOptions()
@@ -150,8 +152,8 @@ let optString = "abiKmnoprsUv"
     return opts
   }
   
-  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
-    print_uname(opts.flags)
+  func runCommand() throws(CmdErr) {
+    print_uname(options.flags)
   }
   
   /*

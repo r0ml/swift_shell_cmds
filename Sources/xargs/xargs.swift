@@ -79,7 +79,9 @@ import CMigration
     
     var inp = FileDescriptor.standardInput // UnsafeMutablePointer<FILE>! = stdio_h.stdin
   }
-  
+
+  var options : CommandOptions!
+
   func numericArg(_ chx : String, _ arg : String, _ min : Int) throws(CmdErr) -> Int {
     let ch = chx.count == 1 ? "-\(chx)" : "--\(chx)"
     if let i = Int(arg) {
@@ -247,7 +249,7 @@ import CMigration
     case newline
   }
   
-  func parseArgument(_ prevc : Character, _ inp : inout AsyncCharacterReader.AsyncIterator, _ opts : CommandOptions) async throws(CmdErr) -> (String, Character?) {
+  func parseArgument(_ prevc : Character, _ inp : inout AsyncCharacterReader.AsyncIterator) async throws(CmdErr) -> (String, Character?) {
     var indouble = false
     var insingle = false
     var argp = ""
@@ -273,11 +275,11 @@ import CMigration
       case " ":
         fallthrough
       case "\t":
-        if insingle || indouble || opts.zflag || opts.Lflag > 0 {
+        if insingle || indouble || options.zflag || options.Lflag > 0 {
           argp.append(ch)
           break
         } else {
-          if !opts.Iflag {
+          if !options.Iflag {
             if argp.count == 0 && !wasquoted {
               break
             }
@@ -285,13 +287,13 @@ import CMigration
           }
         }
       case "\0":
-        if opts.zflag {
+        if options.zflag {
           return (argp, ch)
         } else {
           argp.append(ch)
         }
       case "\n":
-        if opts.zflag {
+        if options.zflag {
           argp.append(ch)
           break
         }
@@ -301,7 +303,7 @@ import CMigration
             break
           }
           // if line ends in blank, next line is continuation
-        if !opts.Iflag && prevchar == " " {
+        if !options.Iflag && prevchar == " " {
             break
           }
         }
@@ -313,21 +315,21 @@ import CMigration
         }
         return (argp, ch)
       case "'":
-        if indouble || opts.zflag {
+        if indouble || options.zflag {
           argp.append(ch)
         } else {
           insingle.toggle()
           wasquoted = true
         }
       case "\"":
-        if insingle || opts.zflag {
+        if insingle || options.zflag {
           argp.append(ch)
         } else {
           indouble.toggle()
           wasquoted = true
         }
       case "\\":
-        if opts.zflag {
+        if options.zflag {
           argp.append(ch)
           break
         }
@@ -356,11 +358,11 @@ import CMigration
     }
   }
 
-  func prerun(_ jbxp : [String], _ ibxp : [String], _ kbxp : [String], _ inpline : String, _ opts : CommandOptions) async throws(CmdErr) {
-    let repls = opts.Rflag
-   
+  func prerun(_ jbxp : [String], _ ibxp : [String], _ kbxp : [String], _ inpline : String) async throws(CmdErr) {
+    let repls = options.Rflag
+
     if repls == 0 {
-      try await run(jbxp + (ibxp.filter { !$0.isEmpty }) + kbxp, opts)
+      try await run(jbxp + (ibxp.filter { !$0.isEmpty }) + kbxp)
       return
     }
     
@@ -375,21 +377,21 @@ import CMigration
     
     var rr = 0
     for var tmpLast in avj {
-      if rr < repls, let replstr = opts.replstr, tmpLast.contains(replstr) {
+      if rr < repls, let replstr = options.replstr, tmpLast.contains(replstr) {
         tmpLast = tmpLast.replacing(replstr, with: inpline) //  strnsubst(str: tmpLast, match: replstr, replstr: inpline)
           rr += 1
         }
       tmp.append(tmpLast)
     }
     
-    try await run(tmp, opts)
+    try await run(tmp)
   }
   
-  func run(_ args : [String], _ opts : CommandOptions) async throws(CmdErr) {
+  func run(_ args : [String]) async throws(CmdErr) {
 
-    if opts.tflag || opts.pflag {
+    if options.tflag || options.pflag {
       print(args.joined(separator: " "))
-      if opts.pflag {
+      if options.pflag {
         switch await prompt() {
           case .yes:
             return
@@ -402,7 +404,7 @@ import CMigration
       print("\n")
     }
 
-    let inpath = opts.oflag ? _PATH_TTY : _PATH_DEVNULL
+    let inpath = options.oflag ? _PATH_TTY : _PATH_DEVNULL
 
     // use a TaskGroup here?
 
@@ -433,27 +435,27 @@ import CMigration
         var curlen: size_t = 0
     */
 
-  func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
+  func runCommand() async throws(CmdErr) {
     var pc : Character? = "\n"
     var a : String = ""
     var ibxp = [String]()
 
-    var argi = opts.inp.characters.makeAsyncIterator()
+    var argi = options.inp.characters.makeAsyncIterator()
 
     defer {
-      if opts.inp != FileDescriptor.standardInput {
-        try? opts.inp.close()
+      if options.inp != FileDescriptor.standardInput {
+        try? options.inp.close()
       }
     }
 
     while pc != nil {
-      (a, pc) = try await parseArgument(pc!, &argi, opts)
-      if (!a.isEmpty) || (opts.zflag && opts.xflag) {
+      (a, pc) = try await parseArgument(pc!, &argi)
+      if (!a.isEmpty) || (options.zflag && options.xflag) {
         ibxp.append(a)
       }
-      if (pc == nil && ibxp.count > 0) || ibxp.count >= opts.nargs || (opts.xflag && opts.Lflag <= ibxp.count)  {
+      if (pc == nil && ibxp.count > 0) || ibxp.count >= options.nargs || (options.xflag && options.Lflag <= ibxp.count)  {
           //        try arg2(av)
-          try await prerun(jbxp, ibxp, kbxp, a, opts)
+          try await prerun(jbxp, ibxp, kbxp, a)
         ibxp = []
       }
     }

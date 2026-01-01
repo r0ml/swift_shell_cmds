@@ -74,7 +74,9 @@ var exitstatus : Int32 = 0
     var isxargs : Int32 = 0
     var args : ArraySlice<String> = []
   }
-  
+
+  var options : CommandOptions!
+
   var unix2003_compat = true
   
   // from find.swift
@@ -89,11 +91,11 @@ var exitstatus : Int32 = 0
 
 
   // from option.swift
-  var options : [String : OPTION] = [:]
+  var optionsx : [String : OPTION] = [:]
   var p = [String]()
 
   required init() {
-    options = initOptions()
+    optionsx = initOptions()
   }
   
   func parseOptions() throws(CmdErr) -> CommandOptions {
@@ -182,8 +184,8 @@ var exitstatus : Int32 = 0
     return opts
   }
     
-  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
-    var opts = optsx
+  func runCommand() throws(CmdErr) {
+    var opts = options!
     // ???
     let dotfd = open(".", O_RDONLY | O_CLOEXEC, 0)
     if dotfd < 0 {
@@ -195,7 +197,7 @@ var exitstatus : Int32 = 0
     
     let ch = 
 //    gg.withUnsafeMutableBfufferPointer { pp in
-    find_execute(plan: find_formplan( &opts.args, opts ), paths: p, options: opts)
+    find_execute(plan: find_formplan( &opts.args ), paths: p)
 //    }
     if ferror(stdout) != 0 || fflush(stdout) != 0 {
       err(1, "stdout")

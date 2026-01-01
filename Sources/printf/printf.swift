@@ -47,6 +47,8 @@ import ICU
     var args : ArraySlice<String> = []
   }
 
+  var options : CommandOptions!
+
   var mapping : [Character : Int] = [:]
 
   required init() {
@@ -75,8 +77,9 @@ import ICU
     return opts
   }
   
-  func runCommand(_ optsx : CommandOptions) throws(CmdErr) {
-    var opts = optsx
+  func runCommand() throws(CmdErr) {
+    var opts = options!
+    
     let (_, format) = escape(opts.args.removeFirst(), 1) // backslash interpretation
 
     while true {

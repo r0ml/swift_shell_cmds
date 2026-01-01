@@ -78,7 +78,9 @@ func printMatches(path: String, filename: String, allpaths: Bool, silent: Bool) 
     var allpaths = false
     var args = ArraySlice<String>()
   }
-  
+
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
     let go = BSDGetopt("as")
@@ -101,15 +103,15 @@ func printMatches(path: String, filename: String, allpaths: Bool, silent: Bool) 
     return opts
   }
   
-  func runCommand(_ opts : CommandOptions) throws(CmdErr) {
+  func runCommand() throws(CmdErr) {
 //    guard let path = ProcessInfo.processInfo.environment["PATH"]
     guard let path = Environment["PATH"]
     else {
       throw CmdErr(1, "no PATH")
     }
     
-    for a in opts.args {
-      if a.count >= MAXPATHLEN || !printMatches(path: path, filename: a, allpaths: opts.allpaths, silent: opts.silent) {
+    for a in options.args {
+      if a.count >= MAXPATHLEN || !printMatches(path: path, filename: a, allpaths: options.allpaths, silent: options.silent) {
         throw CmdErr(1)
       }
     }

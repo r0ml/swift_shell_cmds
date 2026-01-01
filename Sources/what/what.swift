@@ -42,6 +42,8 @@ import CMigration
     var args = [String]()
   }
 
+  var options : CommandOptions!
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
 
@@ -61,33 +63,33 @@ import CMigration
     return opts
   }
 
-  func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
+  func runCommand() async throws(CmdErr) {
     var file: String?
     var found = false
 
     do {
-      if opts.args.count == 0 {
+      if options.args.count == 0 {
         let fh = try FileDescriptor(forReading: "/dev/stdin")
-        if try await search(opts.sflag, opts.qflag, fh) {
+        if try await search(options.sflag, options.qflag, fh) {
           found = true
         }
       } else {
-        for arg in opts.args {
+        for arg in options.args {
           file = arg
 
           do {
             let inStream = try FileDescriptor(forReading: file!)
-            if !opts.qflag {
+            if !options.qflag {
               print("\(file!):")
             }
-            if try await search(opts.sflag, opts.qflag, inStream) {
+            if try await search(options.sflag, options.qflag, inStream) {
               found = true
             }
             try? inStream.close()
           } catch {
-            if !opts.qflag {
+            if !options.qflag {
               var se = FileDescriptor.standardError
-              print("\(Environment.progname): \(file!): \(error)", to: &se)
+              print("\(programName): \(file!): \(error)", to: &se)
             }
             continue
           }

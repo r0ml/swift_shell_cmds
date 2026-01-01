@@ -125,7 +125,9 @@ let optString = "adeFkpqr"
     var args = [String]()
     var fname : String = ""
   }
-  
+
+  var options : CommandOptions!
+
 //  var obuf_list = [buf_elm]()
   
   var readstdin = true
@@ -215,18 +217,18 @@ let optString = "adeFkpqr"
     return opts
   }
   
-  func runCommand(_ opts : CommandOptions) async throws(CmdErr) {
+  func runCommand() async throws(CmdErr) {
     var fs : FileDescriptor?
     do {
-      if opts.pflg {
-        fs = try FileDescriptor(forReading: opts.fname)
+      if options.pflg {
+        fs = try FileDescriptor(forReading: options.fname)
       } else {
-        if !fileExists(atPath: opts.fname) {
-          fs = try FileDescriptor.open(opts.fname, .writeOnly, options: [.create], permissions: [.ownerReadWrite])
+        if !fileExists(atPath: options.fname) {
+          fs = try FileDescriptor.open(options.fname, .writeOnly, options: [.create], permissions: [.ownerReadWrite])
         } else {
-          fs = try FileDescriptor.open(opts.fname, .writeOnly)
+          fs = try FileDescriptor.open(options.fname, .writeOnly)
         }
-        if opts.aflg { try fs?.seek(offset: 0, from: .end) }
+        if options.aflg { try fs?.seek(offset: 0, from: .end) }
         else { try fs?.resize(to: 0) }
       }
     } catch(let e) {
@@ -235,7 +237,7 @@ let optString = "adeFkpqr"
     if let fs {
       fscript = fs
     } else {
-      err(1, "unable to open \(opts.fname)")
+      err(1, "unable to open \(options.fname)")
     }
     
     /*
@@ -264,8 +266,8 @@ let optString = "adeFkpqr"
     }
 #endif /* ENABLE_FILEMON */
     
-    if (opts.pflg) {
-      playback(fscript, opts);
+    if (options.pflg) {
+      playback(fscript)
     }
 //    var master : Int32 = 0
     
@@ -308,25 +310,25 @@ let optString = "adeFkpqr"
     }
     */
     
-    if (opts.rawout) {
+    if (options.rawout) {
       record(fscript, [], .s);
     }
     
     var showexit = false
 
-    if (!opts.qflg) {
+    if (!options.qflg) {
       var tvec = time(nil);
-      print("Script started, output file is \(opts.fname)")
-      if (!opts.rawout) {
+      print("Script started, output file is \(options.fname)")
+      if (!options.rawout) {
         let c = ctime(&tvec)!
         let cc = String(cString: c)
         print("Script started on \(cc)", terminator: "", to: &fscript)
 
-        if let z = opts.args.first {
+        if let z = options.args.first {
           showexit = true
           print("Command: ", terminator: "", to: &fscript)
           var ff = true
-          for k in opts.args {
+          for k in options.args {
             let kk = ff ? "" : " "
             ff = false
             
@@ -371,7 +373,7 @@ let optString = "adeFkpqr"
       }
 #endif /* ENABLE_FILEMON */
     do {
-      let r = try await doshell(opts.args, opts)
+      let r = try await doshell(options.args)
 //    }
 //    close(slave)
 
@@ -389,7 +391,7 @@ let optString = "adeFkpqr"
 
 //    let kk = await j.value
 //    finish();
-    done(r, opts, showexit)
+    done(r, showexit)
     } catch(let e) {
       throw CmdErr(127, "\(e)")
     }
@@ -405,7 +407,7 @@ let optString = "adeFkpqr"
 
     var rfd = fd_set()
     var wfd = fd_set()
-    
+
     FD_ZERO(&rfd)
     FD_ZERO(&wfd)
     FD_SET(master, &rfd)
@@ -543,7 +545,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
      */
   }
   
-  func doshell(_ av : [String], _ opts : CommandOptions) async throws -> Int32 {
+  func doshell(_ av : [String]) async throws -> Int32 {
     var env = Environment.getenv()
     
     var shell = env["SHELL"] ?? _PATH_BSHELL
@@ -555,8 +557,8 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
 //    login_tty(slave);
     
 //    setenv("SCRIPT", fname, 1);
-    env["SCRIPT"] = opts.fname
-    
+    env["SCRIPT"] = options.fname
+
     let args = Array(av.dropFirst())
     
     if let av0 = av.first {
@@ -583,7 +585,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
     return 1
   }
   
-  func done(_ eno : Int32, _ opts : CommandOptions, _ showexit : Bool) {
+  func done(_ eno : Int32, _ showexit : Bool) {
     var tvec = time_t()
     
     /*
@@ -593,11 +595,11 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
      */
     
     tvec = time(nil);
-    if (opts.rawout) {
+    if (options.rawout) {
       record(fscript, [], .e);
     }
-    if (!opts.qflg) {
-      if (!opts.rawout) {
+    if (!options.qflg) {
+      if (!options.rawout) {
         if (showexit) {
           print("\nCommand exit status: \(eno)", terminator: "", to: &fscript)
         }
@@ -605,7 +607,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
         let cc = String(cString: c)
         print("\nScript done on \(cc)", terminator: "", to: &fscript)
       }
-      print("\nScript done, output file is \(opts.fname)")
+      print("\nScript done, output file is \(options.fname)")
       #if ENABLE_FILEMON
       if (fflg) {
         printf("Filemon done, output file is %s\n",
@@ -696,7 +698,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
     
     
     
-  func readSlave(_ opts : CommandOptions) async -> Bool {
+  func readSlave() async -> Bool {
   //    let slaveFH = FileHandle.standardInput
   //    let slaveFH = FileHandle(fileDescriptor: slave)
     
@@ -719,7 +721,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
             
           }
           
-          if (opts.rawout) {
+          if (options.rawout) {
             record(fscript, a, .i);
           }
           try FileDescriptor.standardOutput.write(a) // /* masterFH */ .write(a)
@@ -759,7 +761,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
   }
   
   
-  func playback(_ fp : FileDescriptor, _ opts : CommandOptions) {
+  func playback(_ fp : FileDescriptor) {
     /*
      struct timespec tsi, tso;
      struct stamp stamp;
@@ -837,7 +839,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
       switch ScrDirection(rawValue: stampx.scr_direction) {
       case .s:
         
-          if (!opts.qflg) {
+          if (!options.qflg) {
           let c = ctime(&tclock)!
           let cc = String(cString: c)
           print("Script started on \(cc)", terminator: "")
@@ -851,7 +853,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
       case .e:
         
         termreset();
-          if (!opts.qflg) {
+          if (!options.qflg) {
           let c = ctime(&tclock)!
           let cc = String(cString: c)
           print("\nScript done on \(cc)", terminator: "")
@@ -866,7 +868,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
 
         break;
       case .o:
-          if (opts.tflg) {
+          if (options.tflg) {
           if (stampx.scr_len == 0) {
             continue;
           }
@@ -874,7 +876,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
             
             let bb = withUnsafeTemporaryAllocation(byteCount: 256, alignment: 1) { p in
               let k = p.baseAddress!.assumingMemoryBound(to: UInt8.self)
-              let l = strftime(k, 256, opts.tstamp_fmt,
+              let l = strftime(k, 256, options.tstamp_fmt,
                            localtime(&tclock))
         //      let d = Data(bytesNoCopy: k, count: l, deallocator: .none)
               let j = UnsafeBufferPointer(start: k, count: l)
@@ -891,7 +893,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
             tsi.tv_sec -= 1;
             tsi.tv_nsec += 1000000000;
           }
-          if (opts.usesleep) {
+          if (options.usesleep) {
             nanosleep(&tsi, nil)
           }
           tsi = tso;
