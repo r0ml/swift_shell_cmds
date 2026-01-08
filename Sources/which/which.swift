@@ -34,8 +34,8 @@ import CMigration
 
 func isTherex(candidate: String, silent: Bool) -> Bool {
   if let fin = try? FileMetadata(for: candidate),
-     fin.fileType == .regular,
-     (userId != 0 || !fin.mode.intersection([.ownerExecute, .groupExecute, .otherExecute]).isEmpty)
+     fin.filetype == .regular,
+     (userId != 0 || !fin.permissions.intersection([.ownerExecute, .groupExecute, .otherExecute]).isEmpty)
   {
 
 //    if access(candidate, X_OK) == 0 &&  && S_ISREG(fin.st_mode) && (getuid() != 0 || (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0) {
