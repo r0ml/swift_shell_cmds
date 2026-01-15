@@ -114,9 +114,9 @@ import CMigration
       for var ent in fo {
 
         // only interested in regular files, one level deep
-        if ent.info != .F {
+        if ent.info != FTSInfo.F {
           if ent.level >= 1 {
-            ent.setAction(.SKIP)
+            ent.setAction(FTSAction.SKIP)
           }
         } else {
           do {
@@ -265,7 +265,7 @@ func find_compare(_ s1: UnsafeMutablePointer<UnsafePointer<FTSENT>?>?, _ s2: Uns
 */
 
 
-@Sendable func find_compare(_ a : FtsEntry, _ b : FtsEntry) -> ComparisonResult {
+@Sendable func find_compare(_ a : FTSEntry, _ b : FTSEntry) -> ComparisonResult {
   var ss1 = a.name!
   var ss2 = b.name!
 

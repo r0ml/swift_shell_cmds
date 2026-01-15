@@ -187,16 +187,16 @@ extension find {
    }
    */
   
-  func f_Xmin(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_Xmin(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     if case let .t_data(td) = plan.p_un {
       if plan.flags & F_TIME_C != 0 {
-        return COMPARE((now - entry.e.fts_statp.st_ctime + 60 - 1) / 60, td.tv_sec, plan)
+        return COMPARE((now - entry.statp!.lastModification.secs + 60 - 1) / 60, td.tv_sec, plan)
       } else if plan.flags & F_TIME_A != 0 {
-        return COMPARE((now - entry.e.fts_statp.st_atime + 60 - 1) / 60, td.tv_sec, plan)
+        return COMPARE((now - entry.statp!.lastAccess.secs + 60 - 1) / 60, td.tv_sec, plan)
       } else if plan.flags & F_TIME_B != 0 {
-        return COMPARE((now - entry.e.fts_statp.st_birthtime + 60 - 1) / 60, td.tv_sec, plan)
+        return COMPARE((now - entry.statp!.created.secs + 60 - 1) / 60, td.tv_sec, plan)
       } else {
-        return COMPARE((now - entry.e.fts_statp.st_mtime + 60 - 1) / 60, td.tv_sec, plan)
+        return COMPARE((now - entry.statp!.lastWrite.secs + 60 - 1) / 60, td.tv_sec, plan)
       }
     }
     fatalError("badly formed plan")
@@ -218,17 +218,17 @@ extension find {
     return new
   }
   
-  func f_Xtime(plan: PLAN, entry: MyFTSENT) -> Bool {
+  func f_Xtime(plan: PLAN, entry: FTSEntry) -> Bool {
     var xtime: time_t
     
     if plan.flags & F_TIME_A != 0 {
-      xtime = entry.e.fts_statp.st_atime
+      xtime = entry.statp!.lastAccess.secs
     } else if plan.flags & F_TIME_B != 0 {
-      xtime = entry.e.fts_statp.st_birthtime
+      xtime = entry.statp!.created.secs
     } else if plan.flags & F_TIME_C != 0 {
-      xtime = entry.e.fts_statp.st_ctime
+      xtime = entry.statp!.lastModification.secs
     } else {
-      xtime = entry.e.fts_statp.st_mtime
+      xtime = entry.statp!.lastWrite.secs
     }
     
     if case let .t_data(td) = plan.p_un {
@@ -272,11 +272,11 @@ extension find {
   }
   
   
-  func f_acl(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_acl(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     var ae: acl_entry_t?
     
     var match = false
-    let facl = acl_get_link_np(entry.e.fts_accpath, ACL_TYPE_EXTENDED)
+    let facl = acl_get_link_np(entry.accpath, ACL_TYPE_EXTENDED)
     if facl != nil {
       if acl_get_entry(facl, ACL_FIRST_ENTRY.rawValue, &ae) == 0 {
         match = true
@@ -300,21 +300,21 @@ extension find {
   }
   
 #if os(macOS) || os(iOS) || os(visionOS) || os(tvOS) || os(watchOS)
-  func f_xattr(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_xattr(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     var xattr: ssize_t
     var match = false
-    xattr = listxattr(entry.e.fts_accpath, nil, 0, XATTR_NOFOLLOW)
+    xattr = listxattr(entry.accpath, nil, 0, XATTR_NOFOLLOW)
     if xattr > 0 {
       match = true
     }
     return match
   }
   
-  func f_xattrname(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_xattrname(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     var xattr: ssize_t
     var match = false
     if case let .c_data(cd) = plan.p_un {
-      xattr = getxattr(entry.e.fts_accpath, cd, nil, 0, 0, XATTR_NOFOLLOW)
+      xattr = getxattr(entry.accpath, cd, nil, 0, 0, XATTR_NOFOLLOW)
       if xattr > 0 {
         match = true
       }
@@ -324,24 +324,24 @@ extension find {
   }
 #endif
   
-  func f_delete(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
-    
-    let accpath = String(cString: entry.e.fts_accpath)
+  func f_delete(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
+
+    let accpath = entry.accpath
     
     if accpath == "." || accpath == ".." {
       return true
     }
     
-    if isdepth == 0 || (ftsoptions & FTS_NOSTAT) != 0 {
+    if isdepth == 0 || ftsoptions.contains(.NOSTAT) {
       errx(1, "-delete: insecure options got turned on")
     }
     
-    if (ftsoptions & FTS_PHYSICAL) == 0 || (ftsoptions & FTS_LOGICAL) != 0 {
+    if !ftsoptions.contains(.PHYSICAL) || ftsoptions.contains(.LOGICAL) {
       errx(1, "-delete: forbidden when symlinks are followed")
     }
     
-    if entry.e.fts_level > FTS_ROOTLEVEL {
-      let accpath = String(cString: entry.e.fts_accpath)
+    if entry.level > CMigration.FTS_ROOTLEVEL {
+      let accpath = entry.accpath
       if accpath.contains("/") {
         errx(1, "-delete: \(accpath): relative path potentially not safe")
       }
@@ -349,21 +349,21 @@ extension find {
     
     // FIXME: hhn
     //    #if HAVE_STRUCT_STAT_ST_FLAGS
-    if (entry.e.fts_statp.pointee.st_flags & UInt32(UF_APPEND|UF_IMMUTABLE)) != 0 &&
-        (entry.e.fts_statp.pointee.st_flags & UInt32(SF_APPEND|SF_IMMUTABLE)) == 0 &&
+    if entry.statp!.flags.containsAny(of: [.UF_APPEND, .UF_IMMUTABLE]) &&
+        !entry.statp!.flags.containsAny(of: [.SF_APPEND, .SF_IMMUTABLE]) &&
         geteuid() == 0 {
-      lchflags(entry.e.fts_accpath, entry.e.fts_statp.pointee.st_flags & ~UInt32(UF_APPEND|UF_IMMUTABLE))
+      lchflags(entry.accpath, entry.statp!.flags.subtracting([.UF_APPEND, .UF_IMMUTABLE]).rawValue)
     }
     //    #endif
     
-    let fts_path = String(cString: entry.e.fts_path)
+    let fts_path = entry.path
     
-    if S_ISDIR(entry.e.fts_statp.pointee.st_mode) {
-      if rmdir(entry.e.fts_accpath) < 0 && errno != ENOTEMPTY {
+    if entry.statp!.filetype == .directory {
+      if rmdir(entry.accpath) < 0 && errno != ENOTEMPTY {
         warn("-delete: rmdir(\(fts_path))")
       }
     } else {
-      if unlink(entry.e.fts_accpath) < 0 {
+      if unlink(entry.accpath) < 0 {
         warn("-delete: unlink(\(fts_path))")
       }
     }
@@ -372,25 +372,25 @@ extension find {
   }
   
   func c_delete(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
-    ftsoptions &= ~FTS_NOSTAT
+    ftsoptions.remove(.NOSTAT)
     isoutput = 1
     isdepth = 1
     
-    if (ftsoptions & FTS_NOCHDIR) != 0 {
+    if ftsoptions.contains(.NOCHDIR) {
       errx( 1, "-delete: forbidden when the current directory cannot be opened")
     }
     
     return PLAN(option)
   }
   
-  func f_always_true(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_always_true(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     return true
   }
   
-  func f_depth(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_depth(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     if case let .d_data(dd) = plan.p_un {
       if (plan.flags & F_DEPTH) != 0 {
-        return COMPARE(entry.e.fts_level, dd, plan)
+        return COMPARE(entry.level, Int(dd), plan)
       } else {
         return true
       }
@@ -426,19 +426,19 @@ extension find {
     return new
   }
   
-  func f_empty(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
-    if S_ISREG(entry.e.fts_statp?.pointee.st_mode ?? 0) &&
-        entry.e.fts_statp?.pointee.st_size ?? 0 == 0 {
+  func f_empty(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
+    if entry.statp!.filetype == .regular &&
+        entry.statp!.size == 0 {
       return true
     }
-    if S_ISDIR(entry.e.fts_statp.pointee.st_mode) {
+    if entry.statp!.filetype == .directory {
       var empty: Bool
       
       // FIXME: maybe do it this way?
       /*      let accpath = String(cString: entry.fts_accpath)
        FileManager.default.contentsOfDirectory(atPath: accpath)
        */
-      let dir = opendir(entry.e.fts_accpath)
+      let dir = opendir(entry.accpath)
       if dir == nil {
         return false
       }
@@ -460,16 +460,16 @@ extension find {
   }
   
   func c_empty(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
-    ftsoptions &= ~FTS_NOSTAT
+    ftsoptions.remove(.NOSTAT)
     return PLAN(option)
   }
   
   
-  func f_exec(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_exec(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     
     if case let .ex_data(epee) = plan.p_un {
       
-      let fts_path = String(cString: entry.e.fts_path)
+      let fts_path = entry.path
       var file = fts_path
       if (plan.flags & F_EXECDIR) != 0 {
         if let rr = fts_path.lastIndex(of: "/") {
@@ -505,7 +505,7 @@ extension find {
     fatalError("badly formed plan")
   }
   
-  func do_exec(_ plan : PLAN, _ entry : MyFTSENT?) -> Bool {
+  func do_exec(_ plan : PLAN, _ entry : FTSEntry?) -> Bool {
     if case let .ex_data(epee) = plan.p_un {
       if (plan.flags & F_NEEDOK) != 0 && !queryuser(epee.e_argv) {
         return false
@@ -524,8 +524,8 @@ extension find {
 
       // FIXME: change the current directory as needed
       var cwd : String?
-       if let entry, (plan.flags & F_EXECDIR) == 0 && (ftsoptions & FTS_NOCHDIR) == 0 {
-         cwd = String(cString: entry.e.fts_parent.pointee.fts_path)
+      if let entry, (plan.flags & F_EXECDIR) == 0 && !ftsoptions.contains(.NOCHDIR) {
+         cwd = String(cString: entry.parent!.pointee.fts_path)
        }
       
 
@@ -647,11 +647,11 @@ extension find {
   
   // FIXME: ??
   // #if HAVE_STRUCT_STAT_ST_FLAGS
-  func f_flags(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
-    let flags: UInt32
-    
+  func f_flags(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
+    let flags: FileFlags
+
     if case let .fl_flags(fl, nfl) = plan.p_un {
-      flags = entry.e.fts_statp.pointee.st_flags
+      flags = entry.statp!.flags
       if (plan.flags & F_ATLEAST) != 0 {
         return (flags | fl) == flags &&
         ((flags & nfl) == 0)
@@ -669,8 +669,7 @@ extension find {
   
   func c_flags(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
     var flags_str = nextarg(option: option, argvp: &argvp)
-    ftsoptions &= ~FTS_NOSTAT
-    
+    ftsoptions.remove(.NOSTAT)
     var new = PLAN(option)
     
     if flags_str.hasPrefix("-") {
@@ -706,8 +705,8 @@ extension find {
    *  basis.
    */
   func c_follow(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
-    ftsoptions &= ~FTS_PHYSICAL
-    ftsoptions |= FTS_LOGICAL
+    ftsoptions.remove(.PHYSICAL)
+    ftsoptions.insert(.LOGICAL)
     return PLAN(option)
   }
   
@@ -719,7 +718,7 @@ extension find {
    *
    *  True if the file is of a certain type.
    */
-  func f_fstype(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_fstype(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     var sb = statfs()
     var val_flags : Int16 = 0
     var fstype : String = ""
@@ -728,21 +727,21 @@ extension find {
       return false
     }
     
-    let accpath = String(cString: entry.e.fts_accpath)
-    
+    let accpath = entry.accpath
+
     
     /* Only check when we cross mount point. */
-    if (first || curdev != entry.e.fts_statp.pointee.st_dev) {
-      curdev = entry.e.fts_statp.pointee.st_dev
-      
-      var p : String? = String(cString: entry.e.fts_accpath)
+    if (first || curdev != entry.statp!.device) {
+      curdev = entry.statp!.device
+
+      var p : String? = entry.accpath
       var savep : String?
       /*
        * Statfs follows symlinks; find wants the link's filesystem,
        * not where it points.
        */
-      if (entry.e.fts_info == FTS_SL ||
-          entry.e.fts_info == FTS_SLNONE) {
+      if (entry.info == .SL ||
+          entry.info == .SLNONE) {
         if let px = p!.lastIndex(of: "/") {
           let r = p!.startIndex...px
           p?.removeSubrange(r)
@@ -753,7 +752,7 @@ extension find {
         p = nil
       }
       
-      if ((statfs(entry.e.fts_accpath, &sb)) != 0) {
+      if ((statfs(entry.accpath, &sb)) != 0) {
         if ((ignore_readdir_race == 0) || errno != ENOENT) {
           warn("statfs: \(accpath)")
           exitstatus = 1
@@ -799,8 +798,8 @@ extension find {
     var new: PLAN
     
     fsname = nextarg(option: option, argvp: &argvp)
-    ftsoptions &= ~FTS_NOSTAT
-    
+    ftsoptions.remove(.NOSTAT)
+
     new = PLAN(option)
     switch fsname {
     case "local":
@@ -828,9 +827,9 @@ extension find {
    *  an equivalent of the getgrnam() function does not return a valid group
    *  name, gname is taken as a group ID.
    */
-  func f_group(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_group(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     if case let .g_data(gd) = plan.p_un {
-      return COMPARE(entry.e.fts_statp.pointee.st_gid, gd, plan)
+      return COMPARE(entry.statp!.groupId, UInt(gd), plan)
     }
     fatalError("badly formed plan")
     
@@ -843,8 +842,8 @@ extension find {
     var gid: gid_t
     
     gname = nextarg(option: option, argvp: &argvp)
-    ftsoptions &= ~FTS_NOSTAT
-    
+    ftsoptions.remove(.NOSTAT)
+
     new = PLAN(option)
     let gx = getgrnam(gname)
     if (gx == nil) {
@@ -890,9 +889,9 @@ extension find {
    *
    *  True if the file has inode # n.
    */
-  func f_inum(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_inum(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     if case let .i_data(id) = plan.p_un {
-      return COMPARE(entry.e.fts_statp.pointee.st_ino, id, plan)
+      return COMPARE(entry.statp!.inode, UInt(id), plan)
     }
     fatalError("badly formed plan")
     
@@ -903,8 +902,8 @@ extension find {
     var new: PLAN
     
     inum_str = nextarg(option: option, argvp: &argvp)
-    ftsoptions &= ~FTS_NOSTAT
-    
+    ftsoptions.remove(.NOSTAT)
+
     new = PLAN(option)
     var endch : Character?
     new.p_un = .i_data(ino_t(find_parsenum(plan: &new, option: option.name, vp: inum_str, endch: &endch)))
@@ -925,8 +924,8 @@ extension find {
     var error: Int
     
     fn = nextarg(option: option, argvp: &argvp)
-    ftsoptions &= ~FTS_NOSTAT
-    
+    ftsoptions.remove(.NOSTAT)
+
     new = PLAN(option)
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
     /*
@@ -955,9 +954,9 @@ extension find {
    *
    *  True if the file has n links.
    */
-  func f_links(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_links(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     if case let .l_data(ld) = plan.p_un {
-      return COMPARE(entry.e.fts_statp.pointee.st_nlink, ld, plan)
+      return COMPARE(entry.statp!.links, UInt(ld), plan)
     }
     fatalError("badly formed plan")
   }
@@ -967,8 +966,8 @@ extension find {
     var new: PLAN
     
     nlinks = nextarg(option: option, argvp: &argvp)
-    ftsoptions &= ~FTS_NOSTAT
-    
+    ftsoptions.remove(.NOSTAT)
+
     new = PLAN(option)
     var endch : Character?
     new.p_un = .l_data( nlink_t(find_parsenum(plan: &new, option: option.name, vp: nlinks, endch: &endch)))
@@ -980,13 +979,13 @@ extension find {
    *
    *  Always true - prints the current entry to stdout in "ls" format.
    */
-  func f_ls(plan: PLAN, entry: MyFTSENT) -> Bool {
-    self.printlong(name: String(cString: entry.e.fts_path), accpath: String(cString: entry.e.fts_accpath), sb: entry.e.fts_statp.pointee)
+  func f_ls(plan: PLAN, entry: FTSEntry) -> Bool {
+    self.printlong(name: entry.path, accpath: entry.accpath, sb: entry.statp!)
     return true
   }
   
   func c_ls(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
-    ftsoptions &= ~FTS_NOSTAT
+    ftsoptions.remove(.NOSTAT)
     isoutput = 1
     
     return PLAN(option)
@@ -998,7 +997,7 @@ extension find {
    *  True if the basename of the filename being examined
    *  matches pattern using Pattern Matching Notation S3.14
    */
-  func f_name(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_name(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     // var fn = [Int8](repeating: 0, count: PATH_MAX)
     var name: String?
     // var len: ssize_t
@@ -1011,14 +1010,13 @@ extension find {
        * Assumption: fts will stat all symlinks that are to be
        * followed and will return the stat information.
        */
-      if (entry.e.fts_info != FTS_NSOK && entry.e.fts_info != FTS_SL &&
-          entry.e.fts_info != FTS_SLNONE) {
+      if (entry.info != .NSOK && entry.info != .SL && entry.info != .SLNONE) {
         return false
       }
       
       name = withUnsafeTemporaryAllocation(byteCount: Int(PATH_MAX), alignment: 1) { p -> String? in
         let pp = p.assumingMemoryBound(to: UInt8.self).baseAddress!
-        let len = readlink(entry.e.fts_accpath, pp , Int(PATH_MAX) - 1)
+        let len = readlink(entry.accpath, pp , Int(PATH_MAX) - 1)
         if (len == -1) {
           return nil
         } else {
@@ -1027,10 +1025,10 @@ extension find {
         }
       }
       if name == nil { return false }
-    } else if (entry.e.fts_namelen == 0) {
-      name = String(cString: basename(entry.e.fts_path))
+    } else if entry.name.isEmpty {
+      name = basename(entry.path)
     } else {
-      name = entry.nam
+      name = entry.name
     }
     if case let .c_data(cd) = plan.p_un {
       return (fnmatch(cd, name,
@@ -1057,27 +1055,27 @@ extension find {
    *  then the modification time of the file named by the pathname
    *  file.
    */
-  func f_newer(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_newer(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     var ft: timespec
     
     if ((plan.flags & F_TIME_C) != 0) {
-      ft = entry.e.fts_statp.st_ctim
+      ft = entry.statp!.lastModification.timespec
     }
     /*
      * rdar://problem/77588562 - this segment is covered by
      * HAVE_STRUCT_STAT_ST_BIRTHTIME upstream, which is wrong.
      */
     else if ((plan.flags & F_TIME_A) != 0) {
-      ft = entry.e.fts_statp.st_atim
+      ft = entry.statp!.lastAccess.timespec
     }
     // FIXME: ar
     // #if HAVE_STRUCT_STAT_ST_BIRTHTIME
     else if ((plan.flags & F_TIME_B) != 0) {
-      ft = entry.e.fts_statp.st_birthtim
+      ft = entry.statp!.created.timespec
     }
     // #endif
     else {
-      ft = entry.e.fts_statp.pointee.st_mtim
+      ft = entry.statp!.lastWrite.timespec
     }
     
     if case let .t_data(td) = plan.p_un {
@@ -1096,8 +1094,8 @@ extension find {
     var error: Int32
     
     fn_or_tspec = nextarg(option: option, argvp: &argvp)
-    ftsoptions &= ~FTS_NOSTAT
-    
+    ftsoptions.remove(.NOSTAT)
+
     new = PLAN(option)
     /* compare against what */
     
@@ -1160,13 +1158,12 @@ extension find {
    *  True if file belongs to a user ID for which the equivalent
    *  of the getgrnam() 9.2.1 [POSIX.1] function returns NULL.
    */
-  func f_nogroup(plan: PLAN, entry: MyFTSENT) -> Bool {
-    return Darwin.group_from_gid(entry.e.fts_statp.pointee.st_gid, 1) == nil
+  func f_nogroup(plan: PLAN, entry: FTSEntry) -> Bool {
+    return Darwin.group_from_gid(UInt32(entry.statp!.groupId), 1) == nil
   }
   
   func c_nogroup(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
-    ftsoptions &= ~Darwin.FTS_NOSTAT
-    
+    ftsoptions.remove(.NOSTAT)
     return PLAN(option)
   }
   
@@ -1176,13 +1173,12 @@ extension find {
    *  True if file belongs to a user ID for which the equivalent
    *  of the getpwuid() 9.2.2 [POSIX.1] function returns NULL.
    */
-  func f_nouser(plan: PLAN, entry: MyFTSENT) -> Bool {
-    return user_from_uid(entry.e.fts_statp.pointee.st_uid, 1) == nil
+  func f_nouser(plan: PLAN, entry: FTSEntry) -> Bool {
+    return user_from_uid(UInt32(entry.statp!.userId), 1) == nil
   }
   
   func c_nouser(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
-    ftsoptions &= ~Darwin.FTS_NOSTAT
-    
+    ftsoptions.remove(.NOSTAT)
     return PLAN(option)
   }
   
@@ -1192,9 +1188,9 @@ extension find {
    *  True if the path of the filename being examined
    *  matches pattern using Pattern Matching Notation S3.14
    */
-  func f_path(plan: PLAN, entry: MyFTSENT) -> Bool {
+  func f_path(plan: PLAN, entry: FTSEntry) -> Bool {
     if case let .c_data(cd) = plan.p_un {
-      return (Darwin.fnmatch(cd, entry.e.fts_path,
+      return (Darwin.fnmatch(cd, entry.path,
                       ((plan.flags & F_IGNCASE) != 0) ? FNM_CASEFOLD : 0) == 0)
     }
     fatalError("badly formed plan")
@@ -1210,7 +1206,7 @@ extension find {
    *  with a leading digit, it's treated as an octal mode, otherwise as a
    *  symbolic mode.
    */
-  func f_perm(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_perm(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     if case let .m_data(md) = plan.p_un {
       let mode = entry.e.fts_statp.pointee.st_mode &
       (Darwin.S_ISUID|Darwin.S_ISGID|Darwin.S_ISTXT|Darwin.S_IRWXU|Darwin.S_IRWXG|Darwin.S_IRWXO)
@@ -1243,8 +1239,8 @@ extension find {
     var set: UnsafeMutablePointer<Darwin.mode_t>?
     
     perm = nextarg(option: option, argvp: &argvp)
-    ftsoptions &= ~Darwin.FTS_NOSTAT
-    
+    ftsoptions.remove(.NOSTAT)
+
     new = PLAN(option)
     
     if perm.hasPrefix("-") {
@@ -1269,33 +1265,28 @@ extension find {
     return new
   }
   
-  func f_print(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
-    Darwin.puts(entry.e.fts_path)
+  func f_print(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
+    print(entry.path)
     return true
   }
   
   func c_print(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
     isoutput = 1
-    
     return PLAN(option)
   }
   
-  func f_print0(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
-    Darwin.fputs(entry.e.fts_path, stdout)
-    Darwin.fputc(0, stdout)
+  func f_print0(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
+    print(entry.path, terminator: "\0")
     return true
   }
   
-  func f_prune(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_prune(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     // FIXME: will this work given that FTSENT is broken?
-    var z = entry.e
-    if fts_set(tree, &z, FTS_SKIP) != 0 {
-      err(1, String(cString: entry.e.fts_path) )
-    }
+    entry.setAction(.SKIP)
     return true
   }
   
-  func f_regex(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_regex(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     var str: String
     var len: Int
     var pmatch = Darwin.regmatch_t()
@@ -1303,7 +1294,7 @@ extension find {
     var matched = false
     
     if case var .re_data(pre) = plan.p_un {
-      str = String(cString: entry.e.fts_path)
+      str = entry.path
       len = str.count
       pmatch.rm_so = 0
       pmatch.rm_eo = regoff_t(len)
@@ -1361,11 +1352,11 @@ extension find {
     return PLAN(option)
   }
   
-  func f_size(plan: PLAN, entry: MyFTSENT) -> Bool {
+  func f_size(plan: PLAN, entry: FTSEntry) -> Bool {
     
     if case let .o_data(od) = plan.p_un {
-      let size = divsize != 0 ? (entry.e.fts_statp.pointee.st_size + FIND_SIZE - 1) / FIND_SIZE : entry.e.fts_statp.pointee.st_size
-      return COMPARE(size, od, plan)
+      let size = divsize != 0 ? ( entry.statp!.size + UInt(FIND_SIZE) - 1 ) / UInt(FIND_SIZE) : entry.statp!.size
+      return COMPARE(size, UInt(od), plan)
     }
     fatalError("badly formed plan")
   }
@@ -1415,23 +1406,23 @@ extension find {
     return new
   }
   
-  func f_sparse(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
-    let expected_blocks = (entry.e.fts_statp.pointee.st_size + 511) / 512
-    return entry.e.fts_statp.pointee.st_blocks < expected_blocks
+  func f_sparse(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
+    let expected_blocks = (entry.statp!.size + 511) / 512
+    return entry.statp!.blocks < expected_blocks
   }
   
   func c_sparse(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
-    ftsoptions &= ~FTS_NOSTAT
-    
+    ftsoptions.remove(.NOSTAT)
     return PLAN(option)
   }
   
-  func f_type(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_type(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     if case let .m_data(md) = plan.p_un {
-      if md == Darwin.S_IFDIR {
-        return entry.e.fts_info == Darwin.FTS_D || entry.e.fts_info == Darwin.FTS_DC || entry.e.fts_info == Darwin.FTS_DNR || entry.e.fts_info == Darwin.FTS_DOT || entry.e.fts_info == Darwin.FTS_DP
+      let mdd = FileType(rawValue: md)
+      if mdd == FileType.directory {
+        return entry.info == .D || entry.info == .DC || entry.info == .DNR || entry.info == .DOT || entry.info == .DP
       } else {
-        return (entry.e.fts_statp.pointee.st_mode & Darwin.S_IFMT) == md
+        return entry.statp!.filetype == mdd
       }
     }
     fatalError("badly formed plan")
@@ -1445,7 +1436,7 @@ extension find {
     
     typestring = nextarg(option: option, argvp: &argvp)
     if typestring != "d" {
-      ftsoptions &= ~Darwin.FTS_NOSTAT
+      ftsoptions.remove(.NOSTAT)
     }
     
     switch typestring {
@@ -1472,9 +1463,9 @@ extension find {
     return new
   }
   
-  func f_user(plan: PLAN, entry: MyFTSENT) -> Bool {
+  func f_user(plan: PLAN, entry: FTSEntry) -> Bool {
     if case let .u_data(ud) = plan.p_un {
-      return COMPARE(entry.e.fts_statp.pointee.st_uid, ud, plan)
+      return COMPARE(entry.statp!.userId, UInt(ud), plan)
     }
     fatalError("badly formed plan")
     
@@ -1486,8 +1477,8 @@ extension find {
     var uid: id_t
     
     username = nextarg(option: option, argvp: &argvp)
-    ftsoptions &= ~Darwin.FTS_NOSTAT
-    
+    ftsoptions.remove(.NOSTAT)
+
     new = PLAN(option)
     if let p = getPasswd(for: username) {
       uid = id_t(p.userId)
@@ -1509,11 +1500,11 @@ extension find {
   }
   
   func c_xdev(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
-    ftsoptions |= Darwin.FTS_XDEV
+    ftsoptions.insert(.XDEV)
     return PLAN(option)
   }
   
-  func f_expr(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_expr(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     var state = false
     
     if case let .p_data(pp, _) = plan.p_un {
@@ -1527,11 +1518,11 @@ extension find {
     
   }
   
-  func f_openparen(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_openparen(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     abort()
   }
   
-  func f_closeparen(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_closeparen(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     abort()
   }
   
@@ -1541,7 +1532,7 @@ extension find {
     return PLAN(OPTION("**and**", c_simple, nil, 0))
   }
   
-  func f_not(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_not(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     var state = false
     
     if case let .p_data(pp, _) = plan.p_un {
@@ -1554,7 +1545,7 @@ extension find {
     fatalError("badly formed plan")
   }
   
-  func f_or(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_or(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     var state = false
     
     if case let .p_data(pp, qq) = plan.p_un {
@@ -1576,11 +1567,11 @@ extension find {
     fatalError("badly formed plan")
   }
   
-  func f_false(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_false(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     return false
   }
   
-  func f_quit(_ plan: PLAN, _ entry: MyFTSENT) -> Bool {
+  func f_quit(_ plan: PLAN, _ entry: FTSEntry) -> Bool {
     finish_execplus()
     exit(exitstatus)
   }

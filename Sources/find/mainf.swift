@@ -61,7 +61,7 @@ var exitstatus : Int32 = 0
   var exitstatus : Int32 = 0
 
   // FIXME: these should really be CommandOptions
-  var ftsoptions : Int32 = 0
+  var ftsoptions = FTSFlags()
   var regexp_flags = Darwin.REG_BASIC
   var mindepth : Int32 = -1
   var maxdepth : Int32 = -1

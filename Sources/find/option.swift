@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  */
 
+import CMigration
+
 typealias creat_f = (_ a : OPTION, _ b :inout ArraySlice<String>) -> PLAN
-typealias exec_f = ( _ a : PLAN, _ b : MyFTSENT ) -> Bool
+typealias exec_f = ( _ a : PLAN, _ b : FTSEntry ) -> Bool
 
 struct OPTION {
   var name : String  /* option name */
