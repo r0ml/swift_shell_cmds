@@ -39,7 +39,10 @@
 import CMigration
 
 typealias creat_f = (_ a : OPTION, _ b :inout ArraySlice<String>) -> PLAN
-typealias exec_f = ( _ a : PLAN, _ b : FTSEntry ) -> Bool
+
+// the 'inout' is only required for 'f_prune' which needs to use .setAction -- which is mutating
+typealias exec_f = ( _ a : PLAN, _ b : inout FTSEntry ) -> Bool
+
 
 struct OPTION {
   var name : String  /* option name */

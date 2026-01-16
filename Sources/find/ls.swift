@@ -48,15 +48,14 @@ extension find {
 
     let modep = withUnsafeTemporaryAllocation(byteCount: 15, alignment: 1) {p in
       let pp = p.assumingMemoryBound(to: CChar.self).baseAddress!
-      strmode(Int32(sb.st_mode), pp)
+      strmode( Int32(sb.filetype.rawValue | sb.permissions.rawValue), pp)
       return String(cString: pp)
     }
     print(
       modep.withCString { a in
-        cFormat("%s %3ju %-*s %-*s ", a, sb.st_nlink,
-                MAXLOGNAME - 1,
-                user_from_uid(sb.st_uid, 0), MAXLOGNAME - 1,
-                group_from_gid(sb.st_gid, 0))
+        cFormat("\(a) %3ju %-*s %-*s ", sb.links,
+                MAXLOGNAME - 1, user_from_uid(UInt32(sb.userId), 0),
+                MAXLOGNAME - 1, group_from_gid(UInt32(sb.groupId), 0))
       }
     , terminator: "")
     if sb.filetype == .characterDevice || sb.filetype == .blockDevice {

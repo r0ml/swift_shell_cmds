@@ -97,8 +97,8 @@ struct PLAN {
     self.flags = option.flags
   }
 
-  func execute(_ b : FTSEntry) -> Bool {
-    return option.execute?(self, b) ?? false
+  func execute(_ b : inout FTSEntry) -> Bool {
+    return option.execute?(self, &b) ?? false
   }
   
   var name : String { option.name }
@@ -320,7 +320,7 @@ extension find {
       }
       
       for p in plan {
-        let j = p.execute(entryz)
+        let j = p.execute(&entryz)
         if j == false {
           break
         }
