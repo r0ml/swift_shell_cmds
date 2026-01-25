@@ -340,7 +340,7 @@ extension find {
       errx(1, "-delete: forbidden when symlinks are followed")
     }
     
-    if entry.e.fts_level > FTS_ROOTLEVEL {
+    if entry.e.fts_level > CMigration.FTS_ROOTLEVEL {
       let accpath = String(cString: entry.e.fts_accpath)
       if accpath.contains("/") {
         errx(1, "-delete: \(accpath): relative path potentially not safe")

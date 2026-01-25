@@ -265,7 +265,7 @@ func find_compare(_ s1: UnsafeMutablePointer<UnsafePointer<FTSENT>?>?, _ s2: Uns
 */
 
 
-@Sendable func find_compare(_ a : FtsEntry, _ b : FtsEntry) -> ComparisonResult {
+@Sendable func find_compare(_ a : FTSEntry, _ b : FTSEntry) -> ComparisonResult {
   var ss1 = a.name!
   var ss2 = b.name!
 
