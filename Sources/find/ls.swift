@@ -41,32 +41,31 @@ import string_h
 import Darwin
 
 extension find {
-  func printlong(name: String, accpath: String, sb: stat) {
+  func printlong(name: String, accpath: String, sb: FileMetadata) {
     //    var modep = [CChar](repeating: 0, count: 15)
     
-    print(cFormat("%6ju %8lld ", sb.st_ino, sb.st_blocks), terminator: "")
-    
+    print(cFormat("%6ju %8lld ", sb.inode, sb.blocks), terminator: "")
+
     let modep = withUnsafeTemporaryAllocation(byteCount: 15, alignment: 1) {p in
       let pp = p.assumingMemoryBound(to: CChar.self).baseAddress!
-      strmode(Int32(sb.st_mode), pp)
+      strmode( Int32(sb.filetype.rawValue | sb.permissions.rawValue), pp)
       return String(cString: pp)
     }
     print(
       modep.withCString { a in
-        cFormat("%s %3ju %-*s %-*s ", a, sb.st_nlink,
-                MAXLOGNAME - 1,
-                user_from_uid(sb.st_uid, 0), MAXLOGNAME - 1,
-                group_from_gid(sb.st_gid, 0))
+        cFormat("\(a) %3ju %-*s %-*s ", sb.links,
+                MAXLOGNAME - 1, user_from_uid(UInt32(sb.userId), 0),
+                MAXLOGNAME - 1, group_from_gid(UInt32(sb.groupId), 0))
       }
     , terminator: "")
-    if (sb.st_mode & Darwin.S_IFMT) == Darwin.S_IFCHR || (sb.st_mode & Darwin.S_IFMT) == Darwin.S_IFBLK {
-      print(cFormat("%#8jx ", sb.st_rdev), terminator: "")
+    if sb.filetype == .characterDevice || sb.filetype == .blockDevice {
+      print(cFormat("%#8jx ", sb.rawDevice), terminator: "")
     } else {
-      print(cFormat("%8lld ", sb.st_size), terminator: "")
+      print(cFormat("%8lld ", sb.size), terminator: "")
     }
-    printtime(sb.st_mtime)
+    printtime(sb.lastWrite.secs)
     print(name, terminator: "")
-    if (sb.st_mode & S_IFMT) == S_IFLNK {
+    if sb.filetype == .symbolicLink {
       printlink(accpath)
     }
     print("")
@@ -97,7 +96,7 @@ extension find {
     } else {
       strlcpy(&longstring, "bad date val ", longstring.count)
     }
-    print(String(cString: longstring), terminator: "")
+    print(longstring, terminator: "")
   }
   
   func printlink(_ name: String) {

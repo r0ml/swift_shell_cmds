@@ -61,7 +61,7 @@ var exitstatus : Int32 = 0
   var exitstatus : Int32 = 0
 
   // FIXME: these should really be CommandOptions
-  var ftsoptions : Int32 = 0
+  var ftsoptions = FTSFlags()
   var regexp_flags = Darwin.REG_BASIC
   var mindepth : Int32 = -1
   var maxdepth : Int32 = -1
@@ -85,7 +85,7 @@ var exitstatus : Int32 = 0
   // from function.swift
   let FIND_SIZE : Int64 = 512
   var divsize = 1
-  var curdev = Darwin.dev_t()  /* need a guaranteed illegal dev value */
+  var curdev : UInt? /* need a guaranteed illegal dev value */
   var first = true
   var lastexecplus : [PLAN] = []
 
@@ -189,7 +189,7 @@ var exitstatus : Int32 = 0
     // ???
     let dotfd = open(".", O_RDONLY | O_CLOEXEC, 0)
     if dotfd < 0 {
-      ftsoptions |= Darwin.FTS_NOCHDIR
+      ftsoptions.insert(.NOCHDIR)
     }
     
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)

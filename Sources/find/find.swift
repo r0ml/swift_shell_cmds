@@ -84,11 +84,6 @@ class ex {
   var f_notflags : UInt
 }*/
 
-struct MyFTSENT {
-  var e : Darwin.FTSENT
-  var nam : String
-}
-
 /* node definition */
 struct PLAN {
   //  struct _plandata *next;    /* next node */
@@ -102,8 +97,8 @@ struct PLAN {
     self.flags = option.flags
   }
 
-  func execute(_ b : MyFTSENT) -> Bool {
-    return option.execute?(self, b) ?? false
+  func execute(_ b : inout FTSEntry) -> Bool {
+    return option.execute?(self, &b) ?? false
   }
   
   var name : String { option.name }
@@ -182,31 +177,17 @@ struct PLAN {
    *  order within each directory.
    */
   
-  func find_compare(s1: UnsafeMutablePointer<UnsafePointer<FTSENT>?>?, s2: UnsafeMutablePointer<UnsafePointer<FTSENT>?>?) -> Int32 {
-    
-    let ss1 = withUnsafePointer(to: s1!.pointee!.pointee.fts_name) { p in
-      String(cString: p)
-    }
-    
-    let ss2 = withUnsafePointer(to: s2!.pointee!.pointee.fts_name) { p in
-      String(cString: p)
-    }
-    
+  func find_compare(s1: FTSEntry, s2: FTSEntry) -> ComparisonResult {
+
+    let ss1 = s1.name!
+    let ss2 = s2.name!
+
     //  let ss1 = String(cString: s1?.pointee.fts_name)
     //  let ss2 = String(cString: s2?.pointee.fts_name)
     
-    if ss1 > ss2 { return -1 }
-    else if ss1 < ss2 { return 1 }
-    else { return 0 }
-      
-      /*let cc = ss1.compare(ss2)
-    switch cc {
-    case .orderedSame: return 0
-    case .orderedAscending: return 1
-    case .orderedDescending: return -1
-    }
-       */
-    
+    if ss1 > ss2 { return .orderedDescending }
+    else if ss1 < ss2 { return .orderedAscending }
+    else { return .orderedSame }
   }
   /*
    func find_compare(_ s1 : FTSENT, _ s2 : FTSENT) -> Int {
@@ -287,56 +268,39 @@ extension find {
       return nonSearchableDirFound
     }
     
-    let mp = myPaths.map { strdup($0) }
-    
-    tree = Darwin.fts_open(mp, ftsoptions, ((options.issort != 0) ? find_compare : nil))
-    if tree == nil {
+    guard let tree = try? FTSWalker(path: myPaths, options: ftsoptions, sort: options.issort != 0 ? find_compare : nil) else {
       err(1, "ftsopen")
+      fatalError()
     }
     
     exitstatus = nonSearchableDirFound
-    while let entryx = Darwin.fts_read(tree) {
-      errno = 0
-      let entryz = entryx.pointee
-      let fts_path = String(cString: entryz.fts_path)
+    for var entryz in tree {
 
-      // AAARGH!  The definition of FTSENT (entry) defines the file name as a char[1] -- when in reality,
-      // it is a string longer than 1.  passing this struct as an argument will cause the name to get lost.
-      // so, before the memory beyond the defined end of the struct is tampered with, grab the fts_name from
-      // the struct.
-      let p = UnsafeRawPointer(entryx).advanced(by: MemoryLayout.offset(of: \Darwin.FTSENT.fts_name)! )
-      
-      let pp = UnsafeBufferPointer(start: p.assumingMemoryBound(to: UInt8.self), count: Int(entryz.fts_namelen))
-      
-      let ftsName = String(decoding: pp, as: UTF8.self)
-      
-      if maxdepth != -1 && entryz.fts_level >= maxdepth {
-        if Darwin.fts_set(tree, entryx, Darwin.FTS_SKIP) != 0 {
-          err(1, "\(fts_path)")
-        }
+      if maxdepth != -1 && entryz.level >= maxdepth {
+        entryz.setAction(FTSAction.SKIP)
       }
       
-      switch Int32(entryz.fts_info) {
-        case Darwin.FTS_D:
-          if (isdepth != 0) {
+      switch entryz.info {
+        case .D:
+          if isdepth != 0 {
           continue
         }
-        case Darwin.FTS_DP:
-          if (isdepth == 0) {
+        case .DP:
+          if isdepth == 0 {
           continue
         }
-        case Darwin.FTS_DNR, Darwin.FTS_NS:
-          if (ignore_readdir_race != 0) && entryz.fts_errno == Darwin.ENOENT && entryz.fts_level > 0 {
+        case .DNR, .NS:
+          if (ignore_readdir_race != 0) && entryz.errno.code == Darwin.ENOENT && entryz.level > 0 {
           continue
         }
         fallthrough
-        case Darwin.FTS_ERR:
+        case .ERR:
         fflush(stdout)
-        warnx("\(fts_path): \(String(cString: strerror(entryz.fts_errno)))")
+          warnx("\(entryz.path): \(entryz.errno.localizedDescription)")
         exitstatus = 1
         continue
-        case Darwin.FTS_W:
-          if ftsoptions & Darwin.FTS_WHITEOUT != 0 {
+        case .W:
+          if ftsoptions.contains(.WHITEOUT) {
           break
         }
         continue
@@ -344,19 +308,19 @@ extension find {
         break
       }
       
-      if (options.isxargs != 0) && fts_path.contains(where: { " \t\n\\'\"".contains($0) }) {
+      if (options.isxargs != 0) && entryz.path.contains(where: { " \t\n\\'\"".contains($0) }) {
         fflush(Darwin.stdout)
-        warnx("\(fts_path): illegal path")
+        warnx("\(entryz.path): illegal path")
         exitstatus = 1
         continue
       }
       
-      if mindepth != -1 && entryz.fts_level < mindepth {
+      if mindepth != -1 && entryz.level < mindepth {
         continue
       }
       
       for p in plan {
-        let j = p.execute( MyFTSENT(e: entryz, nam: ftsName))
+        let j = p.execute(&entryz)
         if j == false {
           break
         }
@@ -372,7 +336,6 @@ extension find {
       err(1, "fts_read")
       
     }
-    Darwin.fts_close(tree)
     return exitstatus
   }
 }
