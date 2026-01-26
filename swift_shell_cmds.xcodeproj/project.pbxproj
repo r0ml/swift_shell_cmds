@@ -64,6 +64,7 @@
 /* Begin PBXBuildFile section */
 		2AC6B58E269FF622006AA0B7 /* realpath.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2AC6B58B269FF613006AA0B7 /* realpath.1 */; };
 		90FB06742720809B005007F5 /* lockf.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 90FB0671271F8F80005007F5 /* lockf.1 */; };
+		E71B516C2F2733E200A02D2C /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E71B516B2F2733E200A02D2C /* ShellTesting */; };
 		E73F99882D459CB000E89FF3 /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E73F99872D459CB000E89FF3 /* CMigration */; };
 		E73F998A2D459CB700E89FF3 /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E73F99892D459CB700E89FF3 /* CMigration */; };
 		E73F998E2D459CC400E89FF3 /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E73F998D2D459CC400E89FF3 /* CMigration */; };
@@ -2012,6 +2013,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E71B516C2F2733E200A02D2C /* ShellTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2779,6 +2781,7 @@
 			);
 			name = envTest;
 			packageProductDependencies = (
+				E71B516B2F2733E200A02D2C /* ShellTesting */,
 			);
 			productName = envTest;
 			productReference = E79B2D952E2C0EE100C33F4B /* envTest.xctest */;
@@ -5462,8 +5465,6 @@
 		E7E5A2512BED67A9002EC4B4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				DEAD_CODE_STRIPPING = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -6072,8 +6073,6 @@
 		FCBA14FF14A144EC00AA698B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				DEAD_CODE_STRIPPING = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -6936,6 +6935,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		E71B516B2F2733E200A02D2C /* ShellTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E79B319D2E2FD65300C33F4B /* XCRemoteSwiftPackageReference "ShellTesting" */;
+			productName = ShellTesting;
+		};
 		E73F99872D459CB000E89FF3 /* CMigration */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
