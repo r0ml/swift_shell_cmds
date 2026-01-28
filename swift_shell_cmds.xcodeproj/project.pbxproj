@@ -1245,6 +1245,7 @@
 		E7EC850C2C4622D80098A4EB /* scriptTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = scriptTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7EC85172C4623090098A4EB /* sleepTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = sleepTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7EC85222C4623280098A4EB /* timeTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = timeTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E7FF26202F2ACC5C00DF22C9 /* Notes.md */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Notes.md; sourceTree = "<group>"; };
 		E7FFC9292C10CE7000B62995 /* dateTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = dateTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7FFC99D2C12041C00B62995 /* dirnameTest.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = dirnameTest.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC5D636A14B9808E00123E48 /* hexdump.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = hexdump.1; sourceTree = "<group>"; };
@@ -2515,6 +2516,7 @@
 				E7020DD82CA07E4800641953 /* allTests.xctestplan */,
 				CE799E6224B3982200E73238 /* doInstall.sh */,
 				E7A1CD5B2C9A9DC300A95D6D /* Package.swift */,
+				E7FF26202F2ACC5C00DF22C9 /* Notes.md */,
 				E79B2BB22E2AB20100C33F4B /* Sources */,
 				E79B2CDC2E2C0E3400C33F4B /* Tests */,
 				E7C4B6912CE3E0BB003B031E /* Manuals */,

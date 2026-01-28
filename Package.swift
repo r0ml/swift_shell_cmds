@@ -41,10 +41,13 @@ let package = Package(
 )
 
 func generateTargets() -> [Target] {
-    var res = [Target]()
+  var res = [Target]()
+  let skipForNow = ["w", "lastcomm", "sh"]
+
     let cd = try! FileManager.default.contentsOfDirectory(atPath: "Sources")
     for i in cd {
       if i == ".DS_Store" { continue }
+      if skipForNow.contains(i) { continue }
       let t = Target.executableTarget(name: i, dependencies: [.product(name: "CMigration", package: "CMigration")] )
         res.append(t)
     }
@@ -54,10 +57,11 @@ func generateTargets() -> [Target] {
 
 func generateTestTargets() -> [Target] {
     var res = [Target]()
-    
+    let skipForNow = ["wTest", "lastcommTest", "shTest"]
     let cd = try! FileManager.default.contentsOfDirectory(atPath: "Tests")
     for i in cd {
       if i == ".DS_Store" { continue }
+      if skipForNow.contains(i) { continue }
         let r = FileManager.default.fileExists(atPath: "Tests/\(i)/Resources")
       let x = try! FileManager.default.contentsOfDirectory(atPath: "Tests/\(i)").filter { $0.hasSuffix(".xctestplan") }
         let rr = r ? [Resource.copy("Resources")] : []

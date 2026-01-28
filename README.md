@@ -41,9 +41,14 @@ The commands from the original repository which were not translated are:
     revisited.
 - `expr`: The implementation is a yacc file.  Before this can be translated, a yacc replacement is needed.  Yacc replacement is not just translating the yacc code, because yacc generates C code.   What will be needed is a parser generator for Swift.  Then that can be used to translate `expr`.
 - `locate`: The locate package is based on various shell scripts as well as C code, and there is not yet a plan on how to deal with shell scripts instead of C code (convert to Swift?  leave as shell scripts? ). 
-- `sh`: This would be a very large and complicated translation.  As the base of completed translations grows, and there is more expertise in dealing with larger code bases, the translation of `sh` will be tackled.
 - `su`: The original shell\_cmds library is built against the sdx `macosx.internal` which has some additional headers and libraries not available on a consumer Mac.  `su` relies on `rootless.h` -- which is not available, complicating the translation.
 - `systime`: which is not shipped with macOS
+
+## In addition, 
+The (unported) code for these commands is in the repository because I plan to convert them at some point.
+
+- `lastcomm`: ??
+- `sh`: This would be a very large and complicated translation.  As the base of completed translations grows, and there is more expertise in dealing with larger code bases, the translation of `sh` might be tackled.  On the other hand, this shell (sh) is 
 - 'w': The original shell\_cmds library is built against the sdx `macosx.internal` which has some additional headers and libraries not available on a consumer Mac.  `w` relis on `libxo` and `libutil.h` which are not available, complicating the translation.
 
 # Building...
