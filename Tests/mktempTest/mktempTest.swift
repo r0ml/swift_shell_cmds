@@ -80,8 +80,8 @@ import ShellTesting
   @Test func tmpdir_tflag_oneslash() async throws {
     setenv("TMPDIR", tmpdir, 1)
     let p = ShellProcess(cmd, "mktemp", "-t", "foo")
-    let (_, r, _) = try await p.run()
-    let rr = r!
+    let po = try await p.run()
+    let rr = po.string
     let s = tmpdir
     
   #expect( rr.hasPrefix(s+"/foo." ) )

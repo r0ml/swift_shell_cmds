@@ -24,9 +24,9 @@ import ShellTesting
   let suiteBundle = "shell_cmds_timeTest"
 
   @Test("check real time") func timeSleepTest() async throws {
-    let (c, r, j) = try await ShellProcess(cmd, "sleep", "1").run()
-    #expect(c == 0)
-    if let r {
+    let po = try await ShellProcess(cmd, "sleep", "1").run()
+    #expect(po.code == 0)
+    let r = po.string
       let rr = r.trimmingCharacters(in: .whitespaces)
       let k = rr.split(separator: /\ +/)
       if let kk = k.first,
@@ -35,9 +35,6 @@ import ShellTesting
       } else {
         Issue.record("mis-timed sleep")
       }
-    } else {
-      Issue.record("no output")
-    }
     }
 
   // FIXME: can't figure out how to make the time command get values for those last three items 
@@ -47,15 +44,15 @@ import ShellTesting
 
   @Test("check child SIGUSR1", .disabled("not sure how the signal handling is working -- but I don't get an error return even though the sleep is interrupted")) func check_child_sigusr1() async throws {
 
-    let (c, r, j) = try await ShellProcess(cmd,
+    let po = try await ShellProcess(cmd,
 //    "time", ["sh", "-c", "kill -USR1 $$ && sleep 5 && true"])
                                  "sh", "-c", "sleep 5 && true").run()
     
-    print(c)
-    print(r)
-    print(j)
+    print(po.code)
+    print(po.string)
+    print(po.error)
     
-    #expect(c != 0, "should allow child to receive SIGUSR1")
+    #expect(po.code != 0, "should allow child to receive SIGUSR1")
   }
   
   @Test("check non-existent binary") func check_binary() async throws {

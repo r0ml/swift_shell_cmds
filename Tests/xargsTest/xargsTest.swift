@@ -98,8 +98,8 @@ import ShellTesting
   @Test func testN2P0() async throws {
     let x = try fileContents("regress.n2P0.out")
     let res = try fileContents("regress.in")
-    let (_, j, _) = try await ShellProcess(cmd, "-n2", "-P0", "echo").run(res)
-    let k = (j?.dropLast().components(separatedBy: "\n").sorted().joined(separator: "\n"))!+"\n"
+    let po = try await ShellProcess(cmd, "-n2", "-P0", "echo").run(res)
+    let k = (po.string.dropLast().components(separatedBy: "\n").sorted().joined(separator: "\n"))+"\n"
     #expect( k == x )
   }
 
