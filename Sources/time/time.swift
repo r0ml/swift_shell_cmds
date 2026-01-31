@@ -251,7 +251,7 @@ actor Stuff {
     
     do {
       if let ofn = options.ofn {
-        if fileExists(atPath: ofn) {
+        if FilePath(ofn).exists {
           fh = try FileDescriptor.open(ofn, .writeOnly, options: [.truncate])
         } else {
           fh = try FileDescriptor.open(ofn, .writeOnly, options: [.create], permissions: [.ownerReadWrite])
@@ -303,7 +303,7 @@ actor Stuff {
       
       
       
-      guard isExecutableFile(atPath: ff) else {
+      guard FilePath(ff).isExecutable else {
         throw CmdErr(127, "\(ff) is not an executable")
       }
       

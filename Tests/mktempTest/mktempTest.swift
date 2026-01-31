@@ -30,25 +30,16 @@
  */
 
 import ShellTesting
+import Darwin
 
 @Suite("mktemp", .serialized) class mktempTest : ShellTest {
   let cmd = "mktemp"
   let suiteBundle = "shell_cmds_mktempTest"
   
-  let pwd : String
-  let tmpdir : String
-  let pflag : String
-  
-  init() {
-    try! FileManager.default.createDirectory(atPath: "tmp_p", withIntermediateDirectories: true)
-    try! FileManager.default.createDirectory(atPath: "tmp_env", withIntermediateDirectories: true)
-    pwd = ProcessInfo.processInfo.environment["PWD"]!
-    tmpdir="\(pwd)/tmp_env"
-    pflag="\(pwd)/tmp_p"
-
-  }
-  
   @Test func tmpdir_pflag() async throws {
+    let tdir = try tmpdir("tmp_env")
+    let pflag = try tmpdir("tmp_p")
+    defer { rm(tdir, pflag) }
     // Basic usage: just -p specified
    
     try await run(output: Regex("^\(pflag)/tmp."), args: "-p", pflag )
@@ -61,7 +52,10 @@ import ShellTesting
 */
   
   @Test func tmpdir_pflag_dir() async throws {
-    setenv("TMPDIR", tmpdir, 1)
+    let tdir = try tmpdir("tmp_env")
+    let pflag = try tmpdir("tmp_p")
+    defer { rm(tdir, pflag) }
+    Darwin.setenv("TMPDIR", tdir.string, 1)
     try await run(output: Regex("^\(pflag)/tmp."), args: "-p", pflag)
 //    let (_, o, _) = try captureStdoutLaunch(Clem.self, "mktemp", ["-p", pflag])
 //    #expect( o!.hasPrefix("\(pflag)/tmp."), "just -p with TMPDIR" )
@@ -69,28 +63,33 @@ import ShellTesting
 
   // -p with a list of names
   @Test func tmpdir_pflag_noarg() async throws {
-    try await ShellProcess(cmd, "-p", pflag, "x", "y", "z").run()
-    #expect( FileManager.default.fileExists(atPath: "\(pflag)/x"))
-    #expect( FileManager.default.fileExists(atPath: "\(pflag)/y"))
-    #expect( FileManager.default.fileExists(atPath: "\(pflag)/z"))
+    let pflag = try tmpdir("tmp_p")
+    defer { rm(pflag) }
+    try await run( args: "-p", pflag, "x", "y", "z") { po in
+      let _ = try FileMetadata(for: "\(pflag)/x")
+      let _ = try FileMetadata(for: "\(pflag)/y")
+      let _ = try FileMetadata(for: "\(pflag)/z")
+    }
   }
-  
+
   
   
   @Test func tmpdir_tflag_oneslash() async throws {
-    setenv("TMPDIR", tmpdir, 1)
-    let p = ShellProcess(cmd, "mktemp", "-t", "foo")
-    let po = try await p.run()
-    let rr = po.string
-    let s = tmpdir
-    
-  #expect( rr.hasPrefix(s+"/foo." ) )
-    if rr.hasPrefix(s+"foo") {
-      let k = String(rr.dropLast())
-      try FileManager.default.removeItem(atPath: k)
+    let tdir = try tmpdir("tmp_env")
+    defer { rm(tdir) }
+    Darwin.setenv("TMPDIR", tdir.string, 1)
+    try await run(args: "mktemp", "-t", "foo") { po in
+      let rr = po.string
+      let s = tdir.string
+
+      #expect( rr.hasPrefix(s+"/foo." ) )
+      if rr.hasPrefix(s+"foo") {
+        let k = String(rr.dropLast())
+        self.rm(FilePath(k))
+      }
     }
   }
-  
+
   // FIXME: finish this 
   /*
   

@@ -24,13 +24,14 @@ import ShellTesting
   let suiteBundle = "shell_cmds_jotTest"
   
   func doTest(_ o : String, _ a : [String]) async throws {
-    let po = try await ShellProcess(cmd, a).run()
-    let ox = try fileContents("regress.\(o).out")
-    if ox.contains("\0") || po.string.contains("\0") {
-      let cannotShowZero = po.string == ox
-      #expect(cannotShowZero)
-    } else {
-      #expect(po.string == ox)
+    try await run ( args: a) { po in
+      let ox = try await self.fileContents("regress.\(o).out")
+      if ox.contains("\0") || po.string.contains("\0") {
+        let cannotShowZero = po.string == ox
+        #expect(cannotShowZero)
+      } else {
+        #expect(po.string == ox)
+      }
     }
   }
   
@@ -45,12 +46,13 @@ import ShellTesting
   }
   
   func doTestUniq(_ o : String, _ a : String) async throws {
-    let po = try await ShellProcess(cmd, Array(a.components(separatedBy: " ").dropFirst() )).run()
-    let ox = try fileContents("regress.\(o).out")
+    try await run( args: Array(a.components(separatedBy: " ").dropFirst() )) { po in
+      let ox = try await self.fileContents("regress.\(o).out")
 
-    let jj = (Set(po.string.components(separatedBy: "\n").dropLast()).sorted() + [""]).joined(separator: "\n")
+      let jj = (Set(po.string.components(separatedBy: "\n").dropLast()).sorted() + [""]).joined(separator: "\n")
 
-    #expect(jj == ox)
+      #expect(jj == ox)
+    }
   }
   
   @Test func test01() async throws { try await doTest("x", ["-w", "%X", "-s", ",", "100", "1", "200"]) }

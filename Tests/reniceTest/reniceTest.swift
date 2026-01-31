@@ -9,6 +9,7 @@
 */
 
 import ShellTesting
+import Darwin
 
 @Suite("renice", .serialized) struct reniceTest : ShellTest {
   let cmd = "renice"

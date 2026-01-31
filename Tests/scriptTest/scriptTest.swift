@@ -18,18 +18,19 @@
  */
 
 import ShellTesting
+import Darwin
 
 @Suite("script") struct scriptTest : ShellTest {
   let cmd = "script"
   let suiteBundle = "shell_cmds_scriptTest"
 
-  @Test("Ignore tcgetattr() failure when input is a regular file") func from_file_body() throws {
-    let infil = try tmpfile("empty", Data())
+  @Test("Ignore tcgetattr() failure when input is a regular file") func from_file_body() async throws {
+    let infil = try tmpfile("empty", [UInt8]())
     let outfil = "output"
     defer {
       rm(infil)
     }
-    let a = try tryInput("script", [outfil], FileHandle(forReadingFrom: infil) )
+    let a = tryInput("script", [outfil], infil )
     #expect(a == 0)
     
   }
@@ -45,7 +46,7 @@ import ShellTesting
   
   
   // input is a file, a device, or a pipe
-  public func tryInput(_ executable: String, _ args: [String], _ input : FileHandle) -> Int32 {
+  public func tryInput(_ executable: String, _ args: [String], _ input : FilePath) -> Int32 {
     let process = Process()
 
     let output = Pipe()

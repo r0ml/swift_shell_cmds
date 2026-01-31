@@ -18,6 +18,7 @@
  */
 
 import ShellTesting
+import Darwin
 
 @Suite class applyTest : ShellTest {
   let cmd = "apply"

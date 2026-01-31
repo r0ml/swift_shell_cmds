@@ -223,7 +223,7 @@ let optString = "adeFkpqr"
       if options.pflg {
         fs = try FileDescriptor(forReading: options.fname)
       } else {
-        if !fileExists(atPath: options.fname) {
+        if !FilePath(options.fname).exists {
           fs = try FileDescriptor.open(options.fname, .writeOnly, options: [.create], permissions: [.ownerReadWrite])
         } else {
           fs = try FileDescriptor.open(options.fname, .writeOnly)

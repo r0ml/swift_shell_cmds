@@ -30,6 +30,7 @@
 */
 
 import ShellTesting
+import Darwin
 
 @Suite("killall") final class killallTest : ShellTest {
   let cmd = "killall"

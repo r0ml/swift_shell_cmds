@@ -24,9 +24,10 @@ import ShellTesting
   let suiteBundle = "shell_cmds_timeTest"
 
   @Test("check real time") func timeSleepTest() async throws {
-    let po = try await ShellProcess(cmd, "sleep", "1").run()
-    #expect(po.code == 0)
-    let r = po.string
+    //    let po = try await ShellProcess(cmd, "sleep", "1").run()
+    try await run(args: "sleep", "1") {po in
+      #expect(po.code == 0)
+      let r = po.string
       let rr = r.trimmingCharacters(in: .whitespaces)
       let k = rr.split(separator: /\ +/)
       if let kk = k.first,
@@ -36,6 +37,7 @@ import ShellTesting
         Issue.record("mis-timed sleep")
       }
     }
+  }
 
   // FIXME: can't figure out how to make the time command get values for those last three items 
   @Test("check instructions retired", .disabled("the instructions retired/cycles elapsed/peak memory footprint members of rusage are always zero")) func instructionsRetired() async throws {
@@ -44,15 +46,14 @@ import ShellTesting
 
   @Test("check child SIGUSR1", .disabled("not sure how the signal handling is working -- but I don't get an error return even though the sleep is interrupted")) func check_child_sigusr1() async throws {
 
-    let po = try await ShellProcess(cmd,
+//    let po = try await ShellProcess(cmd,
 //    "time", ["sh", "-c", "kill -USR1 $$ && sleep 5 && true"])
-                                 "sh", "-c", "sleep 5 && true").run()
-    
-    print(po.code)
-    print(po.string)
-    print(po.error)
-    
-    #expect(po.code != 0, "should allow child to receive SIGUSR1")
+    try await run(args: "sh", "-c", "sleep 5 && true") { po in
+      print(po.code)
+      print(po.string)
+      print(po.error)
+      #expect(po.code != 0, "should allow child to receive SIGUSR1")
+    }
   }
   
   @Test("check non-existent binary") func check_binary() async throws {

@@ -18,6 +18,7 @@
  */
 
 import ShellTesting
+import Darwin
 
 @Suite(.serialized) struct printfTest : ShellTest {
   let cmd = "printf"
@@ -29,7 +30,7 @@ import ShellTesting
     try await run(output: out, args: "abc%b%b", "def\n", "\\cghi")
   }
 
-   // REGRESSION_TEST(`d', `env printf "%d,%5d,%.5d,%0*d,%.*d\n" 123 123 123 5 123 5 123')
+  // REGRESSION_TEST(`d', `env printf "%d,%5d,%.5d,%0*d,%.*d\n" 123 123 123 5 123 5 123')
   @Test func test_d() async throws {
     let out = try fileContents("regress.d.out")
     try await run(output: out, args: "%d,%5d,%.5d,%0*d,%.*d\n", "123", "123", "123", "5", "123", "5", "123")
@@ -40,30 +41,37 @@ import ShellTesting
     let out = try fileContents("regress.f.out")
     try await run(output: out, args: "%f,%-8.3f,%f,%f\n", "+42.25", "-42.25", "inf", "nan")
   }
-  
- // REGRESSION_TEST(`l1', `LC_ALL=en_US.ISO8859-1 env printf "%d\n" $(env printf \"\\344)')
+
+  // REGRESSION_TEST(`l1', `LC_ALL=en_US.ISO8859-1 env printf "%d\n" $(env printf \"\\344)')
   // The implementation will use ISOLatin1 (ISO8859-1) for characters in the 0-255 range -- but will use
   // the first unicode scalar of the composite for all others.
   // This passes this test, but it is unclear that this behavior is correct for all characters
   @Test(  // .disabled("arguments get interpreted with utf8 -- the \\344 character gets translated to two scalars")
   ) func test_l1() async throws {
-    setenv("LC_ALL","en.US.ISO8859-1", 1)
-    let po1 = try await ShellProcess(cmd, "\"\\344").run()
-    let po2 = try await ShellProcess(cmd, "%d\n", po1.string).run()
-    let out = try fileContents("regress.l1.out")
-    #expect(po2.string == out)
+    Darwin.setenv("LC_ALL","en.US.ISO8859-1", 1)
+    try await run(args: "\"\\344") { po1 in
+      //    let po1 = try await ShellProcess(cmd, "\"\\344").run()
+      try await run(args: "%d\n", po1.string) { po2 in
+        //      let po2 = try await ShellProcess(cmd, "%d\n", po1.string).run()
+        let out = try fileContents("regress.l1.out")
+        #expect(po2.string == out)
+      }
+    }
   }
-  
+
   // REGRESSION_TEST(`l2', `LC_ALL=en_US.UTF-8 env printf "%d\n" $(env printf \"\\303\\244)')
   // FIXME: The conversion on the way in is problematic
   @Test(.disabled("Command line arguments are always parsed as UTF-8, so the \\303\\244 sequence is interpreted as two characters"))
   func test_l2() async throws {
-    setenv("LC_ALL", "en.US.UTF-8", 1)
-    let po1 = try await ShellProcess(cmd, "\"\\303\\244").run()
-//    let j3 = "\"\u{195}\u{164}"
-    let po2 = try await ShellProcess(cmd, "%d\n", po1.string).run()
-    let out = try fileContents("regress.l2.out")
-    #expect(po2.string == out)
+    Darwin.setenv("LC_ALL", "en.US.UTF-8", 1)
+    //    let po1 = try await ShellProcess(cmd, "\"\\303\\244").run()
+    try await run(args: "\"\\303\\244") { po1 in
+      //    let j3 = "\"\u{195}\u{164}"
+      try await run(args: "%d\n", po1.string) { po2 in
+        let out = try fileContents("regress.l2.out")
+        #expect(po2.string == out)
+      }
+    }
   }
 
  // REGRESSION_TEST(`m1', `env printf "%c%%%d\0\045\n" abc \"abc')
@@ -129,64 +137,73 @@ import ShellTesting
  // REGRESSION_TEST(`missingpos1', `env printf "%1\$*s" 1 1 2>&1')
   @Test func test_missingpos1() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    let po = try await ShellProcess(cmd, "%1$*s", "1", "1").run()
-    #expect( (po.string + po.error) == out)
+    try await run(args: "%1$*s", "1", "1") { po in
+      #expect( (po.string + po.error) == out)
+    }
   }
 
  // REGRESSION_TEST(`missingpos1', `env printf "%*1\$s" 1 1 2>&1')
   @Test func test_missingpos2() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    let po = try await ShellProcess(cmd, "%*1$s", "1", "1").run()
-    #expect( (po.string + po.error) == out)
+    try await run( args: "%*1$s", "1", "1") { po in
+      #expect( (po.string + po.error) == out)
+    }
   }
 
  // REGRESSION_TEST(`missingpos1', `env printf "%1\$*.*s" 1 1 1 2>&1')
   @Test func test_missingpos3() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    let po = try await ShellProcess(cmd, "%1$*.*s", "1", "1", "1").run()
-    #expect( (po.string + po.error) == out)
+    try await run(args: "%1$*.*s", "1", "1", "1") { po in
+      #expect( (po.string + po.error) == out)
+    }
   }
 
  // REGRESSION_TEST(`missingpos1', `env printf "%*1\$.*s" 1 1 1 2>&1')
   @Test func test_missiingpos4() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    let po = try await ShellProcess(cmd, "%*1$.*s", "1", "1", "1").run()
-    #expect( (po.string + po.error) == out)
+    try await run(args: "%*1$.*s", "1", "1", "1") { po in
+      #expect( (po.string + po.error) == out)
+    }
   }
 
  // REGRESSION_TEST(`missingpos1', `env printf "%*.*1\$s" 1 1 1 2>&1')
   @Test func test_missingpos5() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    let po = try await ShellProcess(cmd, "%*.*1$s", "1", "1", "1").run()
-    #expect( (po.string + po.error) == out)
+    try await run(args: "%*.*1$s", "1", "1", "1") { po in
+      #expect( (po.string + po.error) == out)
+    }
   }
 
  // REGRESSION_TEST(`missingpos1', `env printf "%1\$*2\$.*s" 1 1 1 2>&1')
   @Test func test_missingpos6() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    let po = try await ShellProcess(cmd, "%1$*2$.*s", "1", "1", "1").run()
-    #expect( (po.string + po.error) == out)
+    try await run(args: "%1$*2$.*s", "1", "1", "1") { po in
+      #expect( (po.string + po.error) == out)
+    }
   }
 
  // REGRESSION_TEST(`missingpos1', `env printf "%*1\$.*2\$s" 1 1 1 2>&1')
   @Test func test_missingpos7() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    let po = try await ShellProcess(cmd, "%*1$.*2$s", "1", "1", "1").run()
-    #expect( (po.string + po.error) == out)
+    try await run(args: "%*1$.*2$s", "1", "1", "1") { po in
+      #expect( (po.string + po.error) == out)
+    }
   }
 
  // REGRESSION_TEST(`missingpos1', `env printf "%1\$*.*2\$s" 1 1 1 2>&1')
   @Test func test_missingpos8() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    let po = try await ShellProcess(cmd, "%1$*.*2$s", "1", "1", "1").run()
-    #expect( (po.string + po.error) == out)
+    try await run(args: "%1$*.*2$s", "1", "1", "1") { po in
+      #expect( (po.string + po.error) == out)
+    }
   }
 
  // REGRESSION_TEST(`bwidth', `env printf "%8.2b" "a\nb\n"')
   @Test func test_bwidth() async throws {
     let out = try fileContents("regress.bwidth.out")
-    let po = try await ShellProcess(cmd, "%8.2b", "a\nb\n").run()
-    #expect( (po.string + po.error) == out)
+    try await run( args: "%8.2b", "a\nb\n") { po in
+      #expect( (po.string + po.error) == out)
+    }
   }
 
   

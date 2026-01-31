@@ -14,14 +14,14 @@ import ShellTesting
 
   @Test("simplest -S")
   func simplestS() async throws {
-    let pwd = ProcessInfo.processInfo.environment["PWD"] ?? ""
+    let pwd = Environment["PWD"] ?? ""
     try await run(output: pwd+"\n", error: "", args: "-S", "echo ${PWD}")
   }
 
   @Test("simple -S")
   func simpleS() async throws {
-    let home = ProcessInfo.processInfo.environment["HOME"] ?? ""
-    let pwd = ProcessInfo.processInfo.environment["PWD"] ?? ""
+    let home = Environment["HOME"] ?? ""
+    let pwd = Environment["PWD"] ?? ""
     let error = """
 #env executing:  sh
 #env    arg[0]=  'sh'

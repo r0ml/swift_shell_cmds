@@ -90,23 +90,23 @@ import ShellTesting
   @Test(.serialized, arguments: 0...7, ["-s", "-vs"]) func v_flag(_ i : Int, _ f : String) async throws {
     let res1 = try inFile("d_hexdump_c.in")
     for i in 0...7 {
-      let p = ShellProcess(cmd, f, "\(i)", res1)
-      let po = try await p.run()
-      let k1 = po.string.components(separatedBy: "\n")
-      if f == "-s" {
-        #expect(k1.contains("*"))
-      } else {
-        #expect(!k1.contains("*"))
+      try await run(args: f, "\(i)", res1) { po in
+        let k1 = po.string.components(separatedBy: "\n")
+        if f == "-s" {
+          #expect(k1.contains("*"))
+        } else {
+          #expect(!k1.contains("*"))
+        }
       }
     }
   }
   
   @Test(arguments: ["-s", "-vs"]) func v_flag8(_ f : String) async throws {
     let res1 = try inFile("d_hexdump_c.in")
-    let p = ShellProcess(cmd, f, "8", res1)
-    let po = try await p.run()
-    let k1 = po.string.components(separatedBy: "\n")
-    #expect(!k1.contains("*"))
+    try await run(args: f, "8", res1) { po in
+      let k1 = po.string.components(separatedBy: "\n")
+      #expect(!k1.contains("*"))
+    }
   }
 
   @Test(arguments: ["a", "b", "c"]) func x_flag(_ cand : String) async throws {

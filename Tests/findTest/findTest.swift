@@ -29,21 +29,21 @@
 */
 
 import ShellTesting
+import Darwin
 
 @Suite("find tests") final class findTest : ShellTest {
   let cmd = "find"
   let suiteBundle = "shell_cmds_findTest"
 
-  var myDir : URL
-  
+  var myDir : FilePath
+
   deinit {
-      try! FileManager.default.removeItem(at: myDir)
+      rm(myDir)
   }
   
   init() throws {
     // mkdir test
-    myDir = FileManager.default.temporaryDirectory.appending(component: UUID().uuidString )
-    try FileManager.default.createDirectory(at: myDir, withIntermediateDirectories: false)
+    myDir = try tmpdir(uuidString())
   }
   
   @Test func find_newer_link() async throws {
@@ -80,6 +80,7 @@ import ShellTesting
     isoDate = "2023-12-31T09:00:00Z"
     date = dateFormatter.date(from:isoDate)!
 
+    
     FileManager.default.createFile(atPath: myDir.appending(component: "file2").path(percentEncoded: false), contents: nil, attributes: [.modificationDate: date])
     
 
@@ -116,7 +117,7 @@ import ShellTesting
   
   @Test
   func newerBm_msprec() async throws {
-    let s = myDir.appending(component: "scratch")
+    let s = myDir.appending("scratch")
 
     try FileManager.default.createDirectory(at: s, withIntermediateDirectories: false)
     FileManager.default.createFile(atPath: myDir.appending(component: "baseline").path(percentEncoded: false), contents: nil)
@@ -131,7 +132,9 @@ import ShellTesting
 \(s.appending(component: "file_b").relativePath)
 
 """
-    try await run(output: res, args: s, "-type", "f", "-newerBm", myDir.appending(component: "baseline") )
+    try await run(output: res, args: s, "-type", "f", "-newerBm", myDir.appending("baseline") )
   }
 
 }
+
+

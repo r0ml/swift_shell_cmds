@@ -76,10 +76,10 @@ import CMigration
 
   func runCommand() {
     for arg in options.args {
-      if let pa = try? CMigration.basename(arg) {
+      let pa = CMigration.basename(arg)
         let px = stripSuffix(pa, options.suffix)
         print(px)
-      }
+
     }
   }
 
