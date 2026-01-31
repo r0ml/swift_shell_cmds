@@ -44,65 +44,48 @@ import Darwin
   @Test func argv0() async throws {
     // start three processes
     for _ in 0..<3 {
-      try runKillableProcess()
+      try await runKillableProcess()
     }
     
-    let (_, j, _) = try shell("ps -x")
-    let jj = j.split(separator: "\n").filter {!($0.matches(of: /innocent_test_prog/).isEmpty) }
+    let op = try await shell("ps -x")
+    let jj = op.string.split(separator: "\n").filter {!($0.matches(of: /innocent_test_prog/).isEmpty) }
     #expect(jj.count == 3)
     try await run(args: "innocent_test_prog")
-    let (_, j2, _) = try shell("ps -x")
-    let jj2 = j2.split(separator: "\n").filter {!($0.matches(of: /innocent_test_prog/).isEmpty) }
+    let op2 = try await shell("ps -x")
+    let jj2 = op2.string.split(separator: "\n").filter {!($0.matches(of: /innocent_test_prog/).isEmpty) }
     #expect(jj2.count == 0)
 
     
   }
   
   
-  func runKillableProcess() throws {
+  func runKillableProcess() async throws {
 //    let t = FileManager.default.temporaryDirectory
 //    let tt = t.appending(component: "innocent_test_prog")
 //    try? FileManager.default.removeItem(at: tt)
     let tt = try tmpfile("innocent_test_prog")
     rm(tt)
-    try FileManager.default.createSymbolicLink(at: tt, withDestinationURL: URL(filePath: "/bin/sleep"))
-    
+    try tt.createSymbolicLink(to: FilePath("/bin/sleep"))
+
 //    FileManager.default.changeCurrentDirectoryPath(t.path)
-    let process = Process()
+    let process = DarwinProcess()
  //   print(tt.relativePath)
-    process.executableURL = tt // URL(fileURLWithPath: "./innocent_test_prog")
-//    process.currentDirectoryURL = t
-    process.arguments = ["100"]
-    try process.run()
-//    process.waitUntilExit()
+    let _ = try await process.launch(tt.string, args: "100")
   }
   
   /// Returns the output of running `executable` with `args`. Throws an error if the process exits indicating failure.
-  public func shell(_ cmd : String) throws -> (Int32, String, String) {
-    let process = Process()
-    let output = Pipe()
-    let stderr = Pipe()
-    
-    let execu = "/bin/sh"
-    
-  //  print("launchPath \(execu)")
-    
-    process.launchPath = execu
-    process.arguments = ["-c", cmd]
-    process.standardOutput = output
-    process.standardError = stderr
-    process.launch()
+  public func shell(_ cmd : String) async throws -> DarwinProcess.Output {
 
+    let process = DarwinProcess()
+
+    let pid = try await process.launch("/bin/sh", args: "-c", cmd)
     Task.detached {
-      try await Task.sleep(nanoseconds: UInt64( Double(NSEC_PER_SEC) * 2 ) )
+      try await Task.sleep(nanoseconds: UInt64( Double(Darwin.NSEC_PER_SEC) * 2 ) )
   //    print("gonna interrupt")
-      process.interrupt()
+      Darwin.kill(pid, SIGINT)
     }
-    
-    process.waitUntilExit()
-    let k1 = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-    let k2 = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-    return (process.terminationStatus, k1, k2)
+
+    return try await process.value()
 
   }
 

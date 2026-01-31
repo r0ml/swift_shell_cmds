@@ -24,75 +24,64 @@ import ShellTesting
   let suiteBundle = "shell_cmds_path_helperTest"
   
   @Test("empty PATH") func empty() async throws {
-    let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)
-    let tdx = "\(td)/empty.XXXXXXXX"
-    try FileManager.default.createDirectory(atPath: tdx, withIntermediateDirectories: true)
-    
+    let tdx = try tmpdir("empty")
     let ex = "PATH=\"\"; export PATH;\nMANPATH=\":\"; export MANPATH;\n"
-    try await run(output: ex, env: ["PATH":"", "PATH_HELPER_ROOT":tdx, "MANPATH":""] )
+    try await run(output: ex, env: ["PATH":"", "PATH_HELPER_ROOT":tdx.string, "MANPATH":""] )
   }
 
   @Test("empty PATH and MANPATH") func empty2() async throws {
-    let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)
-    let tdx = "\(td)/empty2.XXXXXXXX"
-    try FileManager.default.createDirectory(atPath: tdx, withIntermediateDirectories: true)
-    
+    let tdx = try tmpdir("empty2")
+    defer { rm(tdx) }
+
     let pp = "PATH=\"\"; export PATH;\n"
     let mp = "MANPATH=\":\"; export MANPATH;\n"
-    
-    
-    try await run(output: pp + mp, env: ["PATH":"", "PATH_HELPER_ROOT":tdx, "MANPATH":""] )
+
+    try await run(output: pp + mp, env: ["PATH":"", "PATH_HELPER_ROOT":tdx.string, "MANPATH":""] )
   }
   
   @Test("preserve existing values") func preserve() async throws {
-    let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)
-    let tdx = "\(td)/preserve.XXXXXXXX"
-    try FileManager.default.createDirectory(atPath: tdx, withIntermediateDirectories: true)
-    
+    let tdx = try tmpdir("preserve")
+    defer { rm(tdx) }
+
     let res = """
 PATH="a:b"; export PATH;
 MANPATH="c:d:"; export MANPATH;
 
 """
-    
-    try await run(output: res, env: ["PATH":"a:b", "PATH_HELPER_ROOT":tdx, "MANPATH":"c:d"] )
+    try await run(output: res, env: ["PATH":"a:b", "PATH_HELPER_ROOT":tdx.string, "MANPATH":"c:d"] )
   }
   
   // FIXME: doesn't pass when run from command line, but passes when run from XCode
   @Test("combine defaults and add-ons in that order") func combine() async throws {
-    let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)
-    let tdx = "\(td)/combine.XXXXXXXX"
-    let tdxx = "\(tdx)/etc/paths.d"
-    try FileManager.default.createDirectory(atPath: tdxx, withIntermediateDirectories: true)
-    FileManager.default.createFile(atPath: "\(tdx)/etc/paths", contents: Data("a\nb\n".utf8) )
-    FileManager.default.createFile(atPath: "\(tdx)/etc/paths.d/add-ons", contents: Data("c\nd\n".utf8) )
+    let tdx = try tmpdir("combine")
+    defer { rm(tdx) }
 
-    
+    let tdxx = try tmpdir("combine/etc/paths.d")
+    let a = try tmpfile("combine/etc/paths", "a\nb\n" )
+    let b = try tmpfile("combind/etc/paths.d/add-ons", "c\nd\n" )
     let res = "PATH=\"a:b:c:d\"; export PATH;\n"
-    
-    try await run(output: res, env: [ "PATH_HELPER_ROOT":tdx, "PATH":"" ] )
+    try await run(output: res, env: [ "PATH_HELPER_ROOT":tdx.string, "PATH":"" ] )
   }
-  
+
   // FIXME: doesn't pass when run from command line, but passes when run from XCode
   @Test("read add-ons in correct order") func order() async throws {
-    let td = FileManager.default.temporaryDirectory.path(percentEncoded: false)
-    let tdx = "\(td)/order.XXXXXXXX"
-    let tdxx = "\(tdx)/etc/paths.d"
-    try FileManager.default.createDirectory(atPath: tdxx, withIntermediateDirectories: true)
-    print(tdxx)
-    FileManager.default.createFile(atPath: "\(tdx)/etc/paths", contents: Data("a\nb\n".utf8) )
-    FileManager.default.createFile(atPath: "\(tdx)/etc/paths.d/a", contents: Data("z\n".utf8) )
-    FileManager.default.createFile(atPath: "\(tdx)/etc/paths.d/1000", contents: Data("y\n".utf8) )
-    FileManager.default.createFile(atPath: "\(tdx)/etc/paths.d/0400-b", contents: Data("x\n".utf8) )
-    FileManager.default.createFile(atPath: "\(tdx)/etc/paths.d/400-a", contents: Data("w\n".utf8) )
-    
-    FileManager.default.createFile(atPath: "\(tdx)/etc/paths.d/70def", contents: Data("d\ne\nf\n".utf8) )
+    let tdx = try tmpdir("order")
+    defer { rm(tdx) }
 
-    FileManager.default.createFile(atPath: "\(tdx)/etc/paths.d/9", contents: Data("c\n".utf8) )
-    
+    let tdxx = try tmpdir("order/etc/paths.d")
+
+    let a = try tmpfile("order/etc/paths", "a\nb\n" )
+    let b = try tmpfile("order/etc/paths.d/a", "z\n" )
+    let c = try tmpfile("order/etc/paths.d/1000", "y\n" )
+    let d = try tmpfile("order/etc/paths.d/0400-b", "x\n" )
+    let e = try tmpfile("order/etc/paths.d/400-a", "w\n" )
+    let f = try tmpfile("order/etc/paths.d/70def", "d\ne\nf\n" )
+    let g = try tmpfile("order/etc/paths.d/9", "c\n" )
+
     let res = "PATH=\"a:b:c:d:e:f:w:x:y:z:g:h\"; export PATH;\n"
     
-    try await run(output: res, env: [ "PATH_HELPER_ROOT":tdx, "PATH":"g:h" ] )
+    try await run(output: res, env: [ "PATH_HELPER_ROOT": tdx.string, "PATH":"g:h" ] )
+
   }
   
   

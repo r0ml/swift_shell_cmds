@@ -30,7 +30,7 @@ import Darwin
     defer {
       rm(infil)
     }
-    let a = tryInput("script", [outfil], infil )
+    let a = try await tryInput("script", [outfil], infil )
     #expect(a == 0)
     
   }
@@ -46,28 +46,10 @@ import Darwin
   
   
   // input is a file, a device, or a pipe
-  public func tryInput(_ executable: String, _ args: [String], _ input : FilePath) -> Int32 {
-    let process = Process()
+  public func tryInput(_ executable: String, _ args: [String], _ input : FilePath) async throws -> Int32 {
+    let process = DarwinProcess()
 
-    let output = Pipe()
-    let stderr = Pipe()
-
-    let d = Bundle(for: ShellProcess.self).bundleURL
-    let execu = d.deletingLastPathComponent().appending(component: executable).path(percentEncoded:false)
-    
-  //  print("launchPath \(execu)")
-    
-    process.launchPath = execu
-    process.arguments = args
-
-
-    process.standardOutput = output.fileHandleForWriting
-    process.standardInput = input
-    process.standardError = stderr.fileHandleForWriting
-
-    process.environment = ["SHELL" : "/bin/sh", "PS1" : "$ "]
-
-    process.launch()
+    let pid = try await process.launch(executable, withStdin: input, args: args, env: ["SHELL" : "/bin/sh", "PS1" : "$"] )
 
 /*
     var writeok = true
@@ -85,18 +67,13 @@ import Darwin
     Task.detached {
       try await Task.sleep(nanoseconds: NSEC_PER_SEC * 1)
   //    print("gonna interrupt")
-      process.interrupt()
+      if 0 != kill(pid, SIGINT) {
+        throw POSIXErrno(fn: "signaling SIGINT") }
     }
     
-    process.waitUntilExit()
-//    writeok = false
-  //  print("finished waiting \(args)")
-    output.fileHandleForWriting.closeFile()
-    stderr.fileHandleForWriting.closeFile()
-    
-    let k1 = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
-    let k2 = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
-    return process.terminationStatus // , k1, k2)
+    let po = try await process.value()
+
+    return po.code
 
   }
 

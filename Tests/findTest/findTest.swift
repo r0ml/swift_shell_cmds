@@ -35,29 +35,14 @@ import Darwin
   let cmd = "find"
   let suiteBundle = "shell_cmds_findTest"
 
-  var myDir : FilePath
-
-  deinit {
-      rm(myDir)
-  }
-  
-  init() throws {
-    // mkdir test
-    myDir = try tmpdir(uuidString())
-  }
-  
   @Test func find_newer_link() async throws {
-    
-    // ln -s file1 test/link
-    let ll = myDir.appending(component: "link")
-    try FileManager.default.createSymbolicLink(atPath: ll.relativePath, withDestinationPath: "file1")
-    
-    var isoDate : String
-    var date : Date
-    let dateFormatter = ISO8601DateFormatter()
+    let myDir = try tmpdir("")
+    let f1 = try tmpfile("f1")
+    let ll = try tmpfile("link")
+    try ll.createSymbolicLink(to: f1)
+//    let ll = try f1.createSymbolicLink("link")
 
     // touch -d 2017-12-31T10:00:00Z -h test/link
-    isoDate = "2023-12-31T06:00:00Z"
 
     /// Bah! This doesn't work because Foundation has no equivalent to AT_SYMLINK_NOFOLLOW for symbolic links
 /*
@@ -65,71 +50,64 @@ import Darwin
     try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: ll.relativePath)
 */
 
-    var t4 = tm()
-    let _ = strptime(isoDate, "%Y-%m-%dT%H:%M:%S%Z", &t4) // this should return nil
-    let t3 = Int(timegm(&t4))
-    var t1 = timespec()
-    t1.tv_sec = t3
-    t1.tv_nsec = 0
-    let times : [timespec] = [t1, t1]
-    
-    let stat = utimensat(-1, ll.relativePath, times, AT_SYMLINK_NOFOLLOW)
-    #expect(stat == 0)
-    
-    // touch -d 2017-12-31T11:00:00Z test/file2
-    isoDate = "2023-12-31T09:00:00Z"
-    date = dateFormatter.date(from:isoDate)!
+    let t1 = try DateTime(fromISO8601: "2023-12-31T06:00:00Z")
+    try ll.setTimes(modified: t1, accessed: t1)
 
-    
-    FileManager.default.createFile(atPath: myDir.appending(component: "file2").path(percentEncoded: false), contents: nil, attributes: [.modificationDate: date])
-    
+    // touch -d 2017-12-31T11:00:00Z test/file2
+    let d3 = try DateTime(fromISO8601: "2023-12-31T09:00:00Z")
+    let file2 = try tmpfile("file2", "")
+    try file2.setTimes(modified: d3)
+
+//    FileManager.default.createFile(atPath: myDir.appending(component: "file2").path(percentEncoded: false), contents: nil, attributes: [.modificationDate: date])
+
 
     // touch -d 2017-12-31T12:00:00Z test/file1
-    isoDate = "2023-12-31T12:00:00Z"
-    date = dateFormatter.date(from:isoDate)!
-
-    FileManager.default.createFile(atPath: myDir.appending(component: "file1").path(percentEncoded: false), contents: nil, attributes: [.modificationDate: date])
+    let d4 = try DateTime(fromISO8601: "2023-12-31T12:00:00Z")
+    let file1 = try tmpfile("file1", "")
+    try file1.setTimes(modified: d4)
 
 
 //    let j = try captureStdoutLaunch(Self.self, "find", [myDir.relativePath, "-newer", myDir.appending(component: "link").relativePath])
     let res = """
-\(myDir.relativePath)
-\(myDir.appending(component: "file2").relativePath)
-\(myDir.appending(component: "file1").relativePath)
+\(myDir.string)
+\(file2.string)
+\(file1.string)
 
 """
-    try await run(output: res, args: myDir, "-newer", myDir.appending(component: "link") )
+    try await run(output: res, args: myDir, "-newer", ll )
 //    #expect(j.1 == res)
   }
   
   @Test(.disabled("original test code implies a different result than the find shipped with macOS")) func find_samefile_link() async throws {
-    let s = myDir.appending(component: "test")
+    let s = try tmpdir("test")
 
-    try FileManager.default.createDirectory(at: s, withIntermediateDirectories: false)
-    try FileManager.default.createSymbolicLink(atPath: s.appending(component: "link2").relativePath, withDestinationPath: "file3")
-    FileManager.default.createFile(atPath: s.appending(component: "file3").path(percentEncoded: false), contents: nil)
+    let f3  = try tmpfile("test/file3", "")
+
+    let l2 = try tmpfile("test/link2")
+    try l2.createSymbolicLink(to: f3)
+
+//    let l2 = try createSymbolicLink("test/link2")
 
 //    let j = try captureStdoutLaunch(Self.self, "find", [s.relativePath, "-samefile", s.appending(component: "link2").relativePath])
     // FIXME: the find shipped with macOS produces "file3" here, NOT link2
 //    #expect(j.1 == (s.appending(component: "link2").relativePath + "\n") )
-    try await run(output: s.appending(component: "link2").relativePath + "\n", args: s, "-samefile", s.appending(component: "link2")  )
+    try await run(output: "link2\n", args: s, "-samefile", l2  )
   }
   
   @Test
   func newerBm_msprec() async throws {
-    let s = myDir.appending("scratch")
-
-    try FileManager.default.createDirectory(at: s, withIntermediateDirectories: false)
-    FileManager.default.createFile(atPath: myDir.appending(component: "baseline").path(percentEncoded: false), contents: nil)
-    FileManager.default.createFile(atPath: s.appending(component: "file_a").path(percentEncoded: false), contents: nil)
-    try? await Task.sleep(nanoseconds: NSEC_PER_SEC)
-    FileManager.default.createFile(atPath: s.appending(component: "file_b").path(percentEncoded: false), contents: nil)
+    let myDir = try tmpdir("")
+    let s = try tmpdir("scratch") // under myDir?
+    let bl = try tmpfile("baseline", "")
+    let fa = try tmpfile("scratch/file_a", "")
+    try? await Task.sleep(nanoseconds: Darwin.NSEC_PER_SEC)
+    let fb = try tmpfile("scratch/file_b", "")
 
 //    let j = try captureStdoutLaunch(Self.self, "find", [s.relativePath, "-type", "f", "-newerBm", myDir.appending(component: "baseline").relativePath])
 
     let res = """
-\(s.appending(component: "file_a").relativePath)
-\(s.appending(component: "file_b").relativePath)
+\(s.appending("file_a").string)
+\(s.appending("file_b").string)
 
 """
     try await run(output: res, args: s, "-type", "f", "-newerBm", myDir.appending("baseline") )

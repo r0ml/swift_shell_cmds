@@ -16,7 +16,7 @@ import Darwin
   let suiteBundle = "shell_cmds_reniceTest"
 
   @Test("Set a process's nice number to an absolute value") func abs_pid() async throws {
-    let pid = run_test_process()
+    let pid = try await run_test_process()
     let prio = Int(getpriority(PRIO_PROCESS, UInt32(pid)))
     let incr = 3
     
@@ -30,7 +30,7 @@ import Darwin
   
   
   @Test("Change a process's nice number by a relative value") func rel_pid() async throws {
-    let pid = run_test_process()
+    let pid = try await run_test_process()
     let prio = Int(getpriority(PRIO_PROCESS, UInt32(pid)))
     let incr = 3
     
@@ -46,7 +46,7 @@ import Darwin
   }
 
   @Test("Set a process group's nice number to an absolute value") func abs_pgid() async throws {
-    let pid = run_test_process()
+    let pid = try await run_test_process()
     let pgrp = UInt32(getpgid(pid))
     let prio = Int(getpriority(PRIO_PGRP, pgrp))
     let incr = 3
@@ -60,7 +60,7 @@ import Darwin
   }
 
   @Test("Change a process group's nice number by a relative value") func rel_pgid() async throws {
-    let pid = run_test_process()
+    let pid = try await run_test_process()
     let pgrp = UInt32(getpgid(pid))
     let prio = Int(getpriority(PRIO_PGRP, pgrp))
     let incr = 3
@@ -79,8 +79,8 @@ import Darwin
     let incr = 3
     let test_user = "test_user"
     
-    let pid = run_test_process() // launch a process and get it's pid
-    
+    let pid = try await run_test_process() // launch a process and get it's pid
+
     try await run(args: "-u", "-n", String(prio+incr), test_user)
     
     let nprio = Int(getpriority(PRIO_PROCESS, UInt32(pid)))
@@ -93,7 +93,7 @@ import Darwin
   
   @Test("Test various delimiter positions") func delim() async throws {
     
-    let pid = run_test_process()
+    let pid = try await run_test_process()
     var incr = 0
 
     let nice = Int(getpriority(PRIO_PROCESS, UInt32(pid)))
@@ -139,18 +139,13 @@ import Darwin
   }
 
   
-  func run_test_process() -> Int32 {
-    let process = Process()
-    let execu = "/bin/sleep"
-    
-  //  print("launchPath \(execu)")
-    
-    process.launchPath = execu
-    process.arguments = ["60"]
-    process.launch()
+  func run_test_process() async throws -> Int32 {
+    let process = DarwinProcess()
+    let pid = try await process.launch("/bin/sleep", args: "60")
+
 
     // run a test process (sleep 60 will do) to have a process we can check the nice value of
-    return process.processIdentifier
+    return pid
   }
   
   func niceValue(_ pid: Int32) -> Int {
