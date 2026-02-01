@@ -81,7 +81,7 @@
       </MacroExpansion>
       <CommandLineArguments>
          <CommandLineArgument
-            argument = "-c"
+            argument = "-x"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
@@ -93,7 +93,7 @@
             isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "/Users/r0ml/AppleOpenSource/swift_shell_cmds/Tests/hexdumpTest/Resources/d_hexdump_b.in"
+            argument = "/Users/r0ml/AppleOpenSource/swift_shell_cmds/Tests/hexdumpTest/Resources/d_hexdump_a.in"
             isEnabled = "YES">
          </CommandLineArgument>
       </CommandLineArguments>

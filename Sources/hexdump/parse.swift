@@ -53,21 +53,11 @@ extension hexdump {
   }
   
   func add(_ fmt: String) {
-//    var p: UnsafePointer<CUnsignedChar>?
-//    var savep: String
-    // var nextfs: UnsafeMutablePointer<UnsafeMutablePointer<FS>?>?
-    //    var tfs: UnsafeMutablePointer<FS>?
-//    var tfu: FU
-    
+
     // start new linked list of format units
     let tfs = FS(fmt: fmt)
 
     fsArray.append(tfs)
-
-//    nextfu = &tfs?.pointee?.nextfu
-    
-    // take the format string and break it up into format units
-//    p = UnsafePointer<CUnsignedChar>(fmt)
 
     var p : Substring = Substring("\(fmt)")
     

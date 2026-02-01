@@ -35,6 +35,11 @@
 
 import CMigration
 
+import os
+
+let logger = Logger.init(subsystem: "r0ml", category: "r0ml")
+
+
 // FIXME: there are no tests for this target
 @main final class Env : ShellCommand {
     // from envopts.swift
@@ -65,7 +70,7 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
     var opts = CommandOptions()
     var se = FileDescriptor.standardError
 
-    let j = CommandLine.arguments
+ //   let j = CommandLine.arguments
  //   let k = j.joined(separator: " ")
 
     var want_clear = false
@@ -153,7 +158,11 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
 
       return
     } else {
-      let oargv = options.aa.first! // CommandLine.arguments[Int(optind)]
+      let oargv = options.aa.first!
+
+      logger.info("\(oargv.utf8)")
+
+      // CommandLine.arguments[Int(optind)]
       var argv = oargv
       if options.term == "\0" {
         err( ExitCode.EXIT_CANCELED.rawValue, "cannot specify command with -0")
@@ -176,8 +185,7 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
  //     let pe = execvp(argv, Array(opts.aa) )
 
       do {
-        let p = ProcessRunner(command: argv, arguments: Array(options.aa.dropFirst()))
-        try await p.run(captureStdout: false, captureStderr: false)
+         let _ =  try await  DarwinProcess().run(argv, args: Array(options.aa.dropFirst()), captureOutput: false)
       } catch {
         throw CmdErr(127, "\(error)")
       }

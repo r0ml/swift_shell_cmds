@@ -32,7 +32,7 @@
 
 import CMigration
 
-func isTherex(candidate: String, silent: Bool) -> Bool {
+func isTherex(candidate: FilePath, silent: Bool) -> Bool {
   if let fin = try? FileMetadata(for: candidate),
      fin.filetype == .regular,
      (userId != 0 || !fin.permissions.intersection([.ownerExecute, .groupExecute, .otherExecute]).isEmpty)
@@ -47,11 +47,11 @@ func isTherex(candidate: String, silent: Bool) -> Bool {
     return false
 }
 
-func printMatches(path: String, filename: String, allpaths: Bool, silent: Bool) -> Bool {
+func printMatches(path: String, filename: FilePath, allpaths: Bool, silent: Bool) -> Bool {
     var candidate = ""
     var found = false
 
-    if filename.contains("/") {
+  if filename.components.count > 1 {
       return isTherex(candidate: filename, silent: silent)
     }
 
@@ -61,7 +61,7 @@ func printMatches(path: String, filename: String, allpaths: Bool, silent: Bool) 
         if candidate.count >= PATH_MAX {
             continue
         }
-      if isTherex(candidate: candidate, silent: silent) {
+      if isTherex(candidate: FilePath(candidate), silent: silent) {
             found = true
             if !allpaths {
                 break
@@ -111,7 +111,7 @@ func printMatches(path: String, filename: String, allpaths: Bool, silent: Bool) 
     }
     
     for a in options.args {
-      if a.count >= MAXPATHLEN || !printMatches(path: path, filename: a, allpaths: options.allpaths, silent: options.silent) {
+      if a.count >= MAXPATHLEN || !printMatches(path: path, filename: FilePath(a), allpaths: options.allpaths, silent: options.silent) {
         throw CmdErr(1)
       }
     }

@@ -181,8 +181,8 @@ final class hexdump : ShellCommand {
     //    var p: String?
     var opts = CommandOptions()
 
-    let av = CommandLine.arguments[0]
-    if let p = av.lastIndex(of: "o"), av[p...] != "od" {
+    let av = programName
+    if av.split(separator: "/").last != "od" {
       do {
         try newsyntax(&opts)
       } catch let e as CmdErr {

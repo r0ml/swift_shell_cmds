@@ -123,7 +123,9 @@ import Darwin
             
             switch(pr.flags) {
             case .F_ADDRESS:
-                let _ = withVaList([address as quad_t]) { vprintf(fmt, $0) }
+//                let _ = withVaList([address as quad_t]) { vprintf(fmt, $0) }
+                let s = cFormat(fmt, quad_t(address))
+                Swift.print(s, terminator: "")
             case .F_BPAD:
                 "".withCString {
                     let _ = withVaList([$0]) { vprintf(fmt, $0 ) }

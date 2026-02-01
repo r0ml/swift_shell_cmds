@@ -25,7 +25,7 @@ import ShellTesting
   
   func doTest(_ o : String, _ a : [String]) async throws {
     try await run ( args: a) { po in
-      let ox = try await self.fileContents("regress.\(o).out")
+      let ox = try self.fileContents("regress.\(o).out")
       if ox.contains("\0") || po.string.contains("\0") {
         let cannotShowZero = po.string == ox
         #expect(cannotShowZero)
@@ -36,20 +36,26 @@ import ShellTesting
   }
   
   func doTest(_ o : String, _ a : String) async throws {
-    try await doTest(o, Array(a.components(separatedBy: " ").dropFirst() ) )
+    var k = a.split(separator: " ")
+    k.removeFirst()
+    try await doTest(o, k.map { String($0)} )
   }
   
   func doTestError(_ o : String, _ a : String) async throws {
-    try await run(status: 1, error: o, args: Array(a.components(separatedBy: " ").dropFirst() ) )
+    var k = a.split(separator: " ")
+    k.removeFirst()
+    try await run(status: 1, error: o, args: k )
     //    let ox = getFile("regress.\(o)", withExtension: "out")
     // #expect(e == o)
   }
   
   func doTestUniq(_ o : String, _ a : String) async throws {
-    try await run( args: Array(a.components(separatedBy: " ").dropFirst() )) { po in
-      let ox = try await self.fileContents("regress.\(o).out")
+    var k = a.split(separator: " ")
+    k.removeFirst()
+    try await run( args: k) { po in
+      let ox = try self.fileContents("regress.\(o).out")
 
-      let jj = (Set(po.string.components(separatedBy: "\n").dropLast()).sorted() + [""]).joined(separator: "\n")
+      let jj = (Set(po.string.split(separator: "\n").dropLast()).sorted() + [""]).joined(separator: "\n")
 
       #expect(jj == ox)
     }

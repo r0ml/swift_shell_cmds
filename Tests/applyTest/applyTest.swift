@@ -25,6 +25,10 @@ import Darwin
   let suiteBundle = "shell_cmds_applyTest"
   
   @Test func regress00() async throws {
+
+//    print(packageRoot() )
+//    print(currentTestModule())
+
     let x = try fileContents("regress.00.out")
     var res = try fileContents("regress.00.in")
     res.removeLast() // get rid of the trailing \n

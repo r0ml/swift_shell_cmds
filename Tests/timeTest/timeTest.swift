@@ -28,8 +28,10 @@ import ShellTesting
     try await run(args: "sleep", "1") {po in
       #expect(po.code == 0)
       let r = po.string
-      let rr = r.trimmingCharacters(in: .whitespaces)
-      let k = rr.split(separator: /\ +/)
+      let rr = String(r.drop { $0.isWhitespace }.reversed().drop { $0.isWhitespace }.reversed())
+
+      let k = rr.split( separator: " ", omittingEmptySubsequences: true)
+
       if let kk = k.first,
          let kkk = Double(kk) {
         #expect(kkk > 0)
