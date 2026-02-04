@@ -223,10 +223,10 @@ let optString = "adeFkpqr"
       if options.pflg {
         fs = try FileDescriptor(forReading: options.fname)
       } else {
-        if !FilePath(options.fname).exists {
-          fs = try FileDescriptor.open(options.fname, .writeOnly, options: [.create], permissions: [.ownerReadWrite])
-        } else {
+        if let _ = try? FileMetadata(for: FilePath(options.fname)) {
           fs = try FileDescriptor.open(options.fname, .writeOnly)
+        } else {
+          fs = try FileDescriptor.open(options.fname, .writeOnly, options: [.create], permissions: [.ownerReadWrite])
         }
         if options.aflg { try fs?.seek(offset: 0, from: .end) }
         else { try fs?.resize(to: 0) }

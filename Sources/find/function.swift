@@ -1017,7 +1017,7 @@ extension find {
       name = try? readlink(entry.accpath)
       if name == nil { return false }
     } else if entry.name.isEmpty {
-      name = basename(entry.path)
+      name = FilePath(entry.path).basename
     } else {
       name = entry.name
     }

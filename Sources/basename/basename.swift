@@ -76,7 +76,7 @@ import CMigration
 
   func runCommand() {
     for arg in options.args {
-      let pa = CMigration.basename(arg)
+      let pa = FilePath(arg).basename
         let px = stripSuffix(pa, options.suffix)
         print(px)
 

@@ -251,7 +251,7 @@ actor Stuff {
     
     do {
       if let ofn = options.ofn {
-        if FilePath(ofn).exists {
+        if let _  = try? FileMetadata(for: FilePath(ofn)) {
           fh = try FileDescriptor.open(ofn, .writeOnly, options: [.truncate])
         } else {
           fh = try FileDescriptor.open(ofn, .writeOnly, options: [.create], permissions: [.ownerReadWrite])
