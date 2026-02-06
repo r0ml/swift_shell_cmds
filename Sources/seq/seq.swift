@@ -115,7 +115,7 @@ import CMigration
   
   
   let optstring = "f:hs:t:w"
-  let longOpts: [CMigration.option] = [
+  let longOpts: [LongOption] = [
     .init("format", .required_argument),
     .init("separator", .required_argument),
     .init("terminator", .required_argument),

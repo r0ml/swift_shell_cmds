@@ -71,7 +71,7 @@ let EXIT_MISC : Int32 = 127
     let argvv = argv.map { strdup($0) }
     execvp(argv[1], argvv)
     exit_status = (errno == ENOENT) ? EXIT_NOTFOUND : EXIT_NOEXEC
-    return err( Int(exit_status), argv[1] )
+    err( Int(exit_status), argv[1] )
   }
   
   func dofile() {

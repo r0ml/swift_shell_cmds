@@ -99,16 +99,16 @@ import CMigration
     let optstr = "+0E:I:J:L:n:oP:pR:S:s:rtxf:"
     let opts = CommandOptions()
     
-    let long_options: [CMigration.option] = [
-      option("exit", .no_argument),             // x
-      option("interactive", .no_argument),      // p
-      option("max-args", .required_argument),   // n
-      option("max-chars", .required_argument),  // s
-      option("max-procs", .required_argument),  // P
-      option("no-run-if-empty", .no_argument),  // r
-      option("null", .no_argument),             // 0
-      option("verbose", .no_argument),          // t
-      option("input-file", .required_argument), // f
+    let long_options: [LongOption] = [
+      .init("exit", .no_argument),             // x
+      .init("interactive", .no_argument),      // p
+      .init("max-args", .required_argument),   // n
+      .init("max-chars", .required_argument),  // s
+      .init("max-procs", .required_argument),  // P
+      .init("no-run-if-empty", .no_argument),  // r
+      .init("null", .no_argument),             // 0
+      .init("verbose", .no_argument),          // t
+      .init("input-file", .required_argument), // f
     ]
 
     let go = BSDGetopt_long(optstr, long_options)

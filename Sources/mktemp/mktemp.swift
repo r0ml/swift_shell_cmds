@@ -38,11 +38,11 @@ import CMigration
 import Darwin
 
 @main final class mktemp : ShellCommand {
-  let long_opts: [CMigration.option] = [
-    option("directory", .no_argument),
-    option("tmpdir", .required_argument),
-    option("quiet", .no_argument),
-    option("dry-run", .required_argument),
+  let long_opts: [LongOption] = [
+    .init("directory", .no_argument),
+    .init("tmpdir", .required_argument),
+    .init("quiet", .no_argument),
+    .init("dry-run", .required_argument),
   ]
   
   
