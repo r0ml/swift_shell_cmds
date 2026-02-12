@@ -190,13 +190,13 @@ extension find {
   func f_Xmin(_ plan: PLAN, _ entry: inout FTSEntry) -> Bool {
     if case let .t_data(td) = plan.p_un {
       if plan.flags & F_TIME_C != 0 {
-        return COMPARE((now - entry.statp.lastModification.secs + 60 - 1) / 60, td.tv_sec, plan)
+        return COMPARE((now - entry.statp.lastChanged.secs + 60 - 1) / 60, td.tv_sec, plan)
       } else if plan.flags & F_TIME_A != 0 {
-        return COMPARE((now - entry.statp.lastAccess.secs + 60 - 1) / 60, td.tv_sec, plan)
+        return COMPARE((now - entry.statp.lastAccessed.secs + 60 - 1) / 60, td.tv_sec, plan)
       } else if plan.flags & F_TIME_B != 0 {
-        return COMPARE((now - entry.statp.created.secs + 60 - 1) / 60, td.tv_sec, plan)
+        return COMPARE((now - entry.statp.whenCreated.secs + 60 - 1) / 60, td.tv_sec, plan)
       } else {
-        return COMPARE((now - entry.statp.lastWrite.secs + 60 - 1) / 60, td.tv_sec, plan)
+        return COMPARE((now - entry.statp.lastModified.secs + 60 - 1) / 60, td.tv_sec, plan)
       }
     }
     fatalError("badly formed plan")
@@ -222,13 +222,13 @@ extension find {
     var xtime: time_t
     
     if plan.flags & F_TIME_A != 0 {
-      xtime = entry.statp.lastAccess.secs
+      xtime = entry.statp.lastAccessed.secs
     } else if plan.flags & F_TIME_B != 0 {
-      xtime = entry.statp.created.secs
+      xtime = entry.statp.whenCreated.secs
     } else if plan.flags & F_TIME_C != 0 {
-      xtime = entry.statp.lastModification.secs
+      xtime = entry.statp.lastChanged.secs
     } else {
-      xtime = entry.statp.lastWrite.secs
+      xtime = entry.statp.lastModified.secs
     }
     
     if case let .t_data(td) = plan.p_un {
@@ -1050,23 +1050,23 @@ extension find {
     var ft: timespec
     
     if ((plan.flags & F_TIME_C) != 0) {
-      ft = entry.statp.lastModification.timespec
+      ft = entry.statp.lastChanged.timespec
     }
     /*
      * rdar://problem/77588562 - this segment is covered by
      * HAVE_STRUCT_STAT_ST_BIRTHTIME upstream, which is wrong.
      */
     else if ((plan.flags & F_TIME_A) != 0) {
-      ft = entry.statp.lastAccess.timespec
+      ft = entry.statp.lastAccessed.timespec
     }
     // FIXME: ar
     // #if HAVE_STRUCT_STAT_ST_BIRTHTIME
     else if ((plan.flags & F_TIME_B) != 0) {
-      ft = entry.statp.created.timespec
+      ft = entry.statp.whenCreated.timespec
     }
     // #endif
     else {
-      ft = entry.statp.lastWrite.timespec
+      ft = entry.statp.lastModified.timespec
     }
     
     if case let .t_data(td) = plan.p_un {

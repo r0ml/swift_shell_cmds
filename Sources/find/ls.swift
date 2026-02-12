@@ -63,7 +63,7 @@ extension find {
     } else {
       print(cFormat("%8lld ", sb.size), terminator: "")
     }
-    printtime(sb.lastWrite.secs)
+    printtime(sb.lastModified.secs)
     print(name, terminator: "")
     if sb.filetype == .symbolicLink {
       printlink(accpath)
