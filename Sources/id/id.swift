@@ -308,7 +308,7 @@ import Darwin
       groups = withUnsafeTemporaryAllocation(of: gid_t.self, capacity: ngroups_max) { p in
         
         var ngroups = Int32(ngroups_max)
-        getgrouplist(pw!.name, Int32(pw!.groupId), p.baseAddress!, &ngroups)
+        getgrouplist(pw!.name, Int32(bitPattern: UInt32(pw!.groupId) ), p.baseAddress!, &ngroups)
 
         var res = Array(repeating: 0, count: Int(ngroups))
         for i in 0..<res.count {
