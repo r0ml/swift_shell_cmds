@@ -48,7 +48,7 @@ private func packageRoot() -> URL {
 
 func generateTargets() -> [Target] {
   var res = [Target]()
-  let skipForNow = ["w", "lastcomm", "sh"]
+  let skipForNow = []
 
   let sourceURL = packageRoot().appendingPathComponent("Sources")
   let cd = try! FileManager.default.contentsOfDirectory(atPath: sourceURL.path)
@@ -64,7 +64,7 @@ func generateTargets() -> [Target] {
 
 func generateTestTargets() -> [Target] {
     var res = [Target]()
-    let skipForNow = ["wTest", "lastcommTest", "shTest"]
+    let skipForNow = []
   let testurl = packageRoot().appendingPathComponent("Tests")
   let cd = try! FileManager.default.contentsOfDirectory(atPath: testurl.path)
     for i in cd {
