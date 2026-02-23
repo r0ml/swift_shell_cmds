@@ -774,8 +774,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
      int reg;
      */
     
-    var stampx = stamp()
-    var pst = stat()
+//    var stampx = stamp()
     var tsi = timespec()
     var tso = timespec()
     var tclock : Int = time_t()
@@ -783,18 +782,18 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
 
 //    var buf : Data?
     
-    if (fstat(fp.rawValue, &pst) == -1) {
-      err(1, "fstat failed");
+    guard let pst = try? FileMetadata(for: fp) else {
+      err(1, "fstat failed")
     }
     
-    let reg = S_ISREG(pst.st_mode);
-    
+    let reg = pst.filetype == .regular
+
     
     // FIXME: nread is never updated!
     var nread = Int64(0)
-    
+
     while true {
-      if reg && nread >= pst.st_size { break }
+      if reg && nread >= pst.size { break }
       //      for (nread = 0; !reg || nread < pst.st_size; nread += save_len) {
       
       var ss : [UInt8]?
@@ -824,7 +823,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
       var save_len = Int64(MemoryLayout.size(ofValue: stampx))
       
       if (reg && stampx.scr_len >
-          (pst.st_size - save_len) - nread) {
+          (Int64(pst.size) - save_len) - nread) {
         errx(1, "invalid stamp");
       }
       
@@ -918,6 +917,7 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
       default:
         errx(1, "invalid direction");
       }
+      nread += save_len
     }
      
     try? fp.close()

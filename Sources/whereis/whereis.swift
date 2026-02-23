@@ -278,8 +278,9 @@ func colonify(_ cpp: [String]) -> String {
     while let dp = options.bindirs?.first {
       options.bindirs?.removeFirst()
       let cp = "\(dp)/\(name)"
-      var sb : stat! = stat()
-      if stat(cp, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG && (sb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 {
+      if let sb = try? FileMetadata(for: FilePath(cp)),
+         sb.filetype == .regular,
+         sb.permissions.containsAny(of: [.ownerExecute, .groupExecute, .otherExecute]) {
         options.unusual = options.unusual & ~NO_BIN_FOUND
         if var bin {
           bin.append(" ")

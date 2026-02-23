@@ -13,31 +13,16 @@
  */
 
 import CMigration
-
 import Darwin
-
-#if os(macOS) || os(iOS)
-func mtim(_ x : stat) -> timespec {
-  return x.st_mtimespec
-}
-
-
 
 func error(_ msg : String) {
   print(msg)
   exit(2)
 }
 
-
 func eaccess(_ path : String, _ mode : Int32) -> Int32 {
   return Darwin.faccessat(Darwin.AT_FDCWD, path, mode, Darwin.AT_EACCESS)
 }
-
-#elseif os(Linux)
-func mtim(_ x : stat) -> timespec {
-  return x.st_mtim
-}
-#endif
 
 enum token_types : Int {
   case UNKNOWN = 0
@@ -159,10 +144,7 @@ func TOKEN_TYPE(_ t : token) -> token_types {
   return token_types(rawValue: t.rawValue & 0xff00)!
 }
 
-#if !SHELL
-@main
-#endif
-class test {
+@main class test {
 
   var parenlevel = 0
   var t_wp : Array<String>.SubSequence = []
@@ -339,7 +321,7 @@ class test {
         return t_wp.first!.count != 0
       case .FILTT:
         t_wp = t_wp.dropFirst()
-        return 0 != isatty(Int32(getn(t_wp.first!)))
+          return 0 != Darwin.isatty(Int32(getn(t_wp.first!)))
       default:
         t_wp = t_wp.dropFirst()
         return filstat(nm: t_wp.first!, mode: n)
@@ -397,9 +379,9 @@ class test {
     case .INTLT:
       return intcmp(opnd1, opnd2) < 0
     case .FILNT:
-      return newerf(opnd1, opnd2) != 0
+      return newerf(opnd1, opnd2)
     case .FILOT:
-      return olderf(opnd1, opnd2) != 0
+      return olderf(opnd1, opnd2)
     case .FILEQ:
       return equalf(opnd1, opnd2)
     default:
@@ -408,53 +390,51 @@ class test {
   }
   
   func filstat(nm: String, mode: token) -> Bool {
-    var s = stat()
-    
-    if (mode == .FILSYM ? lstat(nm, &s) : stat(nm, &s)) != 0 {
+    guard let s = try? FileMetadata(for: FilePath(nm), followSymlinks: !(mode == .FILSYM)) else {
       return false
     }
     
     switch mode {
     case .FILRD:
-      return eaccess(nm, R_OK) == 0
+        return eaccess(nm, Darwin.R_OK) == 0
     case .FILWR:
-      return eaccess(nm, W_OK) == 0
+        return eaccess(nm, Darwin.W_OK) == 0
     case .FILEX:
-      if eaccess(nm, X_OK) != 0 {
+        if eaccess(nm, Darwin.X_OK) != 0 {
         return false
       }
-      if s.st_mode & S_IFDIR != 0 || geteuid() != 0 {
+        if s.filetype == .directory || Darwin.geteuid() != 0 {
         return true
       }
-      return s.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH) != 0
+        return s.permissions.containsAny(of: [.ownerExecute, .groupExecute, .otherExecute])
     case .FILEXIST:
-      return eaccess(nm, F_OK) == 0
+        return eaccess(nm, Darwin.F_OK) == 0
     case .FILREG:
-      return s.st_mode & S_IFREG != 0
+        return s.filetype == .regular
     case .FILDIR:
-      return s.st_mode & S_IFDIR != 0
+        return s.filetype == .directory
     case .FILCDEV:
-      return s.st_mode & S_IFCHR != 0
+        return s.filetype == .characterDevice
     case .FILBDEV:
-      return s.st_mode & S_IFBLK != 0
+        return s.filetype == .blockDevice
     case .FILFIFO:
-      return s.st_mode & S_IFIFO != 0
+        return s.filetype == .fifo
     case .FILSOCK:
-      return s.st_mode & S_IFSOCK != 0
+        return s.filetype == .socket
     case .FILSYM:
-      return s.st_mode & S_IFLNK != 0
+        return s.filetype == .symbolicLink
     case .FILSUID:
-      return s.st_mode & S_ISUID != 0
+        return s.permissions.contains(.setUserID )
     case .FILSGID:
-      return s.st_mode & S_ISGID != 0
+        return s.permissions.contains(.setGroupID )
     case .FILSTCK:
-      return s.st_mode & S_ISVTX != 0
+        return s.permissions.contains(.saveText)
     case .FILGZ:
-      return s.st_size > 0
+        return s.size > 0
     case .FILUID:
-      return s.st_uid == geteuid()
+      return s.userId == geteuid()
     case .FILGID:
-      return s.st_gid == getegid()
+      return s.groupId == getegid()
     default:
       return true
     }
@@ -615,35 +595,29 @@ class test {
     return 0
   }
   
-  func newerf(_ f1: String, _ f2: String) -> Int {
-    var b1 = Darwin.stat()
-    var b2 = Darwin.stat()
-    
-    if stat(f1, &b1) != 0 || stat(f2, &b2) != 0 {
-      return 0
+  func newerf(_ f1: String, _ f2: String) -> Bool {
+    guard let b1 = try? FileMetadata(for: FilePath(f1), followSymlinks: true),
+    let b2 = try? FileMetadata(for: FilePath(f2), followSymlinks: true)
+    else {
+      return false
     }
     
-    if mtim(b1).tv_sec > mtim(b2).tv_sec {
-      return 1
+    if b1.lastModified > b2.lastModified {
+      return true
     }
-    if mtim(b1).tv_sec < mtim(b2).tv_sec {
-      return 0
-    }
-    
-    return (mtim(b1).tv_nsec > mtim(b2).tv_nsec) ? 1 : 0
+    return false
   }
   
-  func olderf(_ f1: String, _ f2: String) -> Int {
+  func olderf(_ f1: String, _ f2: String) -> Bool {
     return newerf(f2, f1)
   }
   
   func equalf(_ f1: String, _ f2: String) -> Bool {
-    var b1 = Darwin.stat()
-    var b2 = Darwin.stat()
-    
-    return (stat(f1, &b1) == 0 &&
-            stat(f2, &b2) == 0 &&
-            b1.st_dev == b2.st_dev &&
-            b1.st_ino == b2.st_ino)
+    if let b1 = try? FileMetadata(for: FilePath(f1), followSymlinks: true ),
+       let b2 = try? FileMetadata(for: FilePath(f2), followSymlinks: true ) {
+      return b1.device == b2.device && b1.inode == b2.inode
+    } else {
+      return false
+    }
   }
 }

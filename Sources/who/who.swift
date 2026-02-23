@@ -216,11 +216,9 @@ import Darwin
   func row(ut: inout Darwin.utmpx) {
     var buf = [UInt8](repeating: 0, count: 80)
     //  var tty = [CChar](repeating: 0, count: Int(_PATH_DEV.count) + Int(_UTX_LINESIZE))
-    var sb = Darwin.stat()
     var idle: Darwin.time_t = 0
     var t: Darwin.time_t = 0
     //    var d_first = -1
-    var tm: UnsafeMutablePointer<Darwin.tm>?
     var login_pidstr : String = "???"
     
     var state = "?"
@@ -228,10 +226,9 @@ import Darwin
     if options.Tflag || options.uflag {
       withUnsafeBytes(of: ut.ut_line) { u in
         let tty = "\(_PATH_DEV)\(String(decoding:u, as: UTF8.self))"
-        // FIXME: Darwin.stat is ambiguous
-        if stat(tty, &sb) == 0 {
-          state = sb.st_mode & (Darwin.S_IWOTH|Darwin.S_IWGRP) != 0 ? "+" : "-"
-          idle = Darwin.time(nil) - sb.st_mtimespec.tv_sec
+        if let sb = try? FileMetadata(for: FilePath(tty)) {
+          state = sb.permissions.containsAny(of: [.otherWrite, .groupWrite]) ? "+" : "-"
+          idle = DateTime().secs - sb.lastModified.secs
         }
       }
       if options.unix2003_std && !options.Tflag {
@@ -271,7 +268,7 @@ import Darwin
       }
     }
     t = ut.ut_tv.tv_sec
-    tm = Darwin.localtime(&t)
+    var tm: UnsafeMutablePointer<Darwin.tm> = Darwin.localtime(&t)
     Darwin.strftime(&buf, buf.count, d_first ? "%e %b %R" : "%b %e %R", tm)
     let bbuf = UnsafeBufferPointer(start: buf, count: Int(buf.count))
     print( rightPad(String(decoding: bbuf, as: ISOLatin1.self), 12), terminator: " ")
@@ -298,13 +295,12 @@ import Darwin
     print("\n", terminator: "")
   }
   
-  func ttystat(_ line: String) -> Int {
-    var sb = stat()
-    //    var ttybuf = [Int8](repeating: 0, count: MAXPATHLEN)
-    //    snprintf(&ttybuf, ttybuf.count, "%s%s", _PATH_DEV, line)
+  func ttystat(_ line: String) -> Bool {
     let ttybuf = "\(_PATH_DEV)\(line)"
-    return ttybuf.withCString { t in
-      stat(t, &sb) == 0 ? 0 : -1
+    if let _ = try? FileMetadata(for: FilePath(ttybuf)) {
+      return true
+    } else {
+      return false
     }
   }
   
@@ -316,7 +312,7 @@ import Darwin
         row(ut: &utx.pointee)
       } else if !options.bflag && utx.pointee.ut_type == USER_PROCESS {
         withUnsafeBytes(of: utx.pointee.ut_line) { uu in
-          if ttystat(String(decoding: uu, as: UTF8.self)) == 0 {
+          if ttystat(String(decoding: uu, as: UTF8.self)) {
             if !options.rflag && !options.lflag && !options.dflag {
               row(ut: &utx.pointee)
             }

@@ -64,6 +64,7 @@
 /* Begin PBXBuildFile section */
 		2AC6B58E269FF622006AA0B7 /* realpath.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2AC6B58B269FF613006AA0B7 /* realpath.1 */; };
 		90FB06742720809B005007F5 /* lockf.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 90FB0671271F8F80005007F5 /* lockf.1 */; };
+		E70065A62F4C2AC500AB702D /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E70065A52F4C2AC500AB702D /* CMigration */; };
 		E71B516C2F2733E200A02D2C /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E71B516B2F2733E200A02D2C /* ShellTesting */; };
 		E73F99882D459CB000E89FF3 /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E73F99872D459CB000E89FF3 /* CMigration */; };
 		E73F998A2D459CB700E89FF3 /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E73F99892D459CB700E89FF3 /* CMigration */; };
@@ -2372,6 +2373,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E70065A62F4C2AC500AB702D /* CMigration in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -6938,6 +6940,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		E70065A52F4C2AC500AB702D /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
 		E71B516B2F2733E200A02D2C /* ShellTesting */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E79B319D2E2FD65300C33F4B /* XCRemoteSwiftPackageReference "ShellTesting" */;
