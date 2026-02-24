@@ -226,7 +226,7 @@ import Darwin
     if options.Tflag || options.uflag {
       withUnsafeBytes(of: ut.ut_line) { u in
         let tty = "\(_PATH_DEV)\(String(decoding:u, as: UTF8.self))"
-        if let sb = try? FileMetadata(for: FilePath(tty)) {
+        if let sb = try? FileMetadata(for: FilePath(tty), followSymlinks: true) {
           state = sb.permissions.containsAny(of: [.otherWrite, .groupWrite]) ? "+" : "-"
           idle = DateTime().secs - sb.lastModified.secs
         }

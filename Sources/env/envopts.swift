@@ -68,8 +68,7 @@ extension Env {
 
     /* XXX work around access(2) false positives for superuser */
     if Darwin.access(candidate, X_OK) == 0,
-        // FIXME: Darwin.stat is ambiguous
-       let fin = try? FileMetadata(for: FilePath(candidate)),
+       let fin = try? FileMetadata(for: FilePath(candidate), followSymlinks: true),
        fin.filetype == .regular,
         (Darwin.getuid() != 0 || fin.permissions.containsAny(of: [.ownerExecute, .groupExecute, .otherExecute])) {
          if env_verbosity > 1 {
