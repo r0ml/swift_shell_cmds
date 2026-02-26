@@ -297,7 +297,7 @@ import Darwin
       gid = groupId
     }
     
-    let ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
+    let ngroups_max = Sysconf.scNgroupsMax + 1
 
     var groups : [Int]?
     if (ugg && pw != nil) {
@@ -448,8 +448,8 @@ termid_addr.addr[3]=0x%08x
     if let pw {
 
       // 5235093
-      let ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
-      
+      let ngroups_max = Sysconf.scNgroupsMax + 1
+
       groups = withUnsafeTemporaryAllocation(of: gid_t.self, capacity: ngroups_max) { p in
         // FIXME: was getgrouplist_2
         //          let ngroups = getgrouplist_2(pw.pw_name, pw.pw_gid, p)
@@ -463,7 +463,7 @@ termid_addr.addr[3]=0x%08x
         return res
       }
     } else {
-      let ngroups_max = sysconf(_SC_NGROUPS_MAX) + 1;
+      let ngroups_max = Sysconf.scNgroupsMax + 1
       //        if ((groups = malloc(sizeof(gid_t) * (ngroups_max))) == NULL)
       //            err(1, "malloc");
       groups = withUnsafeTemporaryAllocation(of: gid_t.self, capacity: ngroups_max) { p in

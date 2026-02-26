@@ -36,8 +36,8 @@ import Darwin
   }
 
   @Test func regress01() async throws {
-    let x = sysconf(_SC_ARG_MAX)
-    #expect ( x > 0, "sysconf(\(_SC_ARG_MAX)) returned \(x)" )
+    let x = Sysconf.scArgMax
+    #expect ( x > 0, "sysconf(_SC_ARG_MAX) returned \(x)" )
 
     let a = String(repeating: "1", count: x / 2)
     try await run(status: 1, error: /Argument list too long/, args: "echo %1 %1 %1", a )

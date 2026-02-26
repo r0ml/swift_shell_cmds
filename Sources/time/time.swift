@@ -110,15 +110,12 @@ actor Stuff {
    * Return the frequency of the kernel's statistics clock.
    */
   func getstathz() -> Int {
-    
-    var mib = [Darwin.CTL_KERN, Darwin.KERN_CLOCKRATE]
-    return mib.withUnsafeMutableBufferPointer { mibp in
-      var size = MemoryLayout<clockinfo>.size
-      var clockrate = Darwin.clockinfo()
-      if Darwin.sysctl(mibp.baseAddress, 2, &clockrate, &size, nil, 0) == -1 {
-        err(1, "sysctl kern.clockrate")
-      }
+    do {
+      var clockrate : Darwin.clockinfo = try Sysctl.get("kern.clockrate")
       return Int(clockrate.stathz)
+    } catch(let e) {
+      errno = e.code
+      err(1, "sysctl kern.clockrate")
     }
   }
   

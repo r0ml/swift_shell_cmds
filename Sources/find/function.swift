@@ -610,7 +610,7 @@ extension find {
     if (new.flags & F_EXECPLUS) != 0 {
 //      ee.e_ppos = cnt - 2
 //      ee.e_pbnum = cnt - 2
-      var argmax = sysconf(_SC_ARG_MAX)
+      var argmax = Sysconf.scArgMax
       if argmax == -1 {
         warn("sysconf(_SC_ARG_MAX)")
         argmax = Int(_POSIX_ARG_MAX)

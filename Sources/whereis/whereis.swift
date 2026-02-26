@@ -39,7 +39,7 @@
 // FIXME: deal with #ifndef __APPLE__ stuff
 import CMigration
 
-import Darwin
+// import Darwin
 
 
 let NO_BIN_FOUND : Int32 = 1
@@ -170,13 +170,14 @@ func colonify(_ cpp: [String]) -> String {
     if opts.bindirs == nil {
       opts.opt_b = false
     }
-    
+
+    let EX_DATAERR = 65
     if !(opts.opt_m || opts.opt_b) {
-      errx(Int(EX_DATAERR), "no directories to search")
+      errx(EX_DATAERR, "no directories to search")
     }
     
     if opts.opt_m {
-      setenv("MANPATH", colonify(opts.mandirs!), 1)
+      try? Environment.setenv("MANPATH", colonify(opts.mandirs!) )
 //      re = try
 //      if regcomp(&re, MANWHEREISMATCH, REG_EXTENDED) != 0 {
 //        regerror(i, &re, buf, BUFSIZ - 1)
@@ -228,21 +229,21 @@ func colonify(_ cpp: [String]) -> String {
       
       var printed = 0
       if !opts.opt_q {
-        Darwin.fputs("\(name):", Darwin.stdout)
+        print("\(name):", terminator: "")
         printed += 1
       }
       if let bin {
         if printed > 0 {
-          Darwin.fputs(" ", Darwin.stdout)
+          print(" ", terminator: "")
         }
-        Darwin.fputs(bin, Darwin.stdout)
+        print(bin, terminator: "")
         printed += 1
       }
       if let man {
         if printed > 0 {
-          Darwin.fputs(" ", Darwin.stdout)
+          print(" ", terminator: "")
         }
-        Darwin.fputs(man, Darwin.stdout)
+        print(man, terminator: "")
         printed += 1
       }
       
@@ -258,17 +259,9 @@ func colonify(_ cpp: [String]) -> String {
        */
       
       if printed > 0 {
-        Darwin.fputs("\n", Darwin.stdout)
+        print("")
       }
     }
-    
-    /*
-     if opt_m {
-     regfree(&re)
-     }
-     */
-    
-    Darwin.exit(0)
   }
   
   func do_optB(_ name : String) -> String? {
@@ -365,30 +358,15 @@ func colonify(_ cpp: [String]) -> String {
 
       // -b defaults to default path + /usr/libexec + user's path
     if opts.bindirs == nil {
-        var mib = [CTL_USER, USER_CS_PATH]
-        var s : Int = 0
-        if sysctl(&mib, 2, nil, &s, nil, 0) == -1 {
-          err(1, "sysctl: user_cs_path")
+      do {
+        let b = try Sysctl.getString("user.cs_path") // Retrieve the standard path.
+        opts.bindirs = decolonify(b)
+        opts.bindirs?.append(PATH_LIBEXEC)
+      } catch(let e) {
+        errno = e.code
+        err(1, "user_cs_path: sysctl: zero length\n")
         }
-        if (s == 0) {
-          err(1, "user_cs_path: sysctl: zero length\n")
-        }
-        
-        let b = withUnsafeTemporaryAllocation(byteCount: s, alignment: 1) { b in
-          if sysctl(&mib, 2, b.baseAddress, &s, nil, 0) == -1 {
-              let sverrno = errno
-              errno = sverrno
-              err(1, "sysctl: user_cs_path");
-            }
-          let k = b.baseAddress?.assumingMemoryBound(to: UInt8.self)
-          return String(cString: k!)
-        }
-          // Retrieve the standard path.
-          // This part is system-specific and may not be directly translatable to Swift.
-          // You would need to use a Swift or Objective-C API to get the system path.
 
-      opts.bindirs = decolonify(b)
-      opts.bindirs?.append(PATH_LIBEXEC)
       if let path = Environment["PATH"] {
               // don't destroy the original environment...
             opts.bindirs?.append(contentsOf: decolonify(path))
@@ -409,7 +387,8 @@ func colonify(_ cpp: [String]) -> String {
         }
         opts.mandirs = decolonify(String(b))
       } catch {
-        err( Int(EX_OSERR), "cannot execute manpath command")
+        let EX_OSERR = 71
+        err( EX_OSERR, "cannot execute manpath command")
       }
     }
   }
