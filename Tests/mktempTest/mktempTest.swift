@@ -30,7 +30,6 @@
  */
 
 import ShellTesting
-import Darwin
 
 @Suite("mktemp", .serialized) class mktempTest : ShellTest {
   let cmd = "mktemp"
@@ -55,7 +54,7 @@ import Darwin
     let tdir = try tmpdir("tmp_env")
     let pflag = try tmpdir("tmp_p")
     defer { rm(tdir, pflag) }
-    Darwin.setenv("TMPDIR", tdir.string, 1)
+    try? Environment.setenv("TMPDIR", tdir.string)
     try await run(output: Regex("^\(pflag)/tmp."), args: "-p", pflag)
 //    let (_, o, _) = try captureStdoutLaunch(Clem.self, "mktemp", ["-p", pflag])
 //    #expect( o!.hasPrefix("\(pflag)/tmp."), "just -p with TMPDIR" )
@@ -77,7 +76,7 @@ import Darwin
   @Test func tmpdir_tflag_oneslash() async throws {
     let tdir = try tmpdir("tmp_env")
     defer { rm(tdir) }
-    Darwin.setenv("TMPDIR", tdir.string, 1)
+    try? Environment.setenv("TMPDIR", tdir.string)
     try await run(args: "mktemp", "-t", "foo") { po in
       let rr = po.string
       let s = tdir.string

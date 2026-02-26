@@ -80,7 +80,7 @@ import Darwin
 
     let pid = try await process.launch("/bin/sh", args: "-c", cmd)
     Task.detached {
-      try await Task.sleep(nanoseconds: UInt64( Double(Darwin.NSEC_PER_SEC) * 2 ) )
+      try await Task.sleep(for: .seconds(2))
   //    print("gonna interrupt")
       Darwin.kill(pid, SIGINT)
     }

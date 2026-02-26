@@ -18,7 +18,6 @@
  */
 
 import ShellTesting
-import Darwin
 
 @Suite(.serialized) struct printfTest : ShellTest {
   let cmd = "printf"
@@ -48,7 +47,7 @@ import Darwin
   // This passes this test, but it is unclear that this behavior is correct for all characters
   @Test(  // .disabled("arguments get interpreted with utf8 -- the \\344 character gets translated to two scalars")
   ) func test_l1() async throws {
-    Darwin.setenv("LC_ALL","en.US.ISO8859-1", 1)
+    try? Environment.setenv("LC_ALL","en.US.ISO8859-1")
     try await run(args: "\"\\344") { po1 in
       //    let po1 = try await ShellProcess(cmd, "\"\\344").run()
       try await run(args: "%d\n", po1.string) { po2 in
@@ -63,7 +62,7 @@ import Darwin
   // FIXME: The conversion on the way in is problematic
   @Test(.disabled("Command line arguments are always parsed as UTF-8, so the \\303\\244 sequence is interpreted as two characters"))
   func test_l2() async throws {
-    Darwin.setenv("LC_ALL", "en.US.UTF-8", 1)
+    try? Environment.setenv("LC_ALL", "en.US.UTF-8")
     //    let po1 = try await ShellProcess(cmd, "\"\\303\\244").run()
     try await run(args: "\"\\303\\244") { po1 in
       //    let j3 = "\"\u{195}\u{164}"

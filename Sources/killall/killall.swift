@@ -41,8 +41,7 @@ import Darwin
   let OPTIONS = "c:dej:Ilmqst:u:vz"
 
 //  var procs: [kinfo_proc]
-  var sb = stat()
-  var pw: UnsafeMutablePointer<passwd>?
+//  var pw: UnsafeMutablePointer<passwd>?
   var rgx = regex_t()
   var pmatch = regmatch_t()
   var buf : String = ""
@@ -61,8 +60,8 @@ import Darwin
     var Iflag = 0
     var mflag = 0
     var zflag = 0
-    var uid: uid_t = 0
-    var tdev: dev_t = 0
+    var uid: UInt = 0
+    var tdev: UInt = 0
     //  var mypid: pid_t
     var thiscmd: String?
 
@@ -259,28 +258,28 @@ At least one option or argument to specify processes must be given."
       if let tty = opts.tty {
         if tty.hasPrefix("/dev/") {
           buf = tty
-        } else if strncmp(tty, "tty", 3) == 0 {
+        } else if tty.hasPrefix("tty") {
           buf = "/dev/\(tty)"
         } else {
           buf = "/dev/tty\(tty)"
         }
-        if stat(buf, &sb) < 0 {
+        guard let sb = try? FileMetadata(for: FilePath(buf), followSymlinks: true) else {
           err(1, "stat(\(buf)")
         }
-        if !S_ISCHR(sb.st_mode) {
+        guard sb.filetype == .characterDevice else {
           errx(1, "\(buf): not a character device")
         }
-        opts.tdev = sb.st_rdev
+        opts.tdev = sb.rawDevice
         if opts.dflag != 0 {
           print("ttydev:0x\(cFormat("%x", opts.tdev))")
         }
       }
     if let user = opts.user {
-      if let x = uid_t(user) {
+      if let x = UInt(user) {
         opts.uid = x
         } else {
           if let pw = getPasswd(for: user) {
-            opts.uid = id_t(pw.userId)
+            opts.uid = UInt(pw.userId)
             if opts.dflag != 0 {
               print("uid:\(opts.uid)")
             }
@@ -289,7 +288,7 @@ At least one option or argument to specify processes must be given."
           }
         }
       } else {
-        opts.uid = getuid()
+        opts.uid = UInt(userId)
         if opts.uid != 0 {
           if let pw = getPasswd(of: Int(opts.uid) ) {
             opts.user = pw.name
@@ -299,7 +298,7 @@ At least one option or argument to specify processes must be given."
           }
         }
       }
-      var size : size_t = 0
+      var size = 0
 
       mib[0] = CTL_KERN
       mib[1] = KERN_PROC
@@ -312,7 +311,7 @@ At least one option or argument to specify processes must be given."
         miblen = 4
     } else if opts.tty != nil {
         mib[2] = KERN_PROC_TTY
-      mib[3] = opts.tdev
+      mib[3] = Int32(opts.tdev)
         miblen = 4
       } else {
 #if os(macOS)
@@ -524,7 +523,7 @@ At least one option or argument to specify processes must be given."
       if killed == 0 {
         if opts.qflag == 0 {
           var se = FileDescriptor.standardError
-          let j = getuid() != 0 ? "belonging to you " : ""
+          let j = userId != 0 ? "belonging to you " : ""
           print("No matching processes \(j)were found", to: &se )
         }
         errors = 1

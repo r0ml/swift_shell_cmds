@@ -29,7 +29,6 @@
 */
 
 import ShellTesting
-import Darwin
 
 @Suite("find tests") final class findTest : ShellTest {
   let cmd = "find"
@@ -100,7 +99,7 @@ import Darwin
     let s = try tmpdir("scratch") // under myDir?
     let bl = try tmpfile("baseline", "")
     let fa = try tmpfile("scratch/file_a", "")
-    try? await Task.sleep(nanoseconds: Darwin.NSEC_PER_SEC)
+    try? await Task.sleep(for: .seconds(1))
     let fb = try tmpfile("scratch/file_b", "")
 
 //    let j = try captureStdoutLaunch(Self.self, "find", [s.relativePath, "-type", "f", "-newerBm", myDir.appending(component: "baseline").relativePath])

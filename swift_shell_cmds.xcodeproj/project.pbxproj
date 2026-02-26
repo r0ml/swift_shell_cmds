@@ -65,6 +65,7 @@
 		2AC6B58E269FF622006AA0B7 /* realpath.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2AC6B58B269FF613006AA0B7 /* realpath.1 */; };
 		90FB06742720809B005007F5 /* lockf.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 90FB0671271F8F80005007F5 /* lockf.1 */; };
 		E70065A62F4C2AC500AB702D /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E70065A52F4C2AC500AB702D /* CMigration */; };
+		E70069852F50E84300AB702D /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E70069842F50E84300AB702D /* CMigration */; };
 		E71B516C2F2733E200A02D2C /* ShellTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E71B516B2F2733E200A02D2C /* ShellTesting */; };
 		E73F99882D459CB000E89FF3 /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E73F99872D459CB000E89FF3 /* CMigration */; };
 		E73F998A2D459CB700E89FF3 /* CMigration in Frameworks */ = {isa = PBXBuildFile; productRef = E73F99892D459CB700E89FF3 /* CMigration */; };
@@ -2262,6 +2263,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E70069852F50E84300AB702D /* CMigration in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3354,7 +3356,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				E7B3FF322DF0C8D90054A8EB /* PBXTargetDependency */,
 			);
 			name = logname;
 			productName = shell_cmds;
@@ -3789,7 +3790,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 1640;
+				LastUpgradeCheck = 2620;
 				ORGANIZATIONNAME = "Apple Inc.";
 				TargetAttributes = {
 					2AC6B582269FF5B1006AA0B7 = {
@@ -4906,10 +4907,6 @@
 			isa = PBXTargetDependency;
 			productRef = E7B3FF2F2DF0C8B50054A8EB /* CMigration */;
 		};
-		E7B3FF322DF0C8D90054A8EB /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			productRef = E7B3FF312DF0C8D90054A8EB /* CMigration */;
-		};
 		E7B3FF342DF0C8F20054A8EB /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			productRef = E7B3FF332DF0C8F20054A8EB /* CMigration */;
@@ -5460,6 +5457,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 6.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -6024,6 +6022,7 @@
 				INSTALL_PATH = bin;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_VERSION = 6.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -6945,6 +6944,11 @@
 			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
 			productName = CMigration;
 		};
+		E70069842F50E84300AB702D /* CMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
+			productName = CMigration;
+		};
 		E71B516B2F2733E200A02D2C /* ShellTesting */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E79B319D2E2FD65300C33F4B /* XCRemoteSwiftPackageReference "ShellTesting" */;
@@ -7321,11 +7325,6 @@
 			productName = CMigration;
 		};
 		E7B3FF2F2DF0C8B50054A8EB /* CMigration */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
-			productName = CMigration;
-		};
-		E7B3FF312DF0C8D90054A8EB /* CMigration */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = E73F99862D459B2400E89FF3 /* XCRemoteSwiftPackageReference "CMigration" */;
 			productName = CMigration;

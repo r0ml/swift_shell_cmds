@@ -36,8 +36,6 @@
 import CMigration
 
 import locale_h
-import stdlib_h
-import stdio_h
 import time_h
 
 import Darwin
@@ -69,7 +67,6 @@ import Darwin
 
   // ===============================
 
-  var tval: time_t = 0
 
   struct iso8601_fmt {
     var refname: String
@@ -102,13 +99,13 @@ import Darwin
     var fmt: String?
     var v: Vary?
     var iso8601_subset : [iso8601_fmt]!
+    var tval : DateTime?
   }
 
   var options : CommandOptions!
 
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
-    var sb: Darwin.stat! = Darwin.stat()
 
     unix2003_std = true // compat_mode("bin/date", "unix2003")
 
@@ -151,24 +148,28 @@ import Darwin
           opts.Rflag = true
         case "r":
           opts.rflag = true
-          var tmp: UnsafeMutablePointer<CChar>?
-          tval = time_h.time_t(stdlib_h.strtoq(optarg, &tmp, 0))
-          if tmp!.pointee != 0 {
-            let sr  = optarg.withCString { oo in
-              // FIXME: Darwin.stat won't compile because there is ambiguity between
-              // the type `stat` and the function `stat`
-              // https://github.com/swiftlang/swift/issues/57418
-              stat(oo, &sb)
-            }
-            if sr == 0 {
-              // FIXME:  st_mtim  for non-Apple platforms
-              tval = sb.st_mtimespec.tv_sec
+          var radix = 10
+          var n = optarg
+          if optarg.hasPrefix("0x") {
+            radix = 16
+            n.removeFirst(2)
+          } else if optarg.hasPrefix("0o") {
+            radix = 8
+            n.removeFirst(2)
+          } else if optarg.hasPrefix("0") {
+            radix = 8
+          }
+          if let tmp = UInt(n, radix: radix) {
+            opts.tval = DateTime(tmp)
+          } else {
+            if let sb = try? FileMetadata(for: FilePath(optarg), followSymlinks: true) {
+              opts.tval = sb.lastModified
             } else {
-              throw CmdErr(1)
+              throw CmdErr(1, "invalid -r argument: \(optarg)")
             }
           }
         case "u":
-          stdlib_h.setenv("TZ", "UTC0", 1)
+          try? Environment.setenv("TZ", "UTC0")
         case "v":
           opts.v?.append(optarg)
         default:
@@ -178,10 +179,6 @@ import Darwin
 
     opts.argv = go.remaining
 
-
-    if !opts.rflag && time_h.time(&tval) == -1 {
-      err(1, "time")
-    }
 
     opts.format = "%+"
 
@@ -215,7 +212,7 @@ import Darwin
 
   func runCommand() throws(CmdErr) {
 
-    var lt = time_h.localtime(&tval).pointee
+    var lt = time_h.localtime(&options.tval!.secs).pointee
     if let v = options.v {
       if let badv = vary_apply(v, &lt) {
         throw CmdErr(1, "\(badv): Cannot apply date adjustment")
@@ -279,19 +276,20 @@ import Darwin
     var tv = time_h.timeval()
     var century: Int32
 
-    guard let lt = time_h.localtime(&tval) else {
+    guard let lt = time_h.localtime(&options.tval!.secs) else {
       throw CmdErr(1, "invalid time")
     }
 
     lt.pointee.tm_isdst = -1
 
     if let fmt {
+      var se = FileDescriptor.standardError
       guard let t = time_h.strptime(p, fmt, lt) else {
-        stdio_h.fputs("Failed conversion of ``\(p)'' using format ``\(fmt)''\n", stdio_h.stderr)
+        print("Failed conversion of `\(p)' using format `\(fmt)'",  to: &se)
         throw badformat
       }
       if t.pointee != 0 {
-        stdio_h.fputs("Warning: Ignoring \(strlen(t)) extraneous characters in date string \(t)\n", stdio_h.stderr)
+        print("Warning: Ignoring \(strlen(t)) extraneous characters in date string \(t)", to: &se)
       }
     } else {
       var t = p
@@ -380,7 +378,7 @@ import Darwin
       Darwin.memset(&utx.ut_id, 0, MemoryLayout.size(ofValue: utx.ut_id))
       Darwin.gettimeofday(&utx.ut_tv, nil)
       Darwin.pututxline(&utx)
-      tv.tv_sec = tval
+      tv.tv_sec = options.tval!.secs
       tv.tv_usec = 0
       if settimeofday(&tv, nil) != 0 {
         err(1, "settimeofday (timeval)")
@@ -389,9 +387,7 @@ import Darwin
       Darwin.gettimeofday(&utx.ut_tv, nil)
       Darwin.pututxline(&utx)
 
-      var ll = "???"
-      if let p = Darwin.getlogin() { ll = String(cString: p) }
-
+      var ll = userName
 
       // FIXME: is this right?
       ll.withCString {  withVaList([$0]) { Darwin.vsyslog(LOG_NOTICE, "date set by %s", $0 )  } }

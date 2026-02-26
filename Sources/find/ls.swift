@@ -34,9 +34,9 @@
 
 import CMigration
 
-import time_h
-import unistd
-import string_h
+// import time_h
+// import unistd
+// import string_h
 
 import Darwin
 
@@ -100,17 +100,10 @@ extension find {
   }
   
   func printlink(_ name: String) {
-    //    var path = [CChar](repeating: 0, count: MAXPATHLEN)
-    
-    withUnsafeTemporaryAllocation(byteCount: MAXPATHLEN, alignment: 1) { p in
-      let pp = p.assumingMemoryBound(to: CChar.self).baseAddress!
-      let lnklen = readlink(name, pp, MAXPATHLEN - 1)
-      if lnklen == -1 {
-        print(name, terminator: "")
-        return
-      }
-      p[Int(lnklen)] = 0
-      print(cFormat(" -> %s", pp), terminator: "")
+    if let pp = try? readlink(name) {
+      print(" -> \(pp)", terminator: "")
+    } else {
+      warn(name)
     }
   }
 }

@@ -167,39 +167,38 @@ let optString = "adeFkpqr"
       //      if chx == -1 { break }
       //      let ch = UnicodeScalar(UInt32(chx))
       switch ch {
-      case "a":
+        case "a":
           opts.aflg = true
-      case "d":
+        case "d":
           opts.usesleep = false
-      case "e":  /* Default behavior, accepted for linux compat */
-        break
-      case "F":
+        case "e":  /* Default behavior, accepted for linux compat */
+          break
+        case "F":
           opts.Fflg = true
 #if ENABLE_FILEMON
-      case "f":
+        case "f":
           opts.fflg = true
 #endif /* ENABLE_FILEMON */
-      case "k":
+        case "k":
           opts.kflg = true
-      case "p":
+        case "p":
           opts.pflg = true
-      case "q":
+        case "q":
           opts.qflg = true
-      case "r":
+        case "r":
           opts.rawout = true
-      case "t":
-          opts.flushtime = Int(atoi(optarg))
-          if (opts.flushtime < 0) {
+        case "t":
+          guard let ft = Int(optarg), ft >= 0 else {
             err(1, "invalid flush time \(opts.flushtime)")
-        }
+          }
+          opts.flushtime = ft
       case "T":
           opts.tflg = true
           opts.pflg = true
         
-        let oa = optarg
-        if ((strchr(optarg, Int32("%".first!.asciiValue!))) != nil) {
-          opts.tstamp_fmt = oa
-        }
+          if optarg.contains("%") {
+            opts.tstamp_fmt = optarg
+          }
       case "?":
         fallthrough
       default:

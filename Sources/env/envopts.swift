@@ -35,9 +35,6 @@
  */
 
 import CMigration
-import Darwin
-
-import stdio_h
 
 extension Env {
 
@@ -64,13 +61,13 @@ extension Env {
    * Routine to determine if a given fully-qualified filename is executable.
    * This is copied almost verbatim from FreeBSD's usr.bin/which/which.c.
    */
-  func is_there(_ candidate: String) -> Bool {
+  func is_there(_ candidate: FilePath) -> Bool {
 
     /* XXX work around access(2) false positives for superuser */
-    if Darwin.access(candidate, X_OK) == 0,
-       let fin = try? FileMetadata(for: FilePath(candidate), followSymlinks: true),
+    if candidate.isExecutable,
+       let fin = try? FileMetadata(for: candidate, followSymlinks: true),
        fin.filetype == .regular,
-        (Darwin.getuid() != 0 || fin.permissions.containsAny(of: [.ownerExecute, .groupExecute, .otherExecute])) {
+        (userId != 0 || fin.permissions.containsAny(of: [.ownerExecute, .groupExecute, .otherExecute])) {
          if env_verbosity > 1 {
         var se = FileDescriptor.standardError
         print("#env   matched:\t'\(candidate)'", to: &se)
@@ -107,8 +104,9 @@ extension Env {
     }
 
     if env_verbosity > 1 {
-      stdio_h.fputs("#env Searching:\t'\(path)'\n", stdio_h.stderr)
-      stdio_h.fputs("#env  for file:\t'\(filename)'\n", stdio_h.stderr)
+      var se = FileDescriptor.standardError
+      print("#env Searching:\t'\(path)'", to: &se)
+      print("#env  for file:\t'\(filename)'", to: &se)
     }
 
     fqname = nil
@@ -118,14 +116,15 @@ extension Env {
         d = "."
       }
       let candidate = "\(d)/\(filename)"
-      if is_there(candidate) {
+      if is_there(FilePath(candidate)) {
         fqname = candidate
         break
       }
     }
 
+    let ENOENT : Int32 = 2
     if fqname == nil {
-      errno = Darwin.ENOENT
+      errno = ENOENT // Darwin.ENOENT
       err(127, filename)
     }
     return fqname!

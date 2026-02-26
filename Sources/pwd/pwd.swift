@@ -43,14 +43,13 @@ import Darwin
   var usage = "usage: pwd [-L | -P]"
   
   func getcwd_logical() -> String? {
-    var lg = stat(), phy = stat()
     let pwdStr = Environment["PWD"]
     
     if let pwdStr, pwdStr.first == "/" {
-      if stat(pwdStr, &lg) == -1 || stat(".", &phy) == -1 {
+      guard let lg = try? FileMetadata(for: FilePath(pwdStr), followSymlinks: true ), let phy = try? FileMetadata(for: FilePath("."), followSymlinks: true) else {
         return nil
       }
-      if lg.st_dev == phy.st_dev && lg.st_ino == phy.st_ino {
+      if lg.device == phy.device && lg.inode == phy.inode {
         return pwdStr
       }
     }

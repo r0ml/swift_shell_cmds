@@ -39,9 +39,6 @@
 // FIXME: deal with #ifndef __APPLE__ stuff
 import CMigration
 
-// import Darwin
-
-
 let NO_BIN_FOUND : Int32 = 1
 let NO_MAN_FOUND : Int32 = 2
 let NO_SRC_FOUND : Int32 = 4

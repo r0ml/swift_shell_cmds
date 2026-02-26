@@ -114,10 +114,10 @@ let HAVE_REPS = 8
       case "n":
           opts.nofinalnl = true
       case "p":
-          opts.prec = Int(atoi(optarg))
-          if opts.prec < 0 {
+          guard let op = UInt(optarg) else {
           errx(1, "bad precision value")
         }
+          opts.prec = Int(op)
           opts.haveFormat = true
       case "r":
           opts.randomize = true
@@ -290,9 +290,9 @@ let HAVE_REPS = 8
     if opts.randomize {
       if opts.useRandom {
         srandom(UInt32(s))
-        divisor = Double(INT32_MAX) + 1
+        divisor = Double(Int32.max) + 1
       } else {
-        divisor = Double(UINT32_MAX) + 1
+        divisor = Double(UInt32.max) + 1
       }
       
       if !opts.haveFormat && opts.prec == 0 && begin >= 0 && begin < divisor && ender >= 0 && ender < divisor {
@@ -330,7 +330,6 @@ let HAVE_REPS = 8
     if !opts.nofinalnl {
       print("")
     }
-    exit(0)
   }
     
   func putdata(_ x: Double, _ last: Bool) -> Int {

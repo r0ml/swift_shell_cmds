@@ -65,7 +65,7 @@ import Darwin
      */
     
     Task.detached {
-      try await Task.sleep(nanoseconds: NSEC_PER_SEC * 1)
+      try await Task.sleep(for: .seconds(1) )
   //    print("gonna interrupt")
       if 0 != kill(pid, SIGINT) {
         throw POSIXErrno(fn: "signaling SIGINT") }

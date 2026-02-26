@@ -32,8 +32,7 @@
 // FIXME: apparently does not get built for APPLE platforms
 import CMigration
 
-import signal_h
-
+// import signal_h
 import Darwin
 
 nonisolated(unsafe) var keep = false

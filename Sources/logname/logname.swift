@@ -35,39 +35,22 @@
 
 import CMigration
 
-import stdlib_h
-import Darwin
+@main struct logname : ShellCommand {
 
+  typealias CommandOptions = Void
 
-@main class logname {
-  required init() {}
-  static func main() {
-    let z = Self().main()
-    stdlib_h.exit(z)
+  var options: CommandOptions!
+
+  func parseOptions() async throws(CmdErr) -> Void {
+    if CommandLine.argc != 1 {
+      throw CmdErr(1)
+    }
+  }
+
+  func runCommand() async throws(CmdErr) {
+    var p = userName
+    print(p)
   }
   
-  func main() -> Int32 {
-    let argc = CommandLine.argc
-  //  let argv = CommandLine.unsafeArgv
-    
-    var p: UnsafeMutablePointer<Int8>?
-    
-    if argc != 1 {
-      usage()
-    }
-    p = Darwin.getlogin()
-    if p == nil {
-      fatalError()
-    }
-    print(String(cString: p!))
-    if Darwin.ferror(Darwin.stdout) != 0 || fflush(Darwin.stdout) != 0 {
-      fatalError("stdout")
-    }
-    stdlib_h.exit(0)
-  }
-  
-  func usage() {
-    Darwin.fputs("usage: logname\n", Darwin.stderr)
-    stdlib_h.exit(1)
-  }
+  var usage: String = "usage: logname"
 }
