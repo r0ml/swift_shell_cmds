@@ -322,6 +322,12 @@ extension hexdump {
         fmt.removeFirst()
       }
     }
+
+    // FIXME: this is a hack
+    let FLT_DIG = 6
+    let DBL_DIG = 15
+    let LDBL_DIG = 16
+
     switch isize {
     case MemoryLayout<Float>.size:
       digits = Int(FLT_DIG)

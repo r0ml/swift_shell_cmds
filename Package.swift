@@ -30,7 +30,9 @@ let package = Package(
 //     .package(path: "../ShellTesting"),
       .package(url: "https://github.com/r0ml/CMigration.git", branch: "main"),
 // .package(name: "CMigration", path: "../CMigration"),
-     .package(url: "https://github.com/swiftlang/swift-subprocess.git", branch: "main"),
+
+// just removed
+//      .package(url: "https://github.com/swiftlang/swift-subprocess.git", branch: "main"),
   ],
 
   targets:
@@ -48,7 +50,7 @@ private func packageRoot() -> URL {
 
 func generateTargets() -> [Target] {
   var res = [Target]()
-  let skipForNow = []
+  let skipForNow = [String]()
 
   let sourceURL = packageRoot().appendingPathComponent("Sources")
   let cd = try! FileManager.default.contentsOfDirectory(atPath: sourceURL.path)
@@ -64,7 +66,7 @@ func generateTargets() -> [Target] {
 
 func generateTestTargets() -> [Target] {
     var res = [Target]()
-    let skipForNow = []
+    let skipForNow = [String]()
   let testurl = packageRoot().appendingPathComponent("Tests")
   let cd = try! FileManager.default.contentsOfDirectory(atPath: testurl.path)
     for i in cd {
@@ -76,7 +78,7 @@ func generateTestTargets() -> [Target] {
         let rr = r ? [Resource.copy("Resources")] : []
         let t = Target.testTarget(name: i,
                                   dependencies: [.product(name: "ShellTesting", package: "ShellTesting"),
-                                                 .product(name: "Subprocess", package: "swift-subprocess"),
+//a                                                 .product(name: "Subprocess", package: "swift-subprocess"),
                                                  .target(name: i.replacingOccurrences(of: "Test", with: ""))],
                                   path: nil,
                                   exclude: x
