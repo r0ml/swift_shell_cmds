@@ -169,7 +169,7 @@ struct CommandOptions {
   func execShell(_ command: String, _ useShell: String, _ useName: String) async -> Int {
     do {
       try Environment.setenv("LANG", "C")
-      let _ = try await DarwinProcess().run(useShell, args: ["-c", command], captureOutput: .ignore)
+      let _ = try await DarwinProcess().run(useShell, args: ["-c", command], captureOutput: false)
     } catch let e as Errno {
       return Int(e.rawValue)
     } catch(let e) {
