@@ -8,7 +8,7 @@ import ShellTesting
   let suiteBundle = "shell_cmds_whichTest"
 
     @Test func man() async throws {
-      try await run(output: "/bin/ls\n/usr/bin/which\n", args: "ls", "which")
+      try await run(output: "/bin/ls\n/usr/bin/bzcat\n", args: "ls", "bzcat")
     }
 
   @Test func man2() async throws {
