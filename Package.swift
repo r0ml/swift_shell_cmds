@@ -74,15 +74,13 @@ func generateTestTargets() -> [Target] {
       if skipForNow.contains(i) { continue }
 
       let r = FileManager.default.fileExists(atPath: testurl.appendingPathComponent(i).appendingPathComponent("Resources").path)
-      let x = try! FileManager.default.contentsOfDirectory(atPath: testurl.appendingPathComponent(i).path ).filter { $0.hasSuffix(".xctestplan") }
         let rr = r ? [Resource.copy("Resources")] : []
         let t = Target.testTarget(name: i,
                                   dependencies: [.product(name: "ShellTesting", package: "ShellTesting"),
 //a                                                 .product(name: "Subprocess", package: "swift-subprocess"),
                                                  .target(name: i.replacingOccurrences(of: "Test", with: ""))],
                                   path: nil,
-                                  exclude: x
-                                  , resources: rr
+                                  resources: rr
         )
         res.append(t)
     }
