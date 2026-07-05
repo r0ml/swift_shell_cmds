@@ -40,10 +40,6 @@ import CMigration
 
 let magic = "%"
 
-func ISMAGICNO(_ p: String ) -> Bool {
-  return p.count > 1 && p.hasPrefix(magic) && p.dropFirst().first!.isNumber
-}
-
 struct CommandOptions {
   var debug = false
   var magic : Character = "%"
@@ -52,7 +48,7 @@ struct CommandOptions {
   var arg_max : Int = 0
   var shell : String = ""
   var name : String = ""
-
+  var rx : Regex<(Substring,Substring)>!
   var args : ArraySlice<String> = []
 }
 
@@ -75,7 +71,10 @@ struct CommandOptions {
           guard opts.nargs == -1 else {
             throw CmdErr(1, "only one -# argument may be specified")
           }
-          opts.nargs = Int(String(k))!
+          guard let nargs = Int(String(k)) else {
+            throw CmdErr(1, "invalid argument count")
+          }
+          opts.nargs = nargs
         default:
           throw CmdErr(1)
       }
@@ -87,18 +86,25 @@ struct CommandOptions {
       throw CmdErr(1)
     }
     
-    let p = opts.args.first ?? ""
+    let p = opts.args[0]
+    var n = 0
 
     // Get the largest %digits number
-    let mm = p.matches(of: /%([1-9])/)
-    let n = mm.reduce(0, { max($0, Int($1.output.1)!)})
-
+    do {
+      opts.rx = try Regex(String(opts.magic)+"([1-9])")
+      let mm = p.matches(of: opts.rx)
+//      let mm = p.matches(of: /%([1-9])/)
+      n = mm.reduce(0, { max($0, Int($1.output.1)!)})
+    } catch(let e) {
+      print(e)
+      throw CmdErr(1, "Invalid magic character: \(opts.magic)")
+    }
     opts.shell = getShell()
     let slashp = opts.shell.lastIndex(of: "/")
     opts.name = slashp != nil ? String(opts.shell[opts.shell.index(after: slashp!)...]) : opts.shell
 
-    opts.cmd = opts.args.first!
-    
+    opts.cmd = opts.args[0]
+
     if n == 0 {
       // If nargs not set, default to a single argument.
       if opts.nargs == -1 {
@@ -135,7 +141,7 @@ struct CommandOptions {
       var cmdx = Substring(options.cmd)
 
       while !cmdx.isEmpty {
-        if let j = cmdx.firstMatch(of: /%([1-9])/) {
+        if let j = cmdx.firstMatch(of: options.rx) {
           cmdbuf.append(contentsOf: cmdx.prefix(upTo: j.range.lowerBound))
           cmdbuf.append(pkt[Int(j.output.1)!-1])
           cmdx = cmdx.suffix(from: j.range.upperBound)
@@ -162,7 +168,6 @@ struct CommandOptions {
       throw CmdErr(1, "expecting additional argument\(options.nargs - arg.count != 1 ? "s" : "") after \"\(options.args.last!)\"")
     }
     throw CmdErr(rval)
-
   }
 
   /// Execute a shell `command` using passed `shell` and `use_name`  arguments.

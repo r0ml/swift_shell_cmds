@@ -15,18 +15,18 @@
  IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE
  OR OTHER DEALINGS IN THE SOFTWARE.
- */
+*/
 
 import ShellTesting
 
 @Suite class applyTest : ShellTest {
   let cmd = "apply"
   let suiteBundle = "shell_cmds_applyTest"
-  
+
   @Test func regress00() async throws {
 
-//    print(packageRoot() )
-//    print(currentTestModule())
+    //    print(packageRoot() )
+    //    print(currentTestModule())
 
     let x = try fileContents("regress.00.out")
     var res = try fileContents("regress.00.in")
@@ -42,4 +42,47 @@ import ShellTesting
     try await run(status: 1, error: /Argument list too long/, args: "echo %1 %1 %1", a )
   }
 
+  @Test func tooFewArguments() async throws {
+    // Test simple substitution with one argument
+    let input = "hello world\n"
+    try await run(status: 1, error: /expecting additional argument after/, args: "echo %1 %2", input)
+  }
+
+  @Test func basicSubstitution() async throws {
+    // Test applying command to multiple arguments
+    let input = "hello"
+    let expected = "hello hello"
+    try await run(output: expected, args: "echo -n %1 %1 ", input)
+  }
+
+  @Test func customMagicCharacter() async throws {
+    // Test using custom magic character with -a flag
+    let input = "test"
+    let expected = "test test\n"
+    try await run(output: expected, args: "-a", "@", "echo @1 @1", input)
+  }
+
+  @Test func debugMode() async throws {
+    // Test debug mode output
+    let expected = "exec echo arg1 arg2\n"
+    try await run(output: expected, args: "-d", "echo %1 %2", "arg1", "arg2")
+  }
+
+  @Test func argumentCountIgnored() async throws {
+    // Test with specific argument count
+    let expected = "first second third\n"
+    try await run(output: expected, args: "-3", "echo %1 %2 %3", "first", "second", "third")
+  }
+
+  @Test func argumentCount() async throws {
+    // Test with specific argument count
+    let expected = "first second third\n"
+    try await run(output: expected, args: "-3", "echo", "first", "second", "third")
+  }
+
+  @Test func arguments() async throws {
+    // Test with specific argument count
+    let expected = "first\nsecond\nthird\n"
+    try await run(output: expected, args: "echo", "first", "second", "third")
+  }
 }
