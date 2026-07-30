@@ -24,7 +24,7 @@ import Foundation
 
 let package = Package(
   name: "shell_cmds",
-  platforms: [.macOS(.v15), .iOS(.v15)],
+  platforms: [.macOS(.v15), .iOS(.v18), .macCatalyst(.v18)],
   dependencies: [
      .package(url: "https://github.com/r0ml/ShellTesting.git" , branch: "main"),
 //     .package(path: "../ShellTesting"),

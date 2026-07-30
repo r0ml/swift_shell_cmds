@@ -37,6 +37,9 @@ import CMigration
 
 import Darwin
 
+let D_TAPE = 1
+
+
     extension hexdump {
 
     
@@ -395,7 +398,7 @@ import Darwin
                 if (ioctl(fileno(stdin), UInt(FIODTYPE), &type) != 0) {
                     err(1, fname)
                 }
-                if ((Int32(type) & D_TAPE) != 0) {
+                if ((type & D_TAPE) != 0) {
                     noseek()
                     return
                 }

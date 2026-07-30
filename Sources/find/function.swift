@@ -293,8 +293,8 @@ extension find {
   
   func c_acl(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
     // FIXME: all the other apple oses
-#if !os(macOS)
-    ftsoptions &= ~FTS_NOSTAT
+#if !(os(macOS) || targetEnvironment(macCatalyst))
+    ftsoptions.remove(.NOSTAT)
 #endif
     return PLAN(option)
   }

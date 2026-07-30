@@ -196,7 +196,7 @@ At least one option or argument to specify processes must be given."
             opts.eflag += 1
         case "I":
             opts.Iflag += 1
-#if !os(macOS)
+#if !(os(macOS) || targetEnvironment(macCatalyst))
         case "j":
             opts.jflag += 1
           if let x = Int(String(cString: optarg)) {
@@ -237,7 +237,7 @@ At least one option or argument to specify processes must be given."
       
     opts.args = go.remaining
       
-#if os(macOS)
+#if os(macOS) || targetEnvironment(macCatalyst)
     if opts.user == nil && opts.tty == nil && opts.cmd == nil && CommandLine.arguments.count == 0 {
         throw CmdErr(1)
       }
@@ -314,7 +314,7 @@ At least one option or argument to specify processes must be given."
       mib[3] = Int32(opts.tdev)
         miblen = 4
       } else {
-#if os(macOS)
+#if os(macOS) || targetEnvironment(macCatalyst)
         mib[2] = KERN_PROC_ALL
 #else
         mib[2] = KERN_PROC_PROC
@@ -366,7 +366,7 @@ At least one option or argument to specify processes must be given."
       let mypid = getpid()
       
       for i in 0..<nprocs {
-#if os(macOS)
+#if os(macOS) || targetEnvironment(macCatalyst)
         if procs[i].kp_proc.p_stat == SZOMB && opts.zflag == 0 {
           continue
         }
@@ -414,7 +414,7 @@ At least one option or argument to specify processes must be given."
         }
          let thistdev = procs[i].kp_eproc.e_tdev
 #else
-        if procs![i].ki_stat == SZOMB && zflag == 0 {
+        if procs![i].ki_stat == SZOMB && opts.zflag == 0 {
           continue
         }
         thispid = procs![i].ki_pid
@@ -482,7 +482,7 @@ At least one option or argument to specify processes must be given."
           }
         }
         if matched && opts.Iflag != 0 {
-#if os(macOS)
+#if os(macOS) || targetEnvironment(macCatalyst)
           print("Send signal \(sig) to \(opts.thiscmd!) (pid \(thispid))? ", terminator: "")
 #else
           printf("Send signal %d to %s (pid %d uid %d)? ", sig, thiscmd, thispid, thisuid)
@@ -501,7 +501,7 @@ At least one option or argument to specify processes must be given."
           continue
         }
         if opts.dflag != 0 {
-#if os(macOS)
+#if os(macOS) || targetEnvironment(macCatalyst)
           print("sig:\(sig), cmd:\(opts.thiscmd!), pid:\(thispid), dev:0x\(cFormat("%0x",thistdev))")
 #else
           printf("sig:%d, cmd:%s, pid:%d, dev:0x%jx uid:%d\n", sig, thiscmd, thispid, thistdev, thisuid)

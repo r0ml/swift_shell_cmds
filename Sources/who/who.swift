@@ -148,7 +148,7 @@ import Darwin
   
   func runCommand() throws(CmdErr) {
     if let arg = options.arg {
-#if !os(macOS)
+#if !(os(macOS) || targetEnvironment(macCatalyst))
       if Darwin.setutxdb(UTXDB_ACTIVE, arg) != 0 {
         throw .opterr(1, arg)
       }

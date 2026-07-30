@@ -216,7 +216,7 @@ final class hexdump : ShellCommand {
     
     var opts = options!
 
-#if !os(macOS)
+#if !(os(macOS) || targetEnvironment(macCatalyst))
     caph_cache_catpages()
     if caph_limit_stdio() < 0 {
       err(1, "capsicum")
