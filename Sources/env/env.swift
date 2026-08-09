@@ -185,7 +185,8 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
  //     let pe = execvp(argv, Array(opts.aa) )
 
       do {
-        let _ =  try await  DarwinProcess().run(argv, args: Array(options.aa.dropFirst()), captureOutput: false)
+        // FIXME: do I need to do something else about output
+        let _ =  try await  DarwinProcess().run(argv, args: Array(options.aa.dropFirst()), output: (nil, nil) )
       } catch {
         throw CmdErr(127, "\(error)")
       }
