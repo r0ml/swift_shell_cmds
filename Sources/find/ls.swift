@@ -44,7 +44,7 @@ extension find {
   func printlong(name: String, accpath: String, sb: FileMetadata) {
     //    var modep = [CChar](repeating: 0, count: 15)
     
-    print(cFormat("%6ju %8lld ", sb.inode, sb.blocks), terminator: "")
+    print("%6ju %8lld ".cFormat(sb.inode, sb.blocks), terminator: "")
 
     let modep = withUnsafeTemporaryAllocation(byteCount: 15, alignment: 1) {p in
       let pp = p.assumingMemoryBound(to: CChar.self).baseAddress!
@@ -53,15 +53,15 @@ extension find {
     }
     print(
       modep.withCString { a in
-        cFormat("\(a) %3ju %-*s %-*s ", sb.links,
+        "\(a) %3ju %-*s %-*s ".cFormat(sb.links,
                 MAXLOGNAME - 1, user_from_uid(UInt32(sb.userId), 0),
                 MAXLOGNAME - 1, group_from_gid(UInt32(sb.groupId), 0))
       }
     , terminator: "")
     if sb.filetype == .characterDevice || sb.filetype == .blockDevice {
-      print(cFormat("%#8jx ", sb.rawDevice), terminator: "")
+      print("%#8jx ".cFormat(sb.rawDevice), terminator: "")
     } else {
-      print(cFormat("%8lld ", sb.size), terminator: "")
+      print("%8lld ".cFormat(sb.size), terminator: "")
     }
     printtime(sb.lastModified.secs)
     print(name, terminator: "")

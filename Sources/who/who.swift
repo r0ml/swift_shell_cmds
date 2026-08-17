@@ -233,7 +233,7 @@ import Darwin
       }
       if options.unix2003_std && !options.Tflag {
         if ut.ut_pid != 0 {
-          login_pidstr = cFormat("%8d", ut.ut_pid)
+          login_pidstr = "%8d".cFormat(ut.ut_pid)
         } else {
           login_pidstr = "       ?"
         }
@@ -254,7 +254,7 @@ import Darwin
       }
     }
     if options.Tflag {
-      print(cFormat("%c ", state), terminator: "")
+      print("%c ".cFormat(state), terminator: "")
     }
     if ut.ut_type == Darwin.BOOT_TIME {
       print(rightPad("system boot", 12), terminator: " ")
@@ -276,7 +276,7 @@ import Darwin
       if idle < 60 {
         print("  .   ", terminator: "")
       } else if idle < 24 * 60 * 60 {
-        print(cFormat("%02d:%02d ", Int(idle / 60 / 60), Int(idle / 60 % 60)), terminator: "")
+        print("%02d:%02d ".cFormat(Int(idle / 60 / 60), Int(idle / 60 % 60)), terminator: "")
       } else {
         print(" old  ", terminator: "")
       }

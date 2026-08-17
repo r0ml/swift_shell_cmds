@@ -408,11 +408,8 @@ import CMigration
 
     // use a TaskGroup here?
 
-    let p = ProcessRunner(command: args[0], arguments: Array(args.dropFirst()), environment: nil )
-
     do {
-      let m = try await p.run(captureStdout: false, captureStderr: false)
-
+      let p = try await DarwinProcess().run(args[0], args: Array(args.dropFirst()), output: (nil, nil) )
     } catch(let e) {
       throw CmdErr(1, "\(e)")
     }

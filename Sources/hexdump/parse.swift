@@ -44,7 +44,7 @@ extension hexdump {
     //   var fp: UnsafeMutablePointer<FILE>?
     // var ch: Int32
     
-    let buf = try readFileAsString(at: name).split(separator: "\n")
+    let buf = try FilePath(name).readAsString().split(separator: "\n")
     for ln in buf {
       let k = ln.trimming([" "])
       if k.isEmpty || k.first == "#" { continue }

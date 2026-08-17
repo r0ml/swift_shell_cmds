@@ -189,8 +189,7 @@ func cleanup() {
     
     
     do {
-      let p = ProcessRunner(command: execu, arguments: args)
-      try await p.run()
+      try await DarwinProcess().run(execu, args: args)
     } catch(let e as Errno) {
       return e.rawValue
     } catch {

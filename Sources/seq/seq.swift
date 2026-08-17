@@ -389,7 +389,7 @@ import CMigration
     // More processing here
     
     for cur in stride(from: first, through: last, by: incr) {
-      print(cFormat(opts.format!, cur), terminator: opts.separator)
+      print(opts.format!.cFormat(cur), terminator: opts.separator)
     }
     
     // More processing here
@@ -423,7 +423,7 @@ import CMigration
       last = first + incr * floor((last - first) / incr)
     }
     
-    buf = cFormat("%g", incr)
+    buf = "%g".cFormat(incr)
     if buf.contains("e") {
       cc = "e"
     }
@@ -452,11 +452,11 @@ import CMigration
     let padx = UInt8(pad.unicodeScalars.first!.value)
     if precision != 0 {
       String((cc != "\0") ? cc : "f").withCString {
-        buf = cFormat("%%%c%d.%d%c", padx, max(width1, width2) + decimalPoint.count + precision, precision, $0)
+        buf = "%%%c%d.%d%c".cFormat(padx, max(width1, width2) + decimalPoint.count + precision, precision, $0)
       }
     } else {
       String(cc != "\0" ? cc : "g").withCString {
-        buf = cFormat("%%%c%d%c", padx, max(width1, width2), $0)
+        buf = "%%%c%d%c".cFormat(padx, max(width1, width2), $0)
       }
     }
     

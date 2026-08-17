@@ -290,9 +290,11 @@ func colonify(_ cpp: [String]) -> String {
     opts.unusual = opts.unusual | NO_MAN_FOUND
     let cp = opts.opt_a ? ["-a","-w", name] : ["-S1:8:6", "-w", name]
 //    let cpx = cp + ["-M", colonify(mandirs ?? [])]
-    let p = ProcessRunner(command: "/usr/bin/man", arguments: cp)
-    let res = try! await p.run()
-    return res.stdout
+    if let p = try? await DarwinProcess().run("/usr/bin/man", args: cp) {
+      return p.string
+    } else {
+      return nil
+    }
   }
   
   
@@ -376,9 +378,8 @@ func colonify(_ cpp: [String]) -> String {
       /* How to query the current manpath. */
       let MANPATHCMD = ["manpath","-q"]
       do {
-        let p = ProcessRunner(command: "/usr/bin/manpath", arguments: MANPATHCMD)
-        let res = try await p.run()
-        var b = Substring(res.stdout)
+        var res = try await DarwinProcess().run("/usr/bin/manpath", args: MANPATHCMD)
+        var b = Substring(res.string)
         if let x = b.lastIndex(of: "\n") {
           b = b[b.startIndex..<x]
         }

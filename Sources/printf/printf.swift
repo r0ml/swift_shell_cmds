@@ -139,14 +139,14 @@ import ICU
     func PF(_ f : String, _ _func: CVarArg) {
       if havewidth {
         if haveprec {
-          print(cFormat(f, fieldwidth, precision, _func), terminator: "")
+          print(f.cFormat(fieldwidth, precision, _func), terminator: "")
         } else {
-          print(cFormat(f, fieldwidth, _func), terminator: "")
+          print(f.cFormat(fieldwidth, _func), terminator: "")
         }
       } else if haveprec {
-        print(cFormat(f, precision, _func), terminator: "")
+        print(f.cFormat(precision, _func), terminator: "")
       } else {
-        print(cFormat(f, _func), terminator: "")
+        print(f.cFormat(_func), terminator: "")
       }
     }
 

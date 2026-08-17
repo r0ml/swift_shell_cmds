@@ -337,7 +337,7 @@ let HAVE_REPS = 8
         print(options.format, terminator: "")
       } else if options.longdata && options.nosign {
         if x <= Double(UInt.max) && x >= 0 {
-          print(cFormat(options.format, UInt(x)), terminator: "")
+          print(options.format.cFormat(UInt(x)), terminator: "")
         } else {
           return 1
         }
@@ -363,12 +363,12 @@ let HAVE_REPS = 8
         }
       } else if options.intdata {
         if x <= Double(UInt32.max) && x >= 0 {
-          print(cFormat(options.format, UInt(x)), terminator: "")
+          print(options.format.cFormat(UInt(x)), terminator: "")
         } else {
           return 1
         }
       } else {
-        print(cFormat(options.format, x), terminator: "")
+        print(options.format.cFormat(x), terminator: "")
       }
       if !last {
         print(options.sepstring, terminator: "")

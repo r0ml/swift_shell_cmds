@@ -147,19 +147,19 @@ extension hexdump {
     if !converr && iswprint(wc) != 0 {
       if !odmode {
         pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "c")
-        Swift.print(cFormat(pr.fmt, UInt8(wc) ), terminator: "")
+        Swift.print(pr.fmt.cFormat(UInt8(wc) ), terminator: "")
       } else {
         pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "C")
         assert(pr.fmt == "%3C")
         let width = Int(wcwidth(wc))
         assert(width >= 0)
         let pad = max(3 - width, 0)
-        Swift.print("".withCString { cFormat("%*s%C", pad, $0, wc) } , terminator: "")
+        Swift.print("".withCString { "%*s%C".cFormat(pad, $0, wc) } , terminator: "")
         pr.mbleft = clen - 1
       }
       return false
     } else {
-      str = cFormat("%03o", pp)
+      str = "%03o".cFormat(pp)
       return true
     }
   }
@@ -173,22 +173,22 @@ extension hexdump {
     if p <= 0x1f {
       pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "s")
       if odmode && p == 0x0a {
-        Swift.print(cFormat(pr.fmt, "nl"), terminator: "")
+        Swift.print(pr.fmt.cFormat("nl"), terminator: "")
       } else {
-        Swift.print(cFormat(pr.fmt, list[Int(p)]), terminator: "")
+        Swift.print(pr.fmt.cFormat(list[Int(p)]), terminator: "")
       }
     } else if p == 0x7f {
       pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "s")
-      Swift.print(cFormat(pr.fmt, "del"), terminator: "")
+      Swift.print(pr.fmt.cFormat("del"), terminator: "")
     } else if odmode && p == 0x20 {
       pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "s")
-      Swift.print(cFormat(pr.fmt, " sp"), terminator: "")
+      Swift.print(pr.fmt.cFormat(" sp"), terminator: "")
     } else if isprint(Int32(p)) != 0 {
       pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "c")
-      Swift.print(cFormat(pr.fmt, p), terminator: "")
+      Swift.print(pr.fmt.cFormat(p), terminator: "")
     } else {
       pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "x")
-      Swift.print(cFormat(pr.fmt, Int(p)), terminator: "")
+      Swift.print(pr.fmt.cFormat(Int(p)), terminator: "")
     }
   }
 }

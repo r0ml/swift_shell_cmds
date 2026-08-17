@@ -341,7 +341,7 @@ extension hexdump {
       }
     }
     
-    hdfmt = cFormat("%lu/%lu \" %%%d.%de \" \"\\n\"", 16 / isize, isize, digits + 8, digits)
+    hdfmt = "%lu/%lu \" %%%d.%de \" \"\\n\"".cFormat(16 / isize, isize, digits + 8, digits)
     odadd(hdfmt)
     
     return fmt
@@ -392,7 +392,7 @@ extension hexdump {
     "".withCString { a in
       String(fchar).withCString { b in
         ((fchar == "d" || fchar == "u") ? "" : "0").withCString { c in
-          cFormat("%lu/%lu \"%*s%%%s%d%s\" \"\\n\"", 16 / isize, isize, (4 * isize - digits), a, c, digits, b )
+          "%lu/%lu \"%*s%%%s%d%s\" \"\\n\"".cFormat(16 / isize, isize, (4 * isize - digits), a, c, digits, b )
         }
       }
     }

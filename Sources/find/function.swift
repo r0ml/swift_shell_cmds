@@ -532,12 +532,13 @@ extension find {
       var status : Int32 = 0
       // FIXME: this broke when I made ProcessRunner async
       do {
-          let p = ProcessRunner(command: searchPath(for: epee.e_argv.first!)!, arguments: Array(epee.e_argv.dropFirst()), currentDirectory: cwd )
+        let cmd = searchPath(for: epee.e_argv.first!)!
+        let args = Array(epee.e_argv.dropFirst())
         Task {
-          let _ = try await p.run()
+        try await DarwinProcess().run(cmd, args: args, cd: FilePath(cwd ?? ".") )
         }
-      } catch ProcessError.nonZeroExit(let xstatus, let output, let error) {
-        status = xstatus
+      } catch let e as Errno {
+        status = e.rawValue
       } catch {
         status = -1
       }

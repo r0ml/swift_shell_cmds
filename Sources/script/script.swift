@@ -563,17 +563,18 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
     if let av0 = av.first {
       let ff = searchPath(for: av0)
       
-      let p = ProcessRunner(command: ff!, arguments: args, environment: env)
-      try await p.run()
+      try await DarwinProcess().run(ff!, args: args, env: env)
 
 //      execvp(av0, av);
       warn(av0)
     } else {
       do {
-        let p = ProcessRunner(command: shell, arguments: ["-i"], environment: env)
-        try await p.run(input: FileDescriptor.standardInput)
-      } catch ProcessError.nonZeroExit(code: let r, stdout: _, stderr: _) {
-        return r
+        let p = try await DarwinProcess().run(shell, withStdin: FileDescriptor.standardInput, args: ["-i"], env: env)
+        return p.code
+      } catch let e as Errno {
+        return e.rawValue
+      } catch {
+        return -1
       }
       
 //      execl(shell, shell, "-i", [] )

@@ -271,7 +271,7 @@ At least one option or argument to specify processes must be given."
         }
         opts.tdev = sb.rawDevice
         if opts.dflag != 0 {
-          print("ttydev:0x\(cFormat("%x", opts.tdev))")
+          print("ttydev:0x\("%x".cFormat(opts.tdev))")
         }
       }
     if let user = opts.user {
@@ -502,7 +502,7 @@ At least one option or argument to specify processes must be given."
         }
         if opts.dflag != 0 {
 #if os(macOS) || targetEnvironment(macCatalyst)
-          print("sig:\(sig), cmd:\(opts.thiscmd!), pid:\(thispid), dev:0x\(cFormat("%0x",thistdev))")
+          print("sig:\(sig), cmd:\(opts.thiscmd!), pid:\(thispid), dev:0x\("%0x".cFormat(thistdev))")
 #else
           printf("sig:%d, cmd:%s, pid:%d, dev:0x%jx uid:%d\n", sig, thiscmd, thispid, thistdev, thisuid)
 #endif

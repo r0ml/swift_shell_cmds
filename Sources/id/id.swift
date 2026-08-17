@@ -403,7 +403,7 @@ import Darwin
     }
 
     if extended {
-      print(cFormat( """
+      print("""
 auid=%d
 mask.success=0x%08x
 mask.failure=0x%08x
@@ -413,15 +413,15 @@ termid_addr.addr[0]=0x%08x
 termid_addr.addr[1]=0x%08x
 termid_addr.addr[2]=0x%08x
 termid_addr.addr[3]=0x%08x
-""",
-                   ainfo_addr.ai_auid, ainfo_addr.ai_mask.am_success,
+""".cFormat(
+  ainfo_addr.ai_auid, ainfo_addr.ai_mask.am_success,
                    ainfo_addr.ai_mask.am_failure, ainfo_addr.ai_asid,
                    UInt(ainfo_addr.ai_termid.at_port),
                    ainfo_addr.ai_termid.at_addr.0,
                    ainfo_addr.ai_termid.at_addr.1,
                    ainfo_addr.ai_termid.at_addr.2,
                    ainfo_addr.ai_termid.at_addr.3))
-      print(cFormat("flags=0x%llx", ainfo_addr.ai_flags))
+      print("flags=0x%llx".cFormat(ainfo_addr.ai_flags))
     } else {
     }
   }

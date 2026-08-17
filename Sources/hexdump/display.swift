@@ -127,7 +127,7 @@ let D_TAPE = 1
             switch(pr.flags) {
             case .F_ADDRESS:
 //                let _ = withVaList([address as quad_t]) { vprintf(fmt, $0) }
-                let s = cFormat(fmt, quad_t(address))
+                let s = fmt.cFormat(quad_t(address))
                 Swift.print(s, terminator: "")
             case .F_BPAD:
                 "".withCString {

@@ -137,7 +137,7 @@ actor Stuff {
     if mins != 0 {
       out.write("\(mins)m")
     }
-    out.write("\(secz)\(options.decimal_point)\(cFormat("%02d", centisec))s")
+    out.write("\(secz)\(options.decimal_point)\("%02d".cFormat(centisec))s")
   }
   
   func showtime(out: inout FileDescriptor, before: timespec, after: inout timespec, ru: rusage) {
@@ -150,9 +150,9 @@ actor Stuff {
     }
     
     if options.pflag {
-      print(cFormat("real %jd%c%02ld", after.tv_sec, options.decimal_point, after.tv_nsec/10000000), to: &out)
-      print(cFormat("user %jd%c%02ld", ru.ru_utime.tv_sec, options.decimal_point, ru.ru_utime.tv_usec/10000), to: &out)
-      print(cFormat("sys %jd%c%02ld", ru.ru_stime.tv_sec, options.decimal_point, ru.ru_stime.tv_usec/10000), to: &out)
+      print("real %jd%c%02ld".cFormat(after.tv_sec, options.decimal_point, after.tv_nsec/10000000), to: &out)
+      print("user %jd%c%02ld".cFormat(ru.ru_utime.tv_sec, options.decimal_point, ru.ru_utime.tv_usec/10000), to: &out)
+      print("sys %jd%c%02ld".cFormat(ru.ru_stime.tv_sec, options.decimal_point, ru.ru_stime.tv_usec/10000), to: &out)
     } else if options.hflag {
       humantime(out: &out, sec: Int(after.tv_sec), centisec: Int(after.tv_nsec/10000000))
       print(" real\t", terminator: "", to: &out)
@@ -163,9 +163,9 @@ actor Stuff {
       humantime(out: &out, sec: Int(ru.ru_stime.tv_sec), centisec: Int(ru.ru_stime.tv_usec)/10000)
       print(" sys\n", to: &out)
     } else {
-      print(cFormat("%9jd%c%02ld real ", after.tv_sec, options.decimal_point, after.tv_nsec/10000000), terminator: "", to: &out)
-      print(cFormat("%9jd%c%02ld user ", ru.ru_utime.tv_sec, options.decimal_point, ru.ru_utime.tv_usec/10000), terminator: "", to: &out)
-      print(cFormat("%9jd%c%02ld sys",  ru.ru_stime.tv_sec, options.decimal_point, ru.ru_stime.tv_usec/10000), to: &out)
+      print("%9jd%c%02ld real ".cFormat(after.tv_sec, options.decimal_point, after.tv_nsec/10000000), terminator: "", to: &out)
+      print("%9jd%c%02ld user ".cFormat(ru.ru_utime.tv_sec, options.decimal_point, ru.ru_utime.tv_usec/10000), terminator: "", to: &out)
+      print("%9jd%c%02ld sys".cFormat( ru.ru_stime.tv_sec, options.decimal_point, ru.ru_stime.tv_usec/10000), to: &out)
     }
   }
   
@@ -307,17 +307,15 @@ actor Stuff {
       xstatus = 0
       do {
         let j = self.stuff
-        let p = ProcessRunner(command: ff, arguments: Array(options.args.dropFirst()))
+        let res = try await DarwinProcess().run(ff, args: Array(options.args.dropFirst()))
 /*
  let res = try await p.run(prelaunch: { p in
  //         self.pid = p
           let _ = await j.w4(p)
         })
  */
-        let res = try await p.run()
-
-      } catch ProcessError.nonZeroExit(let s, let o, let e) {
-        xstatus = s
+      } catch let e as Errno {
+        xstatus = e.rawValue
       } catch(let e) {
         throw CmdErr(1, "\(e)")
       }
@@ -506,34 +504,35 @@ actor Stuff {
       ticks = 1
     }
     
-    print(cFormat("%20ld  maximum resident set size", ru.ru_maxrss), to: &fh)
-    print(cFormat("%20ld  average shared memory size", ru.ru_ixrss / ticks), to: &fh)
-    print(cFormat("%20ld  average unshared data size", ru.ru_idrss / ticks), to: &fh)
+    print("%20ld  maximum resident set size".cFormat(ru.ru_maxrss), to: &fh)
+    print("%20ld  average shared memory size".cFormat(ru.ru_ixrss / ticks), to: &fh)
+    print("%20ld  average unshared data size".cFormat(ru.ru_idrss / ticks), to: &fh)
     
-    print(cFormat("%20ld  average unshared stack size", ru.ru_isrss / ticks), to: &fh)
+    print("%20ld  average unshared stack size".cFormat(ru.ru_isrss / ticks), to: &fh)
     
-    print(cFormat("%20ld  page reclaims", ru.ru_minflt), to: &fh)
-    print(cFormat("%20ld  page faults", ru.ru_majflt), to: &fh)
-    print(cFormat("%20ld  swaps", ru.ru_nswap), to: &fh)
-    print(cFormat("%20ld  block input operations", ru.ru_inblock), to: &fh)
-    print(cFormat("%20ld  block output operations", ru.ru_oublock), to: &fh)
-    print(cFormat("%20ld  messages sent", ru.ru_msgsnd), to: &fh)
-    print(cFormat("%20ld  messages received", ru.ru_msgrcv), to: &fh)
-    print(cFormat("%20ld  signals received", ru.ru_nsignals), to: &fh)
-    print(cFormat("%20ld  voluntary context switches", ru.ru_nvcsw), to: &fh)
-    print(cFormat("%20ld  involuntary context switches", ru.ru_nivcsw), to: &fh)
+    print("%20ld  page reclaims".cFormat(ru.ru_minflt), to: &fh)
+    print("%20ld  page faults".cFormat(ru.ru_majflt), to: &fh)
+    print("%20ld  swaps".cFormat(ru.ru_nswap), to: &fh)
+    print("%20ld  block input operations".cFormat(ru.ru_inblock), to: &fh)
+    print("%20ld  block output operations".cFormat(ru.ru_oublock), to: &fh)
+    print("%20ld  messages sent".cFormat(ru.ru_msgsnd), to: &fh)
+    print("%20ld  messages received".cFormat(ru.ru_msgrcv), to: &fh)
+    print("%20ld  signals received".cFormat(ru.ru_nsignals), to: &fh)
+    print("%20ld  voluntary context switches".cFormat(ru.ru_nvcsw), to: &fh)
+    print("%20ld  involuntary context switches".cFormat(ru.ru_nivcsw), to: &fh)
     
     if (rusage_ret >= 0) {
       
       if (ruinfo.ri_instructions > 0) {
-        print(cFormat("%20\(PRIu64)  instructions retired", ruinfo.ri_instructions), to: &fh)
+        print("%20\(PRIu64)  instructions retired".cFormat(ruinfo.ri_instructions), to: &fh)
       }
       
       if (ruinfo.ri_cycles > 0) {
-        print(cFormat("%20\(PRIu64)  cycles elapsed", ruinfo.ri_cycles), to: &fh)
+        print("%20\(PRIu64)  cycles elapsed".cFormat(ruinfo.ri_cycles), to: &fh)
       }
       if (ruinfo.ri_lifetime_max_phys_footprint > 0) {
-        print(cFormat("%20\(PRIu64)  peak memory footprint", ruinfo.ri_lifetime_max_phys_footprint), to: &fh)
+        print("%20\(PRIu64)  peak memory footprint".cFormat(
+          ruinfo.ri_lifetime_max_phys_footprint), to: &fh)
       }
     }
   }
