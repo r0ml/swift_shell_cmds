@@ -78,7 +78,7 @@ import ShellTesting
     defer { rm(tdir) }
     try? Environment.setenv("TMPDIR", tdir.string)
     try await run(args: "mktemp", "-t", "foo") { po in
-      let rr = po.string
+      let rr = try po.string(encoded: .utf8)
       let s = tdir.string
 
       #expect( rr.hasPrefix(s+"/foo." ) )

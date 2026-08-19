@@ -101,7 +101,8 @@ import ShellTesting
 
     try await run(withStdin: res, args: "-n2", "-P0", "echo") { po in
       //    let po = try await ShellProcess(cmd, "-n2", "-P0", "echo").run(res)
-      let k = (po.string.dropLast().split(separator: "\n").sorted().joined(separator: "\n"))+"\n"
+      let s = try po.string(encoded: .utf8)
+      let k = (s.dropLast().split(separator: "\n").sorted().joined(separator: "\n"))+"\n"
       #expect( k == x )
     }
   }

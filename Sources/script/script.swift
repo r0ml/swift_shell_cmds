@@ -710,7 +710,8 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
       while isReading {
         do {
           let a = try slaveFH.readUpToCount(4096)
-          print("slave: \(String(decoding: a, as: ISOLatin1.self))")
+          let j = try! IEncoding.latin1.toString(a)
+          print("slave: \(j)")
           if a.count == 0 {
             isReading = false
             //        if (tcgetattr(masterFH.fileDescriptor, &stt) == 0 &&
@@ -879,7 +880,8 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
                            localtime(&tclock))
         //      let d = Data(bytesNoCopy: k, count: l, deallocator: .none)
               let j = UnsafeBufferPointer(start: k, count: l)
-              let bb = String(decoding: j, as: ISOLatin1.self)
+              let tb = try! IEncoding.latin1.toString(Array(j))
+              let bb = tb
               return bb
             }
             print(bb, terminator: "")

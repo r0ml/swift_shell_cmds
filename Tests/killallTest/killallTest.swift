@@ -48,11 +48,11 @@ import Darwin
     }
     
     let op = try await shell("ps -x")
-    let jj = op.string.split(separator: "\n").filter {!($0.matches(of: /innocent_test_prog/).isEmpty) }
+    let jj = try op.string(encoded: .utf8).split(separator: "\n").filter {!($0.matches(of: /innocent_test_prog/).isEmpty) }
     #expect(jj.count == 3)
     try await run(args: "innocent_test_prog")
     let op2 = try await shell("ps -x")
-    let jj2 = op2.string.split(separator: "\n").filter {!($0.matches(of: /innocent_test_prog/).isEmpty) }
+    let jj2 = try op2.string(encoded: .utf8).split(separator: "\n").filter {!($0.matches(of: /innocent_test_prog/).isEmpty) }
     #expect(jj2.count == 0)
 
     

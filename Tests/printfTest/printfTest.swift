@@ -50,10 +50,12 @@ import ShellTesting
     try? Environment.setenv("LC_ALL","en.US.ISO8859-1")
     try await run(args: "\"\\344") { po1 in
       //    let po1 = try await ShellProcess(cmd, "\"\\344").run()
-      try await run(args: "%d\n", po1.string) { po2 in
+      let s = try po1.string(encoded: .utf8)
+      try await run(args: "%d\n", s) { po2 in
         //      let po2 = try await ShellProcess(cmd, "%d\n", po1.string).run()
         let out = try fileContents("regress.l1.out")
-        #expect(po2.string == out)
+        let k = try po2.string(encoded: .utf8)
+        #expect(k == out)
       }
     }
   }
@@ -66,9 +68,11 @@ import ShellTesting
     //    let po1 = try await ShellProcess(cmd, "\"\\303\\244").run()
     try await run(args: "\"\\303\\244") { po1 in
       //    let j3 = "\"\u{195}\u{164}"
-      try await run(args: "%d\n", po1.string) { po2 in
+      let s = try po1.string(encoded: .utf8)
+      try await run(args: "%d\n", s) { po2 in
         let out = try fileContents("regress.l2.out")
-        #expect(po2.string == out)
+        let t = try po2.string(encoded: .utf8)
+        #expect(t == out)
       }
     }
   }
@@ -137,7 +141,8 @@ import ShellTesting
   @Test func test_missingpos1() async throws {
     let out = try fileContents("regress.missingpos1.out")
     try await run(args: "%1$*s", "1", "1") { po in
-      #expect( (po.string + po.error) == out)
+      let k = try po.string(encoded: .utf8)
+      #expect( (k + po.error) == out)
     }
   }
 
@@ -145,7 +150,8 @@ import ShellTesting
   @Test func test_missingpos2() async throws {
     let out = try fileContents("regress.missingpos1.out")
     try await run( args: "%*1$s", "1", "1") { po in
-      #expect( (po.string + po.error) == out)
+      let k = try po.string(encoded: .utf8)
+      #expect( (k + po.error) == out)
     }
   }
 
@@ -153,7 +159,8 @@ import ShellTesting
   @Test func test_missingpos3() async throws {
     let out = try fileContents("regress.missingpos1.out")
     try await run(args: "%1$*.*s", "1", "1", "1") { po in
-      #expect( (po.string + po.error) == out)
+      let k = try po.string(encoded: .utf8)
+      #expect( (k + po.error) == out)
     }
   }
 
@@ -161,7 +168,8 @@ import ShellTesting
   @Test func test_missiingpos4() async throws {
     let out = try fileContents("regress.missingpos1.out")
     try await run(args: "%*1$.*s", "1", "1", "1") { po in
-      #expect( (po.string + po.error) == out)
+      let k = try po.string(encoded: .utf8)
+      #expect( (k + po.error) == out)
     }
   }
 
@@ -169,7 +177,8 @@ import ShellTesting
   @Test func test_missingpos5() async throws {
     let out = try fileContents("regress.missingpos1.out")
     try await run(args: "%*.*1$s", "1", "1", "1") { po in
-      #expect( (po.string + po.error) == out)
+      let k = try po.string(encoded: .utf8)
+      #expect( (k + po.error) == out)
     }
   }
 
@@ -177,7 +186,8 @@ import ShellTesting
   @Test func test_missingpos6() async throws {
     let out = try fileContents("regress.missingpos1.out")
     try await run(args: "%1$*2$.*s", "1", "1", "1") { po in
-      #expect( (po.string + po.error) == out)
+      let k = try po.string(encoded: .utf8)
+      #expect( (k + po.error) == out)
     }
   }
 
@@ -185,7 +195,8 @@ import ShellTesting
   @Test func test_missingpos7() async throws {
     let out = try fileContents("regress.missingpos1.out")
     try await run(args: "%*1$.*2$s", "1", "1", "1") { po in
-      #expect( (po.string + po.error) == out)
+      let k = try po.string(encoded: .utf8)
+      #expect( (k + po.error) == out)
     }
   }
 
@@ -193,7 +204,8 @@ import ShellTesting
   @Test func test_missingpos8() async throws {
     let out = try fileContents("regress.missingpos1.out")
     try await run(args: "%1$*.*2$s", "1", "1", "1") { po in
-      #expect( (po.string + po.error) == out)
+      let k = try po.string(encoded: .utf8)
+      #expect( (k + po.error) == out)
     }
   }
 
@@ -201,7 +213,8 @@ import ShellTesting
   @Test func test_bwidth() async throws {
     let out = try fileContents("regress.bwidth.out")
     try await run( args: "%8.2b", "a\nb\n") { po in
-      #expect( (po.string + po.error) == out)
+      let k = try po.string(encoded: .utf8)
+      #expect( (k + po.error) == out)
     }
   }
 

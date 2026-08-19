@@ -26,11 +26,13 @@ import ShellTesting
   func doTest(_ o : String, _ a : [String]) async throws {
     try await run ( args: a) { po in
       let ox = try self.fileContents("regress.\(o).out")
-      if ox.contains("\0") || po.string.contains("\0") {
-        let cannotShowZero = po.string == ox
+      let j = try po.string(encoded: .utf8)
+      if ox.contains("\0") || j.contains("\0") {
+        let cannotShowZero = try po.string(encoded: .utf8) == ox
         #expect(cannotShowZero)
       } else {
-        #expect(po.string == ox)
+        let k = try po.string(encoded: .utf8)
+        #expect(k == ox)
       }
     }
   }
@@ -55,7 +57,8 @@ import ShellTesting
     try await run( args: k) { po in
       let ox = try self.fileContents("regress.\(o).out")
 
-      let jj = (Set(po.string.split(separator: "\n").dropLast()).sorted() + [""]).joined(separator: "\n")
+      let mm = try po.string(encoded: .utf8)
+      let jj = (Set(mm.split(separator: "\n").dropLast()).sorted() + [""]).joined(separator: "\n")
 
       #expect(jj == ox)
     }

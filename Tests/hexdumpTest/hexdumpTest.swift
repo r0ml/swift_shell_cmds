@@ -91,7 +91,8 @@ import ShellTesting
     let res1 = try inFile("d_hexdump_c.in")
     for i in 0...7 {
       try await run(args: f, "\(i)", res1) { po in
-        let k1 = po.string.split(separator: "\n")
+        let j = try po.string(encoded: .utf8)
+        let k1 = j.split(separator: "\n")
         if f == "-s" {
           #expect(k1.contains("*"))
         } else {
@@ -104,7 +105,8 @@ import ShellTesting
   @Test(arguments: ["-s", "-vs"]) func v_flag8(_ f : String) async throws {
     let res1 = try inFile("d_hexdump_c.in")
     try await run(args: f, "8", res1) { po in
-      let k1 = po.string.split(separator: "\n")
+      let s = try po.string(encoded: .utf8)
+      let k1 = s.split(separator: "\n")
       #expect(!k1.contains("*"))
     }
   }

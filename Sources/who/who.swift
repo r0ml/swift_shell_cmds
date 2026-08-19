@@ -248,7 +248,7 @@ import Darwin
       //      withUnsafeBytes(of: ut.ut_name) { u in
       withUnsafeBytes(of: ut) { u in
         let j = Array(u.bindMemory(to: UInt8.self))
-        let  m = String(decoding: j, as: ISOLatin1.self)
+        let  m = try! IEncoding.latin1.toString(j)
         //     let m = String(bytes: u, encoding: .utf8) ?? "???"
         print( rightPad(m, 16), terminator: " ")
       }
@@ -263,15 +263,17 @@ import Darwin
     } else {
       withUnsafeBytes(of: ut.ut_line) { u in
         let j = Array(u.bindMemory(to: UInt8.self))
-        let m = String(decoding: j, as: ISOLatin1.self)
+        let m = try! IEncoding.latin1.toString(j)
         print( rightPad(m, 12), terminator: " ")
       }
     }
     t = ut.ut_tv.tv_sec
-    var tm: UnsafeMutablePointer<Darwin.tm> = Darwin.localtime(&t)
+    let tm: UnsafeMutablePointer<Darwin.tm> = Darwin.localtime(&t)
     Darwin.strftime(&buf, buf.count, d_first ? "%e %b %R" : "%b %e %R", tm)
-    let bbuf = UnsafeBufferPointer(start: buf, count: Int(buf.count))
-    print( rightPad(String(decoding: bbuf, as: ISOLatin1.self), 12), terminator: " ")
+    buf.withUnsafeBufferPointer { bbuf in
+      let rp = try! IEncoding.latin1.toString(Array(bbuf))
+      print( rightPad(rp, 12), terminator: " ")
+    }
     if options.uflag {
       if idle < 60 {
         print("  .   ", terminator: "")

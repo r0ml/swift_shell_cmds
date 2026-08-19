@@ -27,7 +27,7 @@ import ShellTesting
     //    let po = try await ShellProcess(cmd, "sleep", "1").run()
     try await run(args: "sleep", "1") {po in
       #expect(po.code == 0)
-      let r = po.string
+      let r = try po.string(encoded: .utf8)
       let rr = String(r.drop { $0.isWhitespace }.reversed().drop { $0.isWhitespace }.reversed())
 
       let k = rr.split( separator: " ", omittingEmptySubsequences: true)
