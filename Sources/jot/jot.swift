@@ -305,6 +305,7 @@ let HAVE_REPS = 8
         opts.intdata = true
         opts.format = opts.chardata ? "%c" : "%u"
       }
+      options = opts
       x = ender - begin
       for i in 1...reps {
         if opts.useRandom {

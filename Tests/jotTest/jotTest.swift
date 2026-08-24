@@ -38,7 +38,7 @@ import ShellTesting
   }
   
   func doTest(_ o : String, _ a : String) async throws {
-    var k = a.split(separator: " ")
+    var k = a.split(separator: " ", omittingEmptySubsequences: false)
     k.removeFirst()
     try await doTest(o, k.map { String($0)} )
   }

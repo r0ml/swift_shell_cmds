@@ -140,7 +140,7 @@ import ShellTesting
  // REGRESSION_TEST(`missingpos1', `env printf "%1\$*s" 1 1 2>&1')
   @Test func test_missingpos1() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    try await run(args: "%1$*s", "1", "1") { po in
+    try await run(status: 1, args: "%1$*s", "1", "1") { po in
       let k = try po.string(encoded: .utf8)
       #expect( (k + po.error) == out)
     }
@@ -149,7 +149,7 @@ import ShellTesting
  // REGRESSION_TEST(`missingpos1', `env printf "%*1\$s" 1 1 2>&1')
   @Test func test_missingpos2() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    try await run( args: "%*1$s", "1", "1") { po in
+    try await run(status: 1, args: "%*1$s", "1", "1") { po in
       let k = try po.string(encoded: .utf8)
       #expect( (k + po.error) == out)
     }
@@ -158,7 +158,7 @@ import ShellTesting
  // REGRESSION_TEST(`missingpos1', `env printf "%1\$*.*s" 1 1 1 2>&1')
   @Test func test_missingpos3() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    try await run(args: "%1$*.*s", "1", "1", "1") { po in
+    try await run(status: 1, args: "%1$*.*s", "1", "1", "1") { po in
       let k = try po.string(encoded: .utf8)
       #expect( (k + po.error) == out)
     }
@@ -167,7 +167,7 @@ import ShellTesting
  // REGRESSION_TEST(`missingpos1', `env printf "%*1\$.*s" 1 1 1 2>&1')
   @Test func test_missiingpos4() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    try await run(args: "%*1$.*s", "1", "1", "1") { po in
+    try await run(status: 1, args: "%*1$.*s", "1", "1", "1") { po in
       let k = try po.string(encoded: .utf8)
       #expect( (k + po.error) == out)
     }
@@ -176,7 +176,7 @@ import ShellTesting
  // REGRESSION_TEST(`missingpos1', `env printf "%*.*1\$s" 1 1 1 2>&1')
   @Test func test_missingpos5() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    try await run(args: "%*.*1$s", "1", "1", "1") { po in
+    try await run(status: 1, args: "%*.*1$s", "1", "1", "1") { po in
       let k = try po.string(encoded: .utf8)
       #expect( (k + po.error) == out)
     }
@@ -185,7 +185,7 @@ import ShellTesting
  // REGRESSION_TEST(`missingpos1', `env printf "%1\$*2\$.*s" 1 1 1 2>&1')
   @Test func test_missingpos6() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    try await run(args: "%1$*2$.*s", "1", "1", "1") { po in
+    try await run(status: 1, args: "%1$*2$.*s", "1", "1", "1") { po in
       let k = try po.string(encoded: .utf8)
       #expect( (k + po.error) == out)
     }
@@ -194,7 +194,7 @@ import ShellTesting
  // REGRESSION_TEST(`missingpos1', `env printf "%*1\$.*2\$s" 1 1 1 2>&1')
   @Test func test_missingpos7() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    try await run(args: "%*1$.*2$s", "1", "1", "1") { po in
+    try await run(status: 1, args: "%*1$.*2$s", "1", "1", "1") { po in
       let k = try po.string(encoded: .utf8)
       #expect( (k + po.error) == out)
     }
@@ -203,7 +203,7 @@ import ShellTesting
  // REGRESSION_TEST(`missingpos1', `env printf "%1\$*.*2\$s" 1 1 1 2>&1')
   @Test func test_missingpos8() async throws {
     let out = try fileContents("regress.missingpos1.out")
-    try await run(args: "%1$*.*2$s", "1", "1", "1") { po in
+    try await run(status: 1, args: "%1$*.*2$s", "1", "1", "1") { po in
       let k = try po.string(encoded: .utf8)
       #expect( (k + po.error) == out)
     }

@@ -38,6 +38,7 @@
 
 // FIXME: deal with #ifndef __APPLE__ stuff
 import CMigration
+import Darwin
 
 let NO_BIN_FOUND : Int32 = 1
 let NO_MAN_FOUND : Int32 = 2
@@ -358,14 +359,16 @@ func colonify(_ cpp: [String]) -> String {
 
       // -b defaults to default path + /usr/libexec + user's path
     if opts.bindirs == nil {
-      do {
-        let b = try Sysctl.getString("user.cs_path") // Retrieve the standard path.
-        opts.bindirs = decolonify(b)
-        opts.bindirs?.append(PATH_LIBEXEC)
-      } catch(let e) {
-        errno = e.code
-        err(1, "user_cs_path: sysctl: zero length\n")
-        }
+      // Retrieve the standard path. Use confstr(_CS_PATH) rather than the
+      // "user.cs_path" sysctl node, which some hardened runtime configurations
+      // deny to non-platform binaries.
+      let len = confstr(_CS_PATH, nil, 0)
+      var buf = [Int8](repeating: 0, count: len)
+      guard confstr(_CS_PATH, &buf, len) > 0 else {
+        err(1, "confstr(_CS_PATH) failed\n")
+      }
+      opts.bindirs = decolonify(buf.withUnsafeBufferPointer { String(cString: $0.baseAddress!) })
+      opts.bindirs?.append(PATH_LIBEXEC)
 
       if let path = Environment["PATH"] {
               // don't destroy the original environment...

@@ -58,7 +58,7 @@ MANPATH="c:d:"; export MANPATH;
 
     let tdxx = try tmpdir("combine/etc/paths.d")
     let a = try tmpfile("combine/etc/paths", "a\nb\n" )
-    let b = try tmpfile("combind/etc/paths.d/add-ons", "c\nd\n" )
+    let b = try tmpfile("combine/etc/paths.d/add-ons", "c\nd\n" )
     defer { rm(a, b) }
     let res = "PATH=\"a:b:c:d\"; export PATH;\n"
     try await run(output: res, env: [ "PATH_HELPER_ROOT":tdx.string, "PATH":"" ] )
