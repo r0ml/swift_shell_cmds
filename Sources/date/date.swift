@@ -162,8 +162,8 @@ import Darwin
           if let tmp = UInt(n, radix: radix) {
             opts.tval = DateTime(tmp)
           } else {
-            if let sb = try? FileMetadata(for: FilePath(optarg), followSymlinks: true) {
-              opts.tval = sb.lastModified
+            if let sb = try? FilePath(optarg).stat(followTargetSymlink: true) {
+              opts.tval = DateTime(sb.st_mtim)
             } else {
               throw CmdErr(1, "invalid -r argument: \(optarg)")
             }

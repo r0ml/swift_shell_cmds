@@ -390,7 +390,7 @@ func TOKEN_TYPE(_ t : token) -> token_types {
   }
   
   func filstat(nm: String, mode: token) -> Bool {
-    guard let s = try? FileMetadata(for: FilePath(nm), followSymlinks: !(mode == .FILSYM)) else {
+    guard let s = try? FilePath(nm).stat(followTargetSymlink: !(mode == .FILSYM)) else {
       return false
     }
     
@@ -403,26 +403,26 @@ func TOKEN_TYPE(_ t : token) -> token_types {
         if eaccess(nm, Darwin.X_OK) != 0 {
         return false
       }
-        if s.filetype == .directory || Darwin.geteuid() != 0 {
+        if s.type == .directory || Darwin.geteuid() != 0 {
         return true
       }
         return s.permissions.containsAny(of: [.ownerExecute, .groupExecute, .otherExecute])
     case .FILEXIST:
         return eaccess(nm, Darwin.F_OK) == 0
     case .FILREG:
-        return s.filetype == .regular
+        return s.type == .regular
     case .FILDIR:
-        return s.filetype == .directory
+        return s.type == .directory
     case .FILCDEV:
-        return s.filetype == .characterDevice
+        return s.type == .characterSpecial
     case .FILBDEV:
-        return s.filetype == .blockDevice
+        return s.type == .blockSpecial
     case .FILFIFO:
-        return s.filetype == .fifo
+        return s.type == .fifo
     case .FILSOCK:
-        return s.filetype == .socket
+        return s.type == .socket
     case .FILSYM:
-        return s.filetype == .symbolicLink
+        return s.type == .symbolicLink
     case .FILSUID:
         return s.permissions.contains(.setUserID )
     case .FILSGID:
@@ -432,9 +432,9 @@ func TOKEN_TYPE(_ t : token) -> token_types {
     case .FILGZ:
         return s.size > 0
     case .FILUID:
-      return s.userId == geteuid()
+      return s.userID == UserID(geteuid())
     case .FILGID:
-      return s.groupId == getegid()
+      return s.groupID == GroupID(getegid())
     default:
       return true
     }
@@ -596,13 +596,13 @@ func TOKEN_TYPE(_ t : token) -> token_types {
   }
   
   func newerf(_ f1: String, _ f2: String) -> Bool {
-    guard let b1 = try? FileMetadata(for: FilePath(f1), followSymlinks: true),
-    let b2 = try? FileMetadata(for: FilePath(f2), followSymlinks: true)
+    guard let b1 = try? FilePath(f1).stat(followTargetSymlink: true),
+          let b2 = try? FilePath(f2).stat(followTargetSymlink: true)
     else {
       return false
     }
     
-    if b1.lastModified > b2.lastModified {
+    if DateTime(b1.st_mtim) > DateTime(b2.st_mtim) {
       return true
     }
     return false
@@ -613,9 +613,9 @@ func TOKEN_TYPE(_ t : token) -> token_types {
   }
   
   func equalf(_ f1: String, _ f2: String) -> Bool {
-    if let b1 = try? FileMetadata(for: FilePath(f1), followSymlinks: true ),
-       let b2 = try? FileMetadata(for: FilePath(f2), followSymlinks: true ) {
-      return b1.device == b2.device && b1.inode == b2.inode
+    if let b1 = try? FilePath(f1).stat(followTargetSymlink: true ),
+       let b2 = try? FilePath(f2).stat(followTargetSymlink: true ) {
+      return b1.deviceID == b2.deviceID && b1.inode == b2.inode
     } else {
       return false
     }

@@ -64,6 +64,7 @@ import Darwin
 //    let tt = t.appending(component: "innocent_test_prog")
 //    try? FileManager.default.removeItem(at: tt)
     let tt = try tmpfile("innocent_test_prog")
+    defer { rm(tt) }
     rm(tt)
     try tt.createSymbolicLink(to: FilePath("/bin/sleep"))
 

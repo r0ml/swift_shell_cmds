@@ -111,7 +111,7 @@ actor Stuff {
    */
   func getstathz() -> Int {
     do {
-      var clockrate : Darwin.clockinfo = try Sysctl.get("kern.clockrate")
+      let clockrate : Darwin.clockinfo = try Sysctl.get("kern.clockrate")
       return Int(clockrate.stathz)
     } catch(let e) {
       errno = e.code
@@ -248,7 +248,7 @@ actor Stuff {
     
     do {
       if let ofn = options.ofn {
-        if let _  = try? FileMetadata(for: FilePath(ofn)) {
+        if let _  = try? FilePath(ofn).stat() {
           fh = try FileDescriptor.open(ofn, .writeOnly, options: [.truncate])
         } else {
           fh = try FileDescriptor.open(ofn, .writeOnly, options: [.create], permissions: [.ownerReadWrite])

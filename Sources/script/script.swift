@@ -222,7 +222,7 @@ let optString = "adeFkpqr"
       if options.pflg {
         fs = try FileDescriptor(forReading: options.fname)
       } else {
-        if let _ = try? FileMetadata(for: FilePath(options.fname)) {
+        if let _ = try? FilePath(options.fname).stat() {
           fs = try FileDescriptor.open(options.fname, .writeOnly)
         } else {
           fs = try FileDescriptor.open(options.fname, .writeOnly, options: [.create], permissions: [.ownerReadWrite])
@@ -783,11 +783,11 @@ usage: script [-\(optString)] [-t time] [file [command ...]]
 
 //    var buf : Data?
     
-    guard let pst = try? FileMetadata(for: fp) else {
+    guard let pst = try? fp.stat() else {
       err(1, "fstat failed")
     }
     
-    let reg = pst.filetype == .regular
+    let reg = pst.type == .regular
 
     
     // FIXME: nread is never updated!

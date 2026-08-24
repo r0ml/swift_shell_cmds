@@ -190,13 +190,13 @@ extension find {
   func f_Xmin(_ plan: PLAN, _ entry: inout FTSEntry) -> Bool {
     if case let .t_data(td) = plan.p_un {
       if plan.flags & F_TIME_C != 0 {
-        return COMPARE((now - entry.statp.lastChanged.secs + 60 - 1) / 60, td.tv_sec, plan)
+        return COMPARE((now - entry.statp.st_ctim.tv_sec + 60 - 1) / 60, td.tv_sec, plan)
       } else if plan.flags & F_TIME_A != 0 {
-        return COMPARE((now - entry.statp.lastAccessed.secs + 60 - 1) / 60, td.tv_sec, plan)
+        return COMPARE((now - entry.statp.st_atim.tv_sec + 60 - 1) / 60, td.tv_sec, plan)
       } else if plan.flags & F_TIME_B != 0 {
-        return COMPARE((now - entry.statp.whenCreated.secs + 60 - 1) / 60, td.tv_sec, plan)
+        return COMPARE((now - entry.statp.st_birthtim.tv_sec + 60 - 1) / 60, td.tv_sec, plan)
       } else {
-        return COMPARE((now - entry.statp.lastModified.secs + 60 - 1) / 60, td.tv_sec, plan)
+        return COMPARE((now - entry.statp.st_mtim.tv_sec + 60 - 1) / 60, td.tv_sec, plan)
       }
     }
     fatalError("badly formed plan")
@@ -222,13 +222,13 @@ extension find {
     var xtime: time_t
     
     if plan.flags & F_TIME_A != 0 {
-      xtime = entry.statp.lastAccessed.secs
+      xtime = entry.statp.st_atim.tv_sec
     } else if plan.flags & F_TIME_B != 0 {
-      xtime = entry.statp.whenCreated.secs
+      xtime = entry.statp.st_birthtim.tv_sec
     } else if plan.flags & F_TIME_C != 0 {
-      xtime = entry.statp.lastChanged.secs
+      xtime = entry.statp.st_ctim.tv_sec
     } else {
-      xtime = entry.statp.lastModified.secs
+      xtime = entry.statp.st_mtim.tv_sec
     }
     
     if case let .t_data(td) = plan.p_un {
@@ -349,16 +349,16 @@ extension find {
     
     // FIXME: hhn
     //    #if HAVE_STRUCT_STAT_ST_FLAGS
-    if entry.statp.flags.containsAny(of: [.UF_APPEND, .UF_IMMUTABLE]) &&
-        !entry.statp.flags.containsAny(of: [.SF_APPEND, .SF_IMMUTABLE]) &&
+    if entry.statp.flags.containsAny(of: [.userAppend, .userImmutable]) &&
+        !entry.statp.flags.containsAny(of: [.systemAppend, .systemImmutable]) &&
         geteuid() == 0 {
-      lchflags(entry.accpath, entry.statp.flags.subtracting([.UF_APPEND, .UF_IMMUTABLE]).rawValue)
+      lchflags(entry.accpath, entry.statp.flags.subtracting([.userAppend, .userImmutable]).rawValue)
     }
     //    #endif
     
     let fts_path = entry.path
     
-    if entry.statp.filetype == .directory {
+    if entry.statp.type == .directory {
       if rmdir(entry.accpath) < 0 && errno != ENOTEMPTY {
         warn("-delete: rmdir(\(fts_path))")
       }
@@ -427,11 +427,11 @@ extension find {
   }
   
   func f_empty(_ plan: PLAN, _ entry: inout FTSEntry) -> Bool {
-    if entry.statp.filetype == .regular &&
+    if entry.statp.type == .regular &&
         entry.statp.size == 0 {
       return true
     }
-    if entry.statp.filetype == .directory {
+    if entry.statp.type == .directory {
       var empty: Bool
       
       // FIXME: maybe do it this way?
@@ -732,8 +732,8 @@ extension find {
 
     
     /* Only check when we cross mount point. */
-    if (first || curdev != entry.statp.device) {
-      curdev = entry.statp.device
+    if (first || curdev != entry.statp.deviceID) {
+      curdev = entry.statp.deviceID
 
       var p : String? = entry.accpath
       var savep : String?
@@ -830,7 +830,7 @@ extension find {
    */
   func f_group(_ plan: PLAN, _ entry: inout FTSEntry) -> Bool {
     if case let .g_data(gd) = plan.p_un {
-      return COMPARE(entry.statp.groupId, UInt(gd), plan)
+      return COMPARE(entry.statp.groupID.rawValue, gd, plan)
     }
     fatalError("badly formed plan")
     
@@ -892,7 +892,7 @@ extension find {
    */
   func f_inum(_ plan: PLAN, _ entry: inout FTSEntry) -> Bool {
     if case let .i_data(id) = plan.p_un {
-      return COMPARE(entry.statp.inode, UInt(id), plan)
+      return COMPARE(entry.statp.inode.rawValue, id, plan)
     }
     fatalError("badly formed plan")
     
@@ -957,7 +957,7 @@ extension find {
    */
   func f_links(_ plan: PLAN, _ entry: inout FTSEntry) -> Bool {
     if case let .l_data(ld) = plan.p_un {
-      return COMPARE(entry.statp.links, UInt(ld), plan)
+      return COMPARE(entry.statp.linkCount, Int(ld), plan)
     }
     fatalError("badly formed plan")
   }
@@ -1051,23 +1051,23 @@ extension find {
     var ft: timespec
     
     if ((plan.flags & F_TIME_C) != 0) {
-      ft = entry.statp.lastChanged.timespec
+      ft = entry.statp.st_ctim
     }
     /*
      * rdar://problem/77588562 - this segment is covered by
      * HAVE_STRUCT_STAT_ST_BIRTHTIME upstream, which is wrong.
      */
     else if ((plan.flags & F_TIME_A) != 0) {
-      ft = entry.statp.lastAccessed.timespec
+      ft = entry.statp.st_atim
     }
     // FIXME: ar
     // #if HAVE_STRUCT_STAT_ST_BIRTHTIME
     else if ((plan.flags & F_TIME_B) != 0) {
-      ft = entry.statp.whenCreated.timespec
+      ft = entry.statp.st_birthtim
     }
     // #endif
     else {
-      ft = entry.statp.lastModified.timespec
+      ft = entry.statp.st_mtim
     }
     
     if case let .t_data(td) = plan.p_un {
@@ -1151,7 +1151,7 @@ extension find {
    *  of the getgrnam() 9.2.1 [POSIX.1] function returns NULL.
    */
   func f_nogroup(plan: PLAN, entry: inout FTSEntry) -> Bool {
-    return Darwin.group_from_gid(UInt32(entry.statp.groupId), 1) == nil
+    return Darwin.group_from_gid(entry.statp.groupID.rawValue, 1) == nil
   }
   
   func c_nogroup(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
@@ -1166,7 +1166,7 @@ extension find {
    *  of the getpwuid() 9.2.2 [POSIX.1] function returns NULL.
    */
   func f_nouser(plan: PLAN, entry: inout FTSEntry) -> Bool {
-    return user_from_uid(UInt32(entry.statp.userId), 1) == nil
+    return user_from_uid(entry.statp.userID.rawValue, 1) == nil
   }
   
   func c_nouser(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
@@ -1346,8 +1346,9 @@ extension find {
   func f_size(plan: PLAN, entry: inout FTSEntry) -> Bool {
     
     if case let .o_data(od) = plan.p_un {
-      let size = divsize != 0 ? ( entry.statp.size + UInt(FIND_SIZE) - 1 ) / UInt(FIND_SIZE) : entry.statp.size
-      return COMPARE(size, UInt(od), plan)
+      let num = entry.statp.size + FIND_SIZE - 1 
+      let size = divsize != 0 ? num / FIND_SIZE : entry.statp.size
+      return COMPARE(size, od, plan)
     }
     fatalError("badly formed plan")
   }
@@ -1399,7 +1400,7 @@ extension find {
   
   func f_sparse(_ plan: PLAN, _ entry: inout FTSEntry) -> Bool {
     let expected_blocks = (entry.statp.size + 511) / 512
-    return entry.statp.blocks < expected_blocks
+    return entry.statp.blocksAllocated < expected_blocks
   }
   
   func c_sparse(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
@@ -1413,7 +1414,7 @@ extension find {
       if mdd == FileType.directory {
         return entry.info == .D || entry.info == .DC || entry.info == .DNR || entry.info == .DOT || entry.info == .DP
       } else {
-        return entry.statp.filetype == mdd
+        return entry.statp.type == mdd
       }
     }
     fatalError("badly formed plan")
@@ -1456,7 +1457,7 @@ extension find {
   
   func f_user(plan: PLAN, entry: inout FTSEntry) -> Bool {
     if case let .u_data(ud) = plan.p_un {
-      return COMPARE(entry.statp.userId, UInt(ud), plan)
+      return COMPARE(entry.statp.userID.rawValue, ud, plan)
     }
     fatalError("badly formed plan")
     

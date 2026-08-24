@@ -226,9 +226,9 @@ import Darwin
     if options.Tflag || options.uflag {
       withUnsafeBytes(of: ut.ut_line) { u in
         let tty = "\(_PATH_DEV)\(String(decoding:u, as: UTF8.self))"
-        if let sb = try? FileMetadata(for: FilePath(tty), followSymlinks: true) {
+        if let sb = try? FilePath(tty).stat(followTargetSymlink: true) {
           state = sb.permissions.containsAny(of: [.otherWrite, .groupWrite]) ? "+" : "-"
-          idle = DateTime().secs - sb.lastModified.secs
+          idle = DateTime().secs - sb.st_mtim.tv_sec
         }
       }
       if options.unix2003_std && !options.Tflag {
@@ -299,7 +299,7 @@ import Darwin
   
   func ttystat(_ line: String) -> Bool {
     let ttybuf = "\(_PATH_DEV)\(line)"
-    if let _ = try? FileMetadata(for: FilePath(ttybuf)) {
+    if let _ = try? FilePath(ttybuf).stat() {
       return true
     } else {
       return false

@@ -41,31 +41,31 @@ import CMigration
 import Darwin
 
 extension find {
-  func printlong(name: String, accpath: String, sb: FileMetadata) {
+  func printlong(name: String, accpath: String, sb: Stat) {
     //    var modep = [CChar](repeating: 0, count: 15)
     
-    print("%6ju %8lld ".cFormat(sb.inode, sb.blocks), terminator: "")
+    print("%6ju %8lld ".cFormat(sb.inode.rawValue, sb.blocksAllocated), terminator: "")
 
     let modep = withUnsafeTemporaryAllocation(byteCount: 15, alignment: 1) {p in
       let pp = p.assumingMemoryBound(to: CChar.self).baseAddress!
-      strmode( Int32(sb.filetype.rawValue | sb.permissions.rawValue), pp)
+      strmode( Int32(sb.type.rawValue | sb.permissions.rawValue), pp)
       return String(cString: pp)
     }
     print(
       modep.withCString { a in
-        "\(a) %3ju %-*s %-*s ".cFormat(sb.links,
-                MAXLOGNAME - 1, user_from_uid(UInt32(sb.userId), 0),
-                MAXLOGNAME - 1, group_from_gid(UInt32(sb.groupId), 0))
+        "\(a) %3ju %-*s %-*s ".cFormat(sb.linkCount,
+                                       MAXLOGNAME - 1, user_from_uid(sb.userID.rawValue, 0),
+                                       MAXLOGNAME - 1, group_from_gid(sb.groupID.rawValue, 0))
       }
     , terminator: "")
-    if sb.filetype == .characterDevice || sb.filetype == .blockDevice {
-      print("%#8jx ".cFormat(sb.rawDevice), terminator: "")
+    if sb.type == .characterSpecial || sb.type == .blockSpecial {
+      print("%#8jx ".cFormat(sb.specialDeviceID.rawValue), terminator: "")
     } else {
       print("%8lld ".cFormat(sb.size), terminator: "")
     }
-    printtime(sb.lastModified.secs)
+    printtime(sb.st_mtim.tv_sec)
     print(name, terminator: "")
-    if sb.filetype == .symbolicLink {
+    if sb.type == .symbolicLink {
       printlink(accpath)
     }
     print("")

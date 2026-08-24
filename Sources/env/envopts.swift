@@ -65,8 +65,8 @@ extension Env {
 
     /* XXX work around access(2) false positives for superuser */
     if candidate.isExecutable,
-       let fin = try? FileMetadata(for: candidate, followSymlinks: true),
-       fin.filetype == .regular,
+       let fin = try? candidate.stat(followTargetSymlink: true),
+       fin.type == .regular,
         (userId != 0 || fin.permissions.containsAny(of: [.ownerExecute, .groupExecute, .otherExecute])) {
          if env_verbosity > 1 {
         var se = FileDescriptor.standardError

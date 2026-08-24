@@ -33,8 +33,8 @@
 import CMigration
 
 func isTherex(candidate: FilePath, silent: Bool) -> Bool {
-  if let fin = try? FileMetadata(for: candidate),
-     fin.filetype == .regular,
+  if let fin = try? candidate.stat(),
+     fin.type == .regular,
      (userId != 0 || !fin.permissions.intersection([.ownerExecute, .groupExecute, .otherExecute]).isEmpty)
   {
 

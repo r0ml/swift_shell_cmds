@@ -60,8 +60,8 @@ import Darwin
     var Iflag = 0
     var mflag = 0
     var zflag = 0
-    var uid: UInt = 0
-    var tdev: UInt = 0
+    var uid: UserID = UserID(0)
+    var tdev: DeviceID = DeviceID(0)
     //  var mypid: pid_t
     var thiscmd: String?
 
@@ -75,7 +75,7 @@ import Darwin
   var sig = SIGTERM
   var errors = 0
   var jid: Int = 0
-  var mib = [Int32](repeating: 0, count: 4)
+  var mib = [UInt32](repeating: 0, count: 4)
 //  var miblen: u_int
 //  var size: size_t
 //  var matched: Int
@@ -263,23 +263,23 @@ At least one option or argument to specify processes must be given."
         } else {
           buf = "/dev/tty\(tty)"
         }
-        guard let sb = try? FileMetadata(for: FilePath(buf), followSymlinks: true) else {
+        guard let sb = try? FilePath(buf).stat(followTargetSymlink: true) else {
           err(1, "stat(\(buf)")
         }
-        guard sb.filetype == .characterDevice else {
+        guard sb.type == .characterSpecial else {
           errx(1, "\(buf): not a character device")
         }
-        opts.tdev = sb.rawDevice
+        opts.tdev = sb.specialDeviceID
         if opts.dflag != 0 {
-          print("ttydev:0x\("%x".cFormat(opts.tdev))")
+          print("ttydev:0x\("%x".cFormat(opts.tdev.rawValue))")
         }
       }
     if let user = opts.user {
       if let x = UInt(user) {
-        opts.uid = x
+        opts.uid = UserID(UInt32(x))
         } else {
           if let pw = getPasswd(for: user) {
-            opts.uid = UInt(pw.userId)
+            opts.uid = UserID(UInt32(pw.userId))
             if opts.dflag != 0 {
               print("uid:\(opts.uid)")
             }
@@ -288,9 +288,9 @@ At least one option or argument to specify processes must be given."
           }
         }
       } else {
-        opts.uid = UInt(userId)
-        if opts.uid != 0 {
-          if let pw = getPasswd(of: Int(opts.uid) ) {
+        opts.uid = UserID(UInt32(userId))
+        if opts.uid.rawValue != 0 {
+          if let pw = getPasswd(of: Int(opts.uid.rawValue) ) {
             opts.user = pw.name
           }
           if opts.dflag != 0 {
@@ -300,24 +300,24 @@ At least one option or argument to specify processes must be given."
       }
       var size = 0
 
-      mib[0] = CTL_KERN
-      mib[1] = KERN_PROC
+      mib[0] = UInt32(CTL_KERN)
+      mib[1] = UInt32(KERN_PROC)
       
       var miblen : UInt32
       
     if opts.user != nil {
-      mib[2] = opts.eflag != 0 ? KERN_PROC_UID : KERN_PROC_RUID
-      mib[3] = Int32(opts.uid)
+      mib[2] = UInt32(opts.eflag != 0 ? KERN_PROC_UID : KERN_PROC_RUID)
+      mib[3] = opts.uid.rawValue
         miblen = 4
     } else if opts.tty != nil {
-        mib[2] = KERN_PROC_TTY
-      mib[3] = Int32(opts.tdev)
+        mib[2] = UInt32(KERN_PROC_TTY)
+      mib[3] = UInt32(opts.tdev.rawValue)
         miblen = 4
       } else {
 #if os(macOS) || targetEnvironment(macCatalyst)
-        mib[2] = KERN_PROC_ALL
+        mib[2] = UInt32(KERN_PROC_ALL)
 #else
-        mib[2] = KERN_PROC_PROC
+        mib[2] = UInt32(KERN_PROC_PROC)
 #endif
         mib[3] = 0
         miblen = 3
@@ -412,7 +412,7 @@ At least one option or argument to specify processes must be given."
           }
           return nil
         }
-         let thistdev = procs[i].kp_eproc.e_tdev
+         let thistdev = DeviceID(procs[i].kp_eproc.e_tdev)
 #else
         if procs![i].ki_stat == SZOMB && opts.zflag == 0 {
           continue
@@ -502,7 +502,7 @@ At least one option or argument to specify processes must be given."
         }
         if opts.dflag != 0 {
 #if os(macOS) || targetEnvironment(macCatalyst)
-          print("sig:\(sig), cmd:\(opts.thiscmd!), pid:\(thispid), dev:0x\("%0x".cFormat(thistdev))")
+          print("sig:\(sig), cmd:\(opts.thiscmd!), pid:\(thispid), dev:0x\("%0x".cFormat(thistdev.rawValue))")
 #else
           printf("sig:%d, cmd:%s, pid:%d, dev:0x%jx uid:%d\n", sig, thiscmd, thispid, thistdev, thisuid)
 #endif

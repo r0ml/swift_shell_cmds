@@ -65,9 +65,9 @@ import ShellTesting
     let pflag = try tmpdir("tmp_p")
     defer { rm(pflag) }
     try await run( args: "-p", pflag, "x", "y", "z") { po in
-      let _ = try FileMetadata(for: pflag.appending("x"))
-      let _ = try FileMetadata(for: pflag.appending("y"))
-      let _ = try FileMetadata(for: pflag.appending("z"))
+      let _ = try pflag.appending("x").stat()
+      let _ = try pflag.appending("y").stat()
+      let _ = try pflag.appending("z").stat()
     }
   }
 

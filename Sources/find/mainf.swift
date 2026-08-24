@@ -84,7 +84,7 @@ var exitstatus : Int32 = 0
   // from function.swift
   let FIND_SIZE : Int64 = 512
   var divsize = 1
-  var curdev : UInt? /* need a guaranteed illegal dev value */
+  var curdev : DeviceID? /* need a guaranteed illegal dev value */
   var first = true
   var lastexecplus : [PLAN] = []
 

@@ -46,10 +46,11 @@ import Darwin
     let pwdStr = Environment["PWD"]
     
     if let pwdStr, pwdStr.first == "/" {
-      guard let lg = try? FileMetadata(for: FilePath(pwdStr), followSymlinks: true ), let phy = try? FileMetadata(for: FilePath("."), followSymlinks: true) else {
+      guard let lg = try? FilePath(pwdStr).stat(followTargetSymlink: true ),
+            let phy = try? FilePath(".").stat(followTargetSymlink: true) else {
         return nil
       }
-      if lg.device == phy.device && lg.inode == phy.inode {
+      if lg.deviceID == phy.deviceID && lg.inode == phy.inode {
         return pwdStr
       }
     }

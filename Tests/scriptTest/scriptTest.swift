@@ -27,9 +27,7 @@ import Darwin
   @Test("Ignore tcgetattr() failure when input is a regular file") func from_file_body() async throws {
     let infil = try tmpfile("empty", [UInt8]())
     let outfil = "output"
-    defer {
-      rm(infil)
-    }
+    defer { rm(infil) }
     let a = try await tryInput("script", [outfil], infil )
     #expect(a == 0)
     

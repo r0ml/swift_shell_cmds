@@ -38,6 +38,7 @@ import ShellTesting
     let myDir = try tmpdir("")
     let f1 = try tmpfile("f1")
     let ll = try tmpfile("link")
+    defer { rm(f1, ll) }
     try ll.createSymbolicLink(to: f1)
 //    let ll = try f1.createSymbolicLink("link")
 
@@ -55,6 +56,7 @@ import ShellTesting
     // touch -d 2017-12-31T11:00:00Z test/file2
     let d3 = try DateTime(fromISO8601: "2023-12-31T09:00:00Z")
     let file2 = try tmpfile("file2", "")
+    defer { rm(file2) }
     try file2.setTimes(modified: d3)
 
 //    FileManager.default.createFile(atPath: myDir.appending(component: "file2").path(percentEncoded: false), contents: nil, attributes: [.modificationDate: date])
@@ -63,6 +65,7 @@ import ShellTesting
     // touch -d 2017-12-31T12:00:00Z test/file1
     let d4 = try DateTime(fromISO8601: "2023-12-31T12:00:00Z")
     let file1 = try tmpfile("file1", "")
+    defer { rm(file1) }
     try file1.setTimes(modified: d4)
 
 
@@ -81,8 +84,11 @@ import ShellTesting
     let s = try tmpdir("test")
 
     let f3  = try tmpfile("test/file3", "")
+    defer { rm(f3) }
 
     let l2 = try tmpfile("test/link2")
+    defer { rm(l2) }
+    
     try l2.createSymbolicLink(to: f3)
 
 //    let l2 = try createSymbolicLink("test/link2")
@@ -99,9 +105,12 @@ import ShellTesting
     let s = try tmpdir("scratch") // under myDir?
     let bl = try tmpfile("baseline", "")
     let fa = try tmpfile("scratch/file_a", "")
+    defer { rm(bl, fa) }
+    
     try? await Task.sleep(for: .seconds(1))
     let fb = try tmpfile("scratch/file_b", "")
-
+    defer { rm(fb) }
+    
 //    let j = try captureStdoutLaunch(Self.self, "find", [s.relativePath, "-type", "f", "-newerBm", myDir.appending(component: "baseline").relativePath])
 
     let res = """
