@@ -35,9 +35,10 @@ import ShellTesting
   let suiteBundle = "shell_cmds_findTest"
 
   @Test func find_newer_link() async throws {
-    let myDir = try tmpdir("")
-    let f1 = try tmpfile("f1")
-    let ll = try tmpfile("link")
+    let myDir = try tmpdir("find_newer_link")
+    defer { rm(myDir) }
+    let f1 = try tmpfile("find_newer_link/f1")
+    let ll = try tmpfile("find_newer_link/link")
     defer { rm(f1, ll) }
     try ll.createSymbolicLink(to: f1)
 //    let ll = try f1.createSymbolicLink("link")
@@ -55,7 +56,7 @@ import ShellTesting
 
     // touch -d 2017-12-31T11:00:00Z test/file2
     let d3 = try DateTime(fromISO8601: "2023-12-31T09:00:00Z")
-    let file2 = try tmpfile("file2", "")
+    let file2 = try tmpfile("find_newer_link/file2", "")
     defer { rm(file2) }
     try file2.setTimes(modified: d3)
 
@@ -64,7 +65,7 @@ import ShellTesting
 
     // touch -d 2017-12-31T12:00:00Z test/file1
     let d4 = try DateTime(fromISO8601: "2023-12-31T12:00:00Z")
-    let file1 = try tmpfile("file1", "")
+    let file1 = try tmpfile("find_newer_link/file1", "")
     defer { rm(file1) }
     try file1.setTimes(modified: d4)
 

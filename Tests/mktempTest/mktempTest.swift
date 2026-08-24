@@ -77,7 +77,7 @@ import ShellTesting
     let tdir = try tmpdir("tmp_env")
     defer { rm(tdir) }
     try? Environment.setenv("TMPDIR", tdir.string)
-    try await run(args: "mktemp", "-t", "foo") { po in
+    try await run(args: "-t", "foo") { po in
       let rr = try po.string(encoded: .utf8)
       let s = tdir.string
 

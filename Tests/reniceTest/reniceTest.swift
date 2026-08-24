@@ -140,8 +140,11 @@ import Darwin
 
   
   func run_test_process() async throws -> Int32 {
+    // Spawn into a brand-new process group (rather than inheriting the test
+    // runner's), so that -g/pgrp renice tests only observe this one process
+    // and not every other unrelated process sharing the runner's group.
     let process = DarwinProcess()
-    let pid = try await process.launch("/bin/sleep", args: "60")
+    let pid = try await process.launch("/bin/sleep", args: "60", newProcessGroup: true)
 
 
     // run a test process (sleep 60 will do) to have a process we can check the nice value of
