@@ -38,8 +38,6 @@
 
 import CMigration
 
-let magic = "%"
-
 struct CommandOptions {
   var debug = false
   var magic : Character = "%"
@@ -48,8 +46,47 @@ struct CommandOptions {
   var arg_max : Int = 0
   var shell : String = ""
   var name : String = ""
-  var rx : Regex<(Substring,Substring)>!
   var args : ArraySlice<String> = []
+}
+
+/// The digit (1-9) of a `<magic><digit>` reference at `chars[i]`, or nil if there is none.
+private func magicDigit(_ chars: [Character], at i: Int, magic: Character) -> Int? {
+  guard chars[i] == magic, i + 1 < chars.count,
+        let d = chars[i + 1].wholeNumberValue, (1...9).contains(d) else { return nil }
+  return d
+}
+
+/// The largest `<magic><digit>` reference in `s`, or 0 if there are none.
+func maxMagicDigit(in s: String, magic: Character) -> Int {
+  let chars = Array(s)
+  var n = 0
+  var i = 0
+  while i < chars.count {
+    if let d = magicDigit(chars, at: i, magic: magic) {
+      n = max(n, d)
+      i += 2
+    } else {
+      i += 1
+    }
+  }
+  return n
+}
+
+/// Replaces each `<magic><digit>` reference in `cmd` with the corresponding element of `pkt`.
+func expandMagic(_ cmd: String, magic: Character, pkt: [String]) -> String {
+  let chars = Array(cmd)
+  var result = ""
+  var i = 0
+  while i < chars.count {
+    if let d = magicDigit(chars, at: i, magic: magic) {
+      result += pkt[d - 1]
+      i += 2
+    } else {
+      result.append(chars[i])
+      i += 1
+    }
+  }
+  return result
 }
 
 @main final class apply : ShellCommand {
@@ -86,19 +123,7 @@ struct CommandOptions {
       throw CmdErr(1)
     }
     
-    let p = opts.args[0]
-    var n = 0
-
-    // Get the largest %digits number
-    do {
-      opts.rx = try Regex(String(opts.magic)+"([1-9])")
-      let mm = p.matches(of: opts.rx)
-//      let mm = p.matches(of: /%([1-9])/)
-      n = mm.reduce(0, { max($0, Int($1.output.1)!)})
-    } catch(let e) {
-      print(e)
-      throw CmdErr(1, "Invalid magic character: \(opts.magic)")
-    }
+    let n = maxMagicDigit(in: opts.args[0], magic: opts.magic)
     opts.shell = getShell()
     let slashp = opts.shell.lastIndex(of: "/")
     opts.name = slashp != nil ? String(opts.shell[opts.shell.index(after: slashp!)...]) : opts.shell
@@ -110,9 +135,10 @@ struct CommandOptions {
       if opts.nargs == -1 {
         opts.nargs = 1
       }
-      for i in 1...opts.nargs {
-        let buf = " \(opts.magic)\(i)"
-        opts.cmd.append(buf)
+      if opts.nargs > 0 {
+        for i in 1...opts.nargs {
+          opts.cmd.append(" \(opts.magic)\(i)")
+        }
       }
 
       // If nargs is set to the special value 0, eat a single argument for each command execution.
@@ -128,44 +154,31 @@ struct CommandOptions {
   }
 
   func runCommand() async throws(CmdErr) {
-    var cmdbuf = ""
     var rval = 0
     var arg = options.args
 
-    while true {
-      guard arg.count >= options.nargs else { break }
+    while arg.count >= options.nargs {
       let pkt = Array(arg.prefix(options.nargs))
       arg.removeFirst(options.nargs)
 
-      cmdbuf = "exec "
-      var cmdx = Substring(options.cmd)
+      let cmdbuf = "exec " + expandMagic(options.cmd, magic: options.magic, pkt: pkt)
 
-      while !cmdx.isEmpty {
-        if let j = cmdx.firstMatch(of: options.rx) {
-          cmdbuf.append(contentsOf: cmdx.prefix(upTo: j.range.lowerBound))
-          cmdbuf.append(pkt[Int(j.output.1)!-1])
-          cmdx = cmdx.suffix(from: j.range.upperBound)
-        } else {
-          cmdbuf.append(contentsOf: cmdx)
-          cmdx.removeAll()
-        }
-      }
-
-      if cmdbuf.count > options.arg_max {
+      // ARG_MAX is a byte limit
+      if cmdbuf.utf8.count > options.arg_max {
         throw CmdErr(1, "Argument list too long")
       }
 
       if options.debug {
         print(cmdbuf)
       } else {
-        if await 0 != execShell(String(cmdbuf), options.shell, options.name) {
+        if await execShell(cmdbuf, options.shell, options.name) != 0 {
           rval = 1
         }
       }
     }
 
-    if arg.count != 0 {
-      throw CmdErr(1, "expecting additional argument\(options.nargs - arg.count != 1 ? "s" : "") after \"\(options.args.last!)\"")
+    if let last = arg.last {
+      throw CmdErr(1, "expecting additional argument\(options.nargs - arg.count != 1 ? "s" : "") after \"\(last)\"")
     }
     throw CmdErr(rval)
   }
@@ -175,14 +188,14 @@ struct CommandOptions {
     do {
       try Environment.setenv("LANG", "C")
       // FIXME: do I need to do something else about output?
-      let _ = try await DarwinProcess().run(useShell, args: ["-c", command], output: (nil, nil) )
+      let result = try await DarwinProcess().run(useShell, args: ["-c", command], output: (nil, nil) )
+      return Int(result.code)
     } catch let e as Errno {
       return Int(e.rawValue)
     } catch(let e) {
       print(e)
       return -1
     }
-    return 0
   }
 
   var usage : String = "usage: apply [-a magic] [-d] [-0123456789] command arguments ..."

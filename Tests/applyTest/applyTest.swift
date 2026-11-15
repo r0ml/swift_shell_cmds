@@ -85,4 +85,70 @@ import ShellTesting
     let expected = "first\nsecond\nthird\n"
     try await run(output: expected, args: "echo", "first", "second", "third")
   }
+
+  @Test func zeroCountRunsCommandOncePerArgumentWithoutAppending() async throws {
+    // -0 must not append %1, and must not crash building the command
+    try await run(output: "exec echo\nexec echo\n", args: "-d", "-0", "echo", "a", "b")
+  }
+
+  @Test func debugGroupsArguments() async throws {
+    try await run(output: "exec echo a b\nexec echo c d\n", args: "-d", "-2", "echo", "a", "b", "c", "d")
+  }
+
+  @Test(arguments: [".", "$", "(", ")", "*", "+", "?", "[", "]", "{", "}", "|", "^", "\\"])
+  func regexMetacharacterAsMagic(_ m: String) async throws {
+    try await run(output: "exec echo x\n", args: "-d", "-a", m, "echo \(m)1", "x")
+  }
+
+  @Test func metacharacterMagicDoesNotMatchOtherCharacters() async throws {
+    // with "." as magic, "a1" is not a reference
+    try await run(output: "exec echo a1 x\n", args: "-d", "-a", ".", "echo a1 .1", "x")
+  }
+
+  @Test func zeroIsNotAMagicDigit() async throws {
+    try await run(output: "%0 x\n", args: "echo %0 %1", "x")
+  }
+
+  @Test func commandFailureYieldsStatusOne() async throws {
+    try await run(status: 1, args: "false", "x")
+  }
+
+  @Test func laterFailureIsNotMasked() async throws {
+    // first invocation fails, last succeeds; overall status is still 1
+    try await run(status: 1, args: "test %1 = a", "b", "a")
+  }
+
+  @Test func multipleCountOptionsRejected() async throws {
+    try await run(status: 1, error: /only one -# argument may be specified/, args: "-1", "-2", "echo", "a")
+  }
+
+  @Test func multiCharacterMagicRejected() async throws {
+    try await run(status: 1, error: /illegal magic character specification/, args: "-a", "ab", "echo", "x")
+  }
+
+  @Test func emptyMagicRejected() async throws {
+    try await run(status: 1, error: /illegal magic character specification/, args: "-a", "", "echo", "x")
+  }
+
+  @Test func missingArgumentsPrintsUsage() async throws {
+    try await run(status: 1, error: /usage: apply/, args: "echo")
+  }
+
+  @Test func unknownOptionPrintsUsage() async throws {
+    try await run(status: 1, error: /usage: apply/, args: "-z", "echo", "x")
+  }
+
+  @Test func leftoverArgumentSingular() async throws {
+    try await run(status: 1, error: /expecting additional argument after "c"/, args: "-2", "echo", "a", "b", "c")
+  }
+
+  @Test func leftoverArgumentPlural() async throws {
+    try await run(status: 1, error: /expecting additional arguments after "a"/, args: "-3", "echo", "a")
+  }
+
+  @Test func argumentLimitCountsBytesNotCharacters() async throws {
+    // 2-byte characters: fewer than ARG_MAX characters but more than ARG_MAX bytes once substituted
+    let a = String(repeating: "é", count: Sysconf.scArgMax / 3)
+    try await run(status: 1, error: /Argument list too long/, args: "echo %1 %1", a)
+  }
 }
