@@ -75,19 +75,26 @@ import CMigration
   }
 
   func runCommand() {
+    // An empty first operand prints an empty line and ignores everything else (not ".").
+    if options.args[0].isEmpty {
+      print("")
+      return
+    }
     for arg in options.args {
       let pa = FilePath(arg).basename
-        let px = stripSuffix(pa, options.suffix)
-        print(px)
-
+      print(stripSuffix(pa, options.suffix))
     }
   }
 
+  /// Removes `suffix` from the end of `p` unless that would leave nothing.  Compares
+  /// unicode scalars (as the C version compares characters), so no normalization or
+  /// grapheme-cluster merging affects the match.
   func stripSuffix(_ p : String, _ suffix: String?) -> String {
-    guard let suffix,
-          p.count > suffix.count,
-          p.hasSuffix(suffix) else { return p }
-    return String(p.dropLast(suffix.count))
+    guard let suffix, !suffix.isEmpty else { return p }
+    let ps = p.unicodeScalars
+    let n = suffix.unicodeScalars.count
+    guard ps.count > n, ps.suffix(n).elementsEqual(suffix.unicodeScalars) else { return p }
+    return String(String.UnicodeScalarView(ps.dropLast(n)))
   }
 
   var usage : String = """

@@ -44,4 +44,77 @@ import ShellTesting
   func testSuffix(_ inp : String, _ suff : String, _ o : String) async throws {
     try await run(output: o+"\n", args: inp, suff)
   }
+
+  @Test func emptyOperandPrintsEmptyLine() async throws {
+    try await run(output: "\n", args: "")
+  }
+
+  @Test func emptyFirstOperandIgnoresRest() async throws {
+    try await run(output: "\n", args: "", "x")
+  }
+
+  @Test func emptyLaterOperandWithAllFlagPrintsDot() async throws {
+    try await run(output: "a\n.\nb\n", args: "-a", "a", "", "b")
+  }
+
+  @Test func allFlagMultipleOperands() async throws {
+    try await run(output: "a\nb\nc\n", args: "-a", "/x/a", "y/b/", "c")
+  }
+
+  @Test func suffixFlag() async throws {
+    try await run(output: "a\nb\n", args: "-s", ".c", "x/a.c", "b.c")
+  }
+
+  @Test func suffixFlagWithAllFlag() async throws {
+    try await run(output: "a\nb\n", args: "-a", "-s", ".c", "a.c", "b")
+  }
+
+  @Test func emptySuffixIsNoOp() async throws {
+    try await run(output: "a\nb\n", args: "-a", "-s", "", "a", "b")
+  }
+
+  @Test func suffixEqualToWholeNameIsKept() async throws {
+    try await run(output: ".c\n", args: ".c", ".c")
+  }
+
+  @Test func suffixLongerThanNameIsKept() async throws {
+    try await run(output: "c\n", args: "c", "abc")
+  }
+
+  @Test func suffixOnlyAppliedToBasename() async throws {
+    try await run(output: "gcc\n", args: "usr/bin.c/gcc", "bin.c")
+  }
+
+  @Test func threeOperandsWithoutFlagsAreNotSuffixMode() async throws {
+    try await run(output: "a.c\n.c\n.c\n", args: "a.c", ".c", ".c")
+  }
+
+  @Test func doubleDashEndsOptions() async throws {
+    try await run(output: "-a\n", args: "--", "-a")
+  }
+
+  @Test func combiningMarkSuffixMatchesScalarBoundary() async throws {
+    // decomposed "é" with only the combining accent as suffix: matches on a character boundary
+    try await run(output: "e\n", args: "e\u{301}", "\u{301}")
+  }
+
+  @Test func precomposedSuffixDoesNotMatchDecomposed() async throws {
+    try await run(output: "e\u{301}\n", args: "e\u{301}", "\u{e9}")
+  }
+
+  @Test func multibyteSuffix() async throws {
+    try await run(output: "caf\n", args: "dir/caf\u{e9}", "\u{e9}")
+  }
+
+  @Test func noOperandsPrintsUsage() async throws {
+    try await run(status: 1, error: /usage: basename/, args: [] as [String])
+  }
+
+  @Test func unknownOptionPrintsUsage() async throws {
+    try await run(status: 1, error: /usage: basename/, args: "-z", "a")
+  }
+
+  @Test func missingSuffixArgumentPrintsUsage() async throws {
+    try await run(status: 1, error: /usage: basename/, args: "-s")
+  }
 }
