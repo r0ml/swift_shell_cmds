@@ -99,7 +99,7 @@ import Darwin
     var fmt: String?
     var v: Vary?
     var iso8601_subset : [iso8601_fmt]!
-    var tval : DateTime?
+    var tval : DateTime = DateTime()   // defaults to the current time
   }
 
   var options : CommandOptions!
@@ -195,7 +195,7 @@ import Darwin
     }
 
     if let firstArg = opts.argv.first {
-      try setthetime(opts.fmt, firstArg, opts.jflag)
+      opts.tval = try setthetime(opts.fmt, firstArg, opts.jflag, opts.tval)
       opts.argv.removeFirst()
     } else if opts.fmt != nil {
       throw CmdErr(1)
@@ -212,7 +212,7 @@ import Darwin
 
   func runCommand() throws(CmdErr) {
 
-    var lt = time_h.localtime(&options.tval!.secs).pointee
+    var lt = time_h.localtime(&options.tval.secs).pointee
     if let v = options.v {
       if let badv = vary_apply(v, &lt) {
         throw CmdErr(1, "\(badv): Cannot apply date adjustment")
@@ -271,12 +271,15 @@ import Darwin
     printdate(buf )
   }
 
-  func setthetime(_ fmt: String?, _ p: String, _ jflag: Bool) throws(CmdErr) {
+  /// Interprets the "new date" operand (either via `-f` and strptime(3), or in the default
+  /// `[[[[mm]dd]HH]MM[[cc]yy][.SS]` form), starting from the broken-down form of `tval`.
+  /// Unless `jflag` is given the system clock is set.  Returns the resulting time.
+  func setthetime(_ fmt: String?, _ p: String, _ jflag: Bool, _ tval: DateTime) throws(CmdErr) -> DateTime {
     var utx = Darwin.utmpx()
     var tv = time_h.timeval()
-    var century: Int32
 
-    guard let lt = time_h.localtime(&options.tval!.secs) else {
+    var secs = tval.secs
+    guard let lt = time_h.localtime(&secs) else {
       throw CmdErr(1, "invalid time")
     }
 
@@ -289,78 +292,82 @@ import Darwin
         throw badformat
       }
       if t.pointee != 0 {
-        print("Warning: Ignoring \(strlen(t)) extraneous characters in date string \(t)", to: &se)
+        print("Warning: Ignoring \(strlen(t)) extraneous characters in date string \(String(cString: t))", to: &se)
       }
     } else {
-      var t = p
-      var dot : String? = nil
-      while !t.isEmpty {
-        let tf = t.first!
-        if tf.isNumber {
-          t.removeFirst()
-          continue
-        }
-        if tf == "." && dot == nil {
-          dot = t
-          t.removeFirst()
-          continue
-        }
-        throw badformat
+      func isDigits(_ s: Substring) -> Bool {
+        s.utf8.allSatisfy { $0 >= 48 && $0 <= 57 }
       }
 
-      if dot != nil {
-        dot!.removeFirst()
-        if dot!.count != 2 {
+      // split off the optional ".SS" seconds
+      var body = Substring(p)
+      if let dot = p.firstIndex(of: ".") {
+        body = p[..<dot]
+        let ss = p[p.index(after: dot)...]
+        guard ss.utf8.count == 2, isDigits(ss), let n = Int32(ss), n <= 61 else {
           throw badformat
         }
-        lt.pointee.tm_sec = Int32(dot!)!
-        if lt.pointee.tm_sec > 61 {
-          throw badformat
-        }
+        lt.pointee.tm_sec = n
       } else {
         lt.pointee.tm_sec = 0
       }
+      guard isDigits(body) else {
+        throw badformat
+      }
 
-      century = 0
-      let length = p.count - (dot != nil ? 3 : 0)
+      let d = body.utf8.map { Int32($0) - 48 }
+      var i = 0
+      // reads the next two digits, advancing the cursor
+      func next2() -> Int32 {
+        let v = d[i] * 10 + d[i + 1]
+        i += 2
+        return v
+      }
+      // reads two digits at an absolute offset, without advancing
+      func at2(_ n: Int) -> Int32 {
+        d[n] * 10 + d[n + 1]
+      }
+
+      let length = d.count
+      var century = false
       switch length {
-        case 12:
-          lt.pointee.tm_year = (unix2003_std ? ATOI2_OFFSET(p, length - 4) : ATOI2(p)) * 100 - TM_YEAR_BASE
-          century = 1
-          fallthrough
-        case 10:
-          if century != 0 {
-            lt.pointee.tm_year += (unix2003_std ? ATOI2_OFFSET(p, length - 2) : ATOI2(p))
-          } else {
-            lt.pointee.tm_year = (unix2003_std ? ATOI2_OFFSET(p, length - 2) : ATOI2(p))
-            if lt.pointee.tm_year < 69 {
-              lt.pointee.tm_year += 2000 - TM_YEAR_BASE
+        case 12, 10, 8, 6, 4, 2:
+          if length == 12 {
+            lt.pointee.tm_year = at2(length - 4) * 100 - TM_YEAR_BASE
+            century = true
+          }
+          if length >= 10 {
+            if century {
+              lt.pointee.tm_year += at2(length - 2)
             } else {
-              lt.pointee.tm_year += 1900 - TM_YEAR_BASE
+              lt.pointee.tm_year = at2(length - 2)
+              if lt.pointee.tm_year < 69 {
+                lt.pointee.tm_year += 2000 - TM_YEAR_BASE
+              } else {
+                lt.pointee.tm_year += 1900 - TM_YEAR_BASE
+              }
             }
           }
-          fallthrough
-        case 8:
-          lt.pointee.tm_mon = ATOI2(p)
-          if lt.pointee.tm_mon > 12 {
-            throw badformat
+          if length >= 8 {
+            lt.pointee.tm_mon = next2()
+            if lt.pointee.tm_mon < 1 || lt.pointee.tm_mon > 12 {
+              throw badformat
+            }
+            lt.pointee.tm_mon -= 1
           }
-          lt.pointee.tm_mon -= 1
-          fallthrough
-        case 6:
-          lt.pointee.tm_mday = ATOI2(p)
-          if lt.pointee.tm_mday > 31 {
-            throw badformat
+          if length >= 6 {
+            lt.pointee.tm_mday = next2()
+            if lt.pointee.tm_mday > 31 {
+              throw badformat
+            }
           }
-          fallthrough
-        case 4:
-          lt.pointee.tm_hour = Int32(p)!
-          if lt.pointee.tm_hour > 23 {
-            throw badformat
+          if length >= 4 {
+            lt.pointee.tm_hour = next2()
+            if lt.pointee.tm_hour > 23 {
+              throw badformat
+            }
           }
-          fallthrough
-        case 2:
-          lt.pointee.tm_min = Int32(p)!
+          lt.pointee.tm_min = next2()
           if lt.pointee.tm_min > 59 {
             throw badformat
           }
@@ -369,19 +376,21 @@ import Darwin
       }
     }
 
-    if mktime(lt) == -1 {
-      err(1, "nonexistent time")
+    let t = mktime(lt)
+    if t == -1 {
+      throw CmdErr(1, "nonexistent time")
     }
+    let newTime = DateTime(t)
 
     if !jflag {
       utx.ut_type = Int16(OLD_TIME)
       Darwin.memset(&utx.ut_id, 0, MemoryLayout.size(ofValue: utx.ut_id))
       Darwin.gettimeofday(&utx.ut_tv, nil)
       Darwin.pututxline(&utx)
-      tv.tv_sec = options.tval!.secs
+      tv.tv_sec = newTime.secs
       tv.tv_usec = 0
       if settimeofday(&tv, nil) != 0 {
-        err(1, "settimeofday (timeval)")
+        throw CmdErr(1, "settimeofday (timeval): \(String(cString: strerror(errno)))")
       }
       utx.ut_type = Int16(Darwin.NEW_TIME)
       Darwin.gettimeofday(&utx.ut_tv, nil)
@@ -392,14 +401,7 @@ import Darwin
       // FIXME: is this right?
       ll.withCString {  withVaList([$0]) { Darwin.vsyslog(LOG_NOTICE, "date set by %s", $0 )  } }
     }
-  }
-
-  func ATOI2(_ p : String) -> Int32 {
-    return Int32(p)!
-  }
-
-  func ATOI2_OFFSET(_ p : String, _ n : Int) -> Int32 {
-    return Int32(p.dropFirst(n))!
+    return newTime
   }
 
   var badformat = CmdErr(1, "illegal time format")

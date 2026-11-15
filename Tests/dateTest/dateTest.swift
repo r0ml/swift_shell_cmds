@@ -5,6 +5,7 @@
 // Submitted by Edwin Groothuis <edwin@FreeBSD.org>
 
 import ShellTesting
+import Darwin
 
 @Suite class dateTest : ShellTest {
   let cmd = "date"
@@ -44,6 +45,256 @@ import ShellTesting
     try await run(output: "\(a)\n", args: "-u", "-r", "\(Self.TEST1)", "-I\(arg)" )
     try await run(output: "\(b)\n", args: "-u", "-r", "\(Self.TEST2)", "-I\(arg)" )
   }
-  
 
+  // 2001-09-09 01:46:40 UTC, a Sunday
+  static let T = 1000000000
+
+  // MARK: -v adjustments (expected values taken from the system date)
+
+  @Test(arguments: [ ("+1d", "Mon Sep 10 01:46:40 UTC 2001"), ("-1d", "Sat Sep  8 01:46:40 UTC 2001"),
+                     ("+1m", "Tue Oct  9 01:46:40 UTC 2001"), ("-1m", "Thu Aug  9 01:46:40 UTC 2001"),
+                     ("+1y", "Mon Sep  9 01:46:40 UTC 2002"), ("-1y", "Sat Sep  9 01:46:40 UTC 2000"),
+                     ("+1w", "Sun Sep 16 01:46:40 UTC 2001"), ("-1w", "Sun Sep  2 01:46:40 UTC 2001"),
+                     ("+1H", "Sun Sep  9 02:46:40 UTC 2001"), ("-2H", "Sat Sep  8 23:46:40 UTC 2001"),
+                     ("+90M", "Sun Sep  9 03:16:40 UTC 2001"), ("-50M", "Sun Sep  9 00:56:40 UTC 2001"),
+                     ("+30S", "Sun Sep  9 01:47:10 UTC 2001"), ("-41S", "Sun Sep  9 01:45:59 UTC 2001"),
+                     ("+25d", "Thu Oct  4 01:46:40 UTC 2001"), ("+13m", "Wed Oct  9 01:46:40 UTC 2002"),
+                     ("1d", "Sat Sep  1 01:46:40 UTC 2001"), ("12H", "Sun Sep  9 12:46:40 UTC 2001"),
+                     ("30M", "Sun Sep  9 01:30:40 UTC 2001"), ("5S", "Sun Sep  9 01:46:05 UTC 2001"),
+                     ("2020y", "Wed Sep  9 01:46:40 UTC 2020"), ("20y", "Wed Sep  9 01:46:40 UTC 2020"),
+                     ("99y", "Thu Sep  9 01:46:40 UTC 1999"), ("12m", "Sun Dec  9 01:46:40 UTC 2001"),
+                     ("1m", "Tue Jan  9 01:46:40 UTC 2001") ])
+  func vAdjust(_ v: String, _ expected: String) async throws {
+    try await run(output: expected + "\n", args: "-u", "-r", "\(Self.T)", "-v\(v)")
+  }
+
+  @Test(arguments: [ ("jan", "Tue Jan  9 01:46:40 UTC 2001"), ("+jan", "Wed Jan  9 01:46:40 UTC 2002"),
+                     ("-dec", "Sat Dec  9 01:46:40 UTC 2000"), ("dec", "Sun Dec  9 01:46:40 UTC 2001"),
+                     ("mon", "Mon Sep 10 01:46:40 UTC 2001"), ("+fri", "Fri Sep 14 01:46:40 UTC 2001"),
+                     ("-sun", "Sun Sep  9 01:46:40 UTC 2001"), ("-sat", "Sat Sep  8 01:46:40 UTC 2001") ])
+  func vNamedMonthOrWeekday(_ v: String, _ expected: String) async throws {
+    try await run(output: expected + "\n", args: "-u", "-r", "\(Self.T)", "-v\(v)")
+  }
+
+  @Test func vMultipleAdjustmentsApplyInOrder() async throws {
+    try await run(output: "Wed Oct 10 01:46:40 UTC 2001\n", args: "-u", "-r", "\(Self.T)", "-v+1m", "-v+1d")
+    try await run(output: "2001-09-09\n", args: "-u", "-r", "\(Self.T)", "-v-1d", "-v+1d", "+%F")
+    try await run(output: "Sun Sep  9 12:30:00 UTC 2001\n", args: "-u", "-r", "\(Self.T)", "-v12H", "-v30M", "-v0S")
+  }
+
+  @Test func vWithOutputFormat() async throws {
+    try await run(output: "2001-09-10 02:46:40\n", args: "-u", "-r", "\(Self.T)", "-v+1d", "-v+1H", "+%F %T")
+  }
+
+  @Test func vMonthEndOverflow() async throws {
+    // 2000-02-29 + 1 month
+    try await run(output: "2000-03-29\n", args: "-u", "-r", "951782400", "-v+1m", "+%F")
+    // 2000-01-31 + 1 month is clamped to the end of February rather than rolling into March
+    try await run(output: "2000-02-29\n", args: "-u", "-r", "949276800", "-v+1m", "+%F")
+  }
+
+  @Test(arguments: ["=1d", "31d", "xx", "+1q", "+", "-", "d", "+1x", "25H", "60M", "60S", "13m", "0m"])
+  func vInvalid(_ v: String) async throws {
+    try await run(status: 1, args: "-u", "-r", "\(Self.T)", "-v\(v)")
+  }
+
+  @Test func vSeparateArgument() async throws {
+    try await run(output: "Mon Sep 10 01:46:40 UTC 2001\n", args: "-u", "-r", "\(Self.T)", "-v", "+1d")
+  }
+
+  // MARK: -r
+
+  @Test(arguments: [ ("0", "Thu Jan  1 00:00:00 UTC 1970"), ("0x10", "Thu Jan  1 00:00:16 UTC 1970"),
+                     ("010", "Thu Jan  1 00:00:08 UTC 1970"), ("1000000000", "Sun Sep  9 01:46:40 UTC 2001"),
+                     ("0x3B9ACA00", "Sun Sep  9 01:46:40 UTC 2001") ])
+  func rRadix(_ r: String, _ expected: String) async throws {
+    try await run(output: expected + "\n", args: "-u", "-r", r)
+  }
+
+  @Test func rFileModificationTime() async throws {
+    // the modification time of a file is the same, however it is spelled
+    try await run(args: "-r", "/etc/hosts", validation: { out in
+      #expect(!out.data.isEmpty)
+    })
+  }
+
+  @Test(arguments: ["/nonexistent/file", "1.5", "abc", "0o10"])
+  func rInvalid(_ r: String) async throws {
+    try await run(status: 1, args: "-u", "-r", r)
+  }
+
+  @Test func rWithFormatOperand() async throws {
+    try await run(output: "1000000000\n", args: "-u", "-r", "\(Self.T)", "+%s")
+  }
+
+  @Test func timeZoneFromEnvironment() async throws {
+    try await run(output: "EDT\n", args: "-r", "\(Self.T)", "+%Z", env: ["TZ": "America/New_York"])
+    try await run(output: "UTC\n", args: "-u", "-r", "\(Self.T)", "+%Z", env: ["TZ": "America/New_York"])
+    try await run(output: "2001-09-09T07:16:40+05:30\n", args: "-r", "\(Self.T)", "-Iseconds", env: ["TZ": "Asia/Kolkata"])
+  }
+
+  @Test func nFlagIgnored() async throws {
+    try await run(output: "1000000000\n", args: "-u", "-r", "\(Self.T)", "-n", "+%s")
+  }
+
+  // MARK: output formats
+
+  @Test func rfc2822() async throws {
+    try await run(output: "Sun, 09 Sep 2001 01:46:40 +0000\n", args: "-u", "-r", "\(Self.T)", "-R")
+    try await run(output: "Sun, 09 Sep 2001 07:16:40 +0530\n", args: "-r", "\(Self.T)", "-R", env: ["TZ": "Asia/Kolkata"])
+  }
+
+  @Test func rfc2822IgnoresLocale() async throws {
+    try await run(output: "Sun, 09 Sep 2001 01:46:40 +0000\n", args: "-u", "-r", "\(Self.T)", "-R", env: ["LC_ALL": "fr_FR.UTF-8"])
+  }
+
+  @Test func iso8601Offsets() async throws {
+    try await run(output: "2001-09-09T07:16+05:30\n", args: "-r", "\(Self.T)", "-Iminutes", env: ["TZ": "Asia/Kolkata"])
+    try await run(output: "2001-09-08T21:46:40-04:00\n", args: "-r", "\(Self.T)", "-Iseconds", env: ["TZ": "America/New_York"])
+  }
+
+  @Test(arguments: [ ["-Ibogus"], ["-I", "-R"], ["-R", "-I"], ["-I", "+%Y"], ["-R", "+%Y", "-I"] ])
+  func conflictingOrBadFormats(_ a: [String]) async throws {
+    try await run(status: 1, args: ["-u", "-r", "\(Self.T)"] + a)
+  }
+
+  @Test func formatOperandVariants() async throws {
+    try await run(output: "20010909 01\n", args: "-u", "-r", "\(Self.T)", "+%Y%m%d %H")
+    try await run(output: "\n", args: "-u", "-r", "\(Self.T)", "+")
+    try await run(output: "%2001\n", args: "-u", "-r", "\(Self.T)", "+%%%Y")
+    try await run(output: "\n\t\n", args: "-u", "-r", "\(Self.T)", "+%n%t")
+    try await run(output: "2001 and 2001\n", args: "-u", "-r", "\(Self.T)", "+%Y and %Y")
+    try await run(output: "literal text\n", args: "-u", "-r", "\(Self.T)", "+literal text")
+  }
+
+  @Test func longOutputFormat() async throws {
+    let fmt = String(repeating: "%Y-", count: 200)
+    let expected = String(repeating: "2001-", count: 200)
+    try await run(output: expected + "\n", args: "-u", "-r", "\(Self.T)", "+" + fmt)
+  }
+
+  @Test func twoFormatOperandsIsError() async throws {
+    try await run(status: 1, args: "-u", "-r", "\(Self.T)", "+%Y", "+%m")
+  }
+
+  // MARK: no operands / current time
+
+  @Test func noArgumentsPrintsCurrentTime() async throws {
+    try await run(args: "-u", validation: { out in
+      #expect(out.data.last == 0x0A)
+      #expect(out.data.count > 20)
+    })
+  }
+
+  @Test func currentYearFormat() async throws {
+    try await run(args: "+%Y", validation: { out in
+      let y = String(decoding: out.data, as: UTF8.self)
+      #expect(y.count == 5)
+      #expect(Int(y.dropLast()) ?? 0 >= 2026)
+    })
+  }
+
+  @Test func currentTimeWithUFlagIsClose() async throws {
+    try await run(args: "-u", "+%s", validation: { out in
+      let s = Int(String(decoding: out.data, as: UTF8.self).dropLast()) ?? 0
+      let now = Int(time(nil))
+      #expect(abs(now - s) < 120)
+    })
+  }
+
+  // MARK: setting the time -- always with -j so the clock is never changed
+
+  @Test(arguments: [ ("0102030401", "2001-01-02 03:04:00"), ("010203042001.05", "2001-01-02 03:04:05"),
+                     ("0102030499", "1999-01-02 03:04:00"), ("0102030468", "2068-01-02 03:04:00"),
+                     ("0102030469", "1969-01-02 03:04:00"),
+                     ("010203041999", "1999-01-02 03:04:00"), ("010203042030.59", "2030-01-02 03:04:59") ])
+  func setFullForms(_ spec: String, _ expected: String) async throws {
+    try await run(output: expected + "\n", args: "-u", "-j", spec, "+%F %T")
+  }
+
+  @Test(arguments: [ ("02030405", "%m-%d %T", "02-03 04:05:00"), ("030405", "%d %T", "03 04:05:00"),
+                     ("0405", "%T", "04:05:00"), ("05", "%M", "05"), ("0405.30", "%T", "04:05:30"),
+                     ("0102030405", "%F %T", "2005-01-02 03:04:00") ])
+  func setPartialForms(_ spec: String, _ fmt: String, _ expected: String) async throws {
+    try await run(output: expected + "\n", args: "-u", "-j", spec, "+" + fmt)
+  }
+
+  @Test(arguments: ["99999999", "12345", "0132030405", "abcd", "2360", "0102030405.6", "0102030405.678", "1", "010203040506070809", "0102.0304", "01-02-03", "1200 "])
+  func setBadForms(_ spec: String) async throws {
+    try await run(status: 1, args: "-u", "-j", spec)
+  }
+
+  @Test func setWithJDoesNotChangeClock() async throws {
+    try await run(args: "-u", "-j", "0102030401", "+%Y", validation: { out in
+      #expect(String(decoding: out.data, as: UTF8.self) == "2001\n")
+    })
+    try await run(args: "-u", "+%Y", validation: { out in
+      #expect(String(decoding: out.data, as: UTF8.self) != "2001\n")
+    })
+  }
+
+  @Test func setWithAdjustment() async throws {
+    try await run(output: "2001-01-03 03:04:00\n", args: "-u", "-j", "-v+1d", "0102030401", "+%F %T")
+  }
+
+  @Test func setWithISOOutput() async throws {
+    try await run(output: "2001-01-02T03:04:05+00:00\n", args: "-u", "-j", "-Iseconds", "010203042001.05")
+  }
+
+  // MARK: -f
+
+  @Test(arguments: [ ("%Y-%m-%d", "2020-03-04", "%F", "2020-03-04"),
+                     ("%Y-%m-%d %H:%M:%S", "2020-03-04 05:06:07", "%s", "1583298367"),
+                     ("%d/%m/%y %H:%M", "04/03/20 05:06", "%F %H:%M", "2020-03-04 05:06"),
+                     ("%s", "1000000000", "%F %T", "2001-09-09 01:46:40"),
+                     ("%b %d %Y %H:%M:%S", "Sep 09 2001 01:46:40", "%s", "1000000000"),
+                     ("%Y", "2020", "%Y", "2020") ])
+  func fFormat(_ inf: String, _ value: String, _ outf: String, _ expected: String) async throws {
+    try await run(output: expected + "\n", args: "-u", "-j", "-f", inf, value, "+" + outf)
+  }
+
+  @Test func fWithDefaultOutputFormat() async throws {
+    try await run(output: "Wed Mar  4 05:06:07 UTC 2020\n", args: "-u", "-j", "-f", "%Y-%m-%d %H:%M:%S", "2020-03-04 05:06:07")
+  }
+
+  @Test func fWithRFC2822Output() async throws {
+    try await run(output: "Wed, 04 Mar 2020 05:06:07 +0000\n", args: "-u", "-j", "-R", "-f", "%Y-%m-%d %H:%M:%S", "2020-03-04 05:06:07")
+  }
+
+  @Test func fWithISOOutput() async throws {
+    try await run(output: "2020-03-04T05:06:07+00:00\n", args: "-u", "-j", "-Iseconds", "-f", "%Y-%m-%d %H:%M:%S", "2020-03-04 05:06:07")
+  }
+
+  @Test func fCombinedWithFlagsInOneArgument() async throws {
+    try await run(output: "2020\n", args: "-ujf", "%Y", "2020", "+%Y")
+  }
+
+  @Test func fWithAdjustment() async throws {
+    try await run(output: "2020-03-05\n", args: "-u", "-j", "-v+1d", "-f", "%Y-%m-%d", "2020-03-04", "+%F")
+  }
+
+  @Test(arguments: [ ["-f", "%Y", "abcd"], ["-f", "%Y"], ["-f", "%Y-%m-%d", "2020"], ["-f", "%Y-%m-%d", "2020-13-01"] ])
+  func fBad(_ a: [String]) async throws {
+    try await run(status: 1, args: ["-u", "-j"] + a)
+  }
+
+  @Test func fTrailingGarbageIsWarning() async throws {
+    try await run(output: "2020\n", args: "-u", "-j", "-f", "%Y", "2020x", "+%Y")
+  }
+
+  // MARK: option parsing
+
+  @Test(arguments: [ ["-x"], ["-r"], ["-f"], ["-v"], ["-u", "-Z"] ])
+  func badOptions(_ a: [String]) async throws {
+    try await run(status: 1, args: a)
+  }
+
+  @Test func doubleDashEndsOptions() async throws {
+    try await run(output: "2001\n", args: "-u", "-j", "--", "0102030401", "+%Y")
+  }
+
+  @Test func combinedFlags() async throws {
+    try await run(output: "Sun, 09 Sep 2001 01:46:40 +0000\n", args: "-uR", "-r", "\(Self.T)")
+  }
 }
+
