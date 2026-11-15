@@ -76,9 +76,7 @@ import CMigration
 
   func runCommand() throws(CmdErr) {
     for v in options.args {
-        if let p = try? dirname(v) {
-          print( p )
-        }
+      print( try dirname(v) )
     }
   }
 
@@ -90,34 +88,39 @@ import CMigration
       return "."
     }
 
-    var ppath = Substring(path)
+    // Work on UTF-8 bytes so a "/" followed by a combining mark is still a separator
+    let slash = UInt8(ascii: "/")
+    var ppath = path.utf8[...]
 
     // Strip any trailing slashes
-    while ppath.last == "/" {
+    while ppath.last == slash {
       ppath = ppath.dropLast()
     }
 
     // Find the start of the dir
-    while !ppath.isEmpty && ppath.last != "/" {
+    while !ppath.isEmpty && ppath.last != slash {
       ppath = ppath.dropLast()
     }
 
     // Either the dir is "/" or there are no slashes
     if ppath.count <= 1 {
-      return path.first == "/" ? "/" : "."
-    } else {
-      // Move forward past the separating slashes
-      repeat {
-        ppath = ppath.dropLast()
-      } while !ppath.isEmpty && ppath.last == "/"
+      return path.utf8.first == slash ? "/" : "."
+    }
+
+    // Strip the separating slashes
+    while ppath.last == slash {
+      ppath = ppath.dropLast()
+    }
+
+    // Only slashes preceded the final component (e.g. "//usr")
+    if ppath.isEmpty {
+      return "/"
     }
 
     if ppath.count >= MAXPATHLEN {
       throw CmdErr(1, POSIXErrno(ENAMETOOLONG).localizedDescription)
     }
 
-    return String(ppath)
+    return String(Substring(ppath))
   }
 }
-
-

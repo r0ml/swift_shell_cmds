@@ -33,12 +33,59 @@ import ShellTesting
 final class echoTest : ShellTest {
   let cmd = "echo"
   let suiteBundle = "shell_cmds_echoTest"
-  
+
   @Test func n_output() async throws {
     try await run(output: "Hello world", args: "-n", "Hello world")
   }
-  
+
   @Test func c_output() async throws {
     try await run(output: "Hello world", args: "Hello world\\c" )
+  }
+
+  @Test func noArguments() async throws {
+    try await run(output: "\n", args: [String]())
+  }
+
+  @Test func onlyN() async throws {
+    try await run(output: "", args: "-n")
+  }
+
+  @Test func multipleOperands() async throws {
+    try await run(output: "a b  c\n", args: "a", "b", "", "c")
+  }
+
+  @Test func secondNIsLiteral() async throws {
+    try await run(output: "-n x", args: "-n", "-n", "x")
+  }
+
+  @Test func nNotFirstIsLiteral() async throws {
+    try await run(output: "x -n\n", args: "x", "-n")
+  }
+
+  @Test func escapesLiteralByDefault() async throws {
+    try await run(output: "a\\tb\\n\n", args: "a\\tb\\n")
+  }
+
+  @Test func cStopsAllOutput() async throws {
+    try await run(output: "a b", args: "a", "b\\c", "d")
+  }
+
+  @Test func cWithNewlineSuppressed() async throws {
+    try await run(output: "a", args: "a\\cb")
+  }
+
+  @Test func trailingBackslash() async throws {
+    try await run(output: "a\\\n", args: "a\\")
+  }
+
+  @Test(arguments: [ ("a\\tb", "a\tb\n"), ("a\\nb", "a\nb\n"), ("\\\\", "\\\n"), ("\\0101", "A\n"),
+                     ("\\0", "\0\n"), ("\\01011", "A1\n"), ("\\q", "\\q\n"), ("x\\ry", "x\ry\n"),
+                     ("\\a\\b\\f\\v", "\u{07}\u{08}\u{0C}\u{0B}\n"), ("a\\cb", "a") ] )
+  func posixEscapes(_ inp: String, _ outp: String) async throws {
+    try await run(output: outp, args: inp, env: ["POSIXLY_CORRECT": "1"])
+  }
+
+  @Test func posixNIsOperand() async throws {
+    try await run(output: "-n a\n", args: "-n", "a", env: ["POSIXLY_CORRECT": "1"])
   }
 }

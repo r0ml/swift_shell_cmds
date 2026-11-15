@@ -35,106 +35,76 @@ import CMigration
 
 @main struct Echo {
   static func main() {
-
-    var args = CommandLine.arguments
-    args.removeFirst() // this is the executable name
+    var args = Array(CommandLine.arguments.dropFirst()) // drop the executable name
     var nflag = false
     let posix = Environment["POSIXLY_CORRECT"] != nil || Environment["POSIX_PEDANTIC"] != nil
 
-    if !posix && args[0] == "-n" {
+    if !posix && args.first == "-n" {
       nflag = true
       args.removeFirst()
     }
 
-    var firstTime = true
-    for arg in args {
-      if !firstTime {
-        print(" ", terminator: "")
-      } else {
-        firstTime = false
+    var out: [UInt8] = []
+    var stopped = false
+    for (i, arg) in args.enumerated() {
+      if i > 0 { out.append(0x20) }
+      if !appendOperand(arg, to: &out, posix: posix) {
+        stopped = true
+        break
       }
-
-      var a = arg
-      while let x = a.firstIndex(of: "\\") {
-        print(a[a.startIndex..<x], terminator: "")
-        a = String(a[ a.index(x, offsetBy: 1)...])
-        do {
-          try printEscapeChar(cur: &a, posix: posix)
-        } catch {
-          return
-        }
-      }
-      print(a, terminator: "")
     }
 
-    if !nflag {
-      print("")
+    // `\c` suppresses the trailing newline and discards all further output.
+    if !nflag && !stopped {
+      out.append(0x0A)
     }
 
-    // FIXME: do I need this?
-    //    stdio_h.fflush(stdout)
+    try? FileDescriptor.standardOutput.writeAll(out)
   }
 
-  static func printEscapeChar(cur: inout String, posix: Bool) throws {
-    enum End : Error {
-      case end
-    }
-
-    if cur.isEmpty {
-      print("\\", terminator: "")
-      return
-    }
-
-    let z =  cur.removeFirst()
-    if z == "c" {
-      // FIXME: do I need this?
-      //      stdio_h.fflush(stdout)
-      throw End.end
-    }
-
-    if !posix {
-      print(z, terminator: "")
-    }
-
-    switch z {
-      case "a":
-        print("\u{07}", terminator: "")
-      case "b":
-        print("\u{08}", terminator: "")
-      case "f":
-        print("\u{0C}", terminator: "")
-      case "n":
-        print("")
-      case "r":
-        print("\u{0D}", terminator: "")
-      case "t":
-        print("\t", terminator: "")
-      case "v":
-        print("\u{0b}", terminator: "")
-      case "\\":
-        print("\\", terminator: "")
-      case "0":
-        var j = 0, num = 0
-        while true {
-          guard let cf = cur.first else { break }
-          let n = cf.asciiValue
-          if let n,
-             n >= 48 && n <= 55 && j < 3 {
-            num *= 8
-            num += Int(n) - 48
+  /// Appends the bytes for one operand.  Returns false if `\c` was encountered.
+  /// Outside of POSIX mode, `\c` is the only recognized escape sequence.
+  static func appendOperand(_ arg: String, to out: inout [UInt8], posix: Bool) -> Bool {
+    let b = Array(arg.utf8)
+    var i = 0
+    while i < b.count {
+      let ch = b[i]
+      i += 1
+      guard ch == 0x5C, i < b.count else {
+        out.append(ch)
+        continue
+      }
+      let z = b[i]
+      i += 1
+      if z == UInt8(ascii: "c") { return false }
+      if !posix {
+        out.append(ch)
+        out.append(z)
+        continue
+      }
+      switch z {
+        case UInt8(ascii: "a"): out.append(0x07)
+        case UInt8(ascii: "b"): out.append(0x08)
+        case UInt8(ascii: "f"): out.append(0x0C)
+        case UInt8(ascii: "n"): out.append(0x0A)
+        case UInt8(ascii: "r"): out.append(0x0D)
+        case UInt8(ascii: "t"): out.append(0x09)
+        case UInt8(ascii: "v"): out.append(0x0B)
+        case UInt8(ascii: "\\"): out.append(0x5C)
+        case UInt8(ascii: "0"):
+          // up to three further octal digits
+          var num = 0, j = 0
+          while j < 3, i < b.count, b[i] >= 0x30, b[i] <= 0x37 {
+            num = num * 8 + Int(b[i] - 0x30)
+            i += 1
             j += 1
-            cur.removeFirst()
-          } else {
-            break
           }
-        }
-        if let us = UnicodeScalar(UInt32(num)) {
-          print(String(us), terminator: "")
-        }
-      default:
-        print( z, terminator: "" )
+          out.append(UInt8(truncatingIfNeeded: num))
+        default:
+          out.append(ch)
+          out.append(z)
+      }
     }
+    return true
   }
-
-
 }

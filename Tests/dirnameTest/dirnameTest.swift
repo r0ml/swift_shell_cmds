@@ -38,4 +38,40 @@ import ShellTesting
   func testDirname(_ inp : String, _ outp : String) async throws {
     try await run(output: outp+"\n", args: inp )
   }
+
+  @Test(arguments: [ ("//usr", "/"), ("///usr", "/"), ("///usr///", "/"), ("a/", "."), ("a//", "."),
+                     ("a//b", "a"), ("/a/b/c", "/a/b"), ("a/b/c/", "a/b"), ("./a", "."), ("../a", ".."),
+                     ("///", "/"), ("a/b//", "a") ] )
+  func moreCases(_ inp : String, _ outp : String) async throws {
+    try await run(output: outp+"\n", args: inp )
+  }
+
+  @Test func multipleOperands() async throws {
+    try await run(output: "/usr\n.\n/\n", args: "/usr/bin", "x", "/y")
+  }
+
+  @Test func doubleDashEndsOptions() async throws {
+    try await run(output: ".\n", args: "--", "-a")
+  }
+
+  @Test func combiningMarkAfterSlash() async throws {
+    try await run(output: "a\n", args: "a/\u{301}b")
+  }
+
+  @Test func multibyteComponents() async throws {
+    try await run(output: "caf\u{e9}\n", args: "caf\u{e9}/x")
+  }
+
+  @Test func noOperandsPrintsUsage() async throws {
+    try await run(status: 1, error: /usage: dirname/, args: [] as [String])
+  }
+
+  @Test func unknownOptionPrintsUsage() async throws {
+    try await run(status: 1, error: /usage: dirname/, args: "-z", "a")
+  }
+
+  @Test func overlongPathFails() async throws {
+    let long = String(repeating: "a", count: 2000) + "/x"
+    try await run(status: 1, error: /./, args: long)
+  }
 }
