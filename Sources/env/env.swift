@@ -35,17 +35,12 @@
 
 import CMigration
 
-import os
+import Darwin
 
-let logger = Logger.init(subsystem: "r0ml", category: "r0ml")
-
-
-// FIXME: there are no tests for this target
+// FIXME: add implementation for the -C workdir option 
 @main final class Env : ShellCommand {
     // from envopts.swift
     var env_verbosity : Int = 0
- 
-  var environ: [String:String] = Environment.getenv()
 
     var usage = """
 usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
@@ -70,15 +65,13 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
     var opts = CommandOptions()
     var se = FileDescriptor.standardError
 
- //   let j = CommandLine.arguments
- //   let k = j.joined(separator: " ")
-
     var want_clear = false
 
-    let go = BSDGetopt("-0iP:S:u:v")
-    /* The nastiness here is that the -S option can mutate the CommandLine arguments in use */
+    var go = BSDGetopt("-0iP:S:u:v")
+    /* -S splices the split-up string into the remaining arguments, which are then
+       scanned for further options, so the parser is restarted after each -S. */
     while let (ch, optarg) = try go.getopt() {
-      
+
       switch ch {
       case "-":
         fallthrough
@@ -89,7 +82,8 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
       case "P":
           opts.altpath = optarg
       case "S":
-          try opts.aa.append(contentsOf: splitSpaces(optarg))
+          let split = try splitSpaces(optarg)
+          go = BSDGetopt("-0iP:S:u:v", args: ArraySlice(split + go.remaining))
       case "u":
         if env_verbosity != 0 {
           print("#env unset:\(optarg)", to: &se)
@@ -110,89 +104,78 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
         throw CmdErr(1)
       }
     }
-    
+
     if want_clear {
-      environ = [:]
+      for k in Environment.getenv().keys {
+        Darwin.unsetenv(k)
+      }
       if env_verbosity != 0 {
         print("#env clearing environ", to: &se)
       }
     }
-    
-    opts.aa.append(contentsOf: go.remaining)
+
+    opts.aa = go.remaining
     return opts
   }
-  
+
   func runCommand() async throws(CmdErr) {
 
     var se = FileDescriptor.standardError
 
-    // FIXME: need to remove the setenv args from opts.aa
-    for argv in options.aa {
-      if let p = argv.firstIndex(of: "=") {
-        if env_verbosity != 0 {
-          print("#env setenv:\(argv)", to: &se)
-        }
-        let key = String(argv[..<p])
-        let value = String(argv[argv.index(after: p)...])
-        do {
-          try Environment.setenv(key, value)
-        } catch(let e) {
-          throw CmdErr(1, "setenv \(key) \(e)")
-        }
+    // leading name=value operands modify the environment; the first operand without '=' is the utility
+    var args = options.aa[...]
+    while let argv = args.first, let p = argv.firstIndex(of: "=") {
+      args.removeFirst()
+      if env_verbosity != 0 {
+        print("#env setenv:\(argv)", to: &se)
+      }
+      let key = String(argv[..<p])
+      let value = String(argv[argv.index(after: p)...])
+      do {
+        try Environment.setenv(key, value)
+      } catch(let e) {
+        throw CmdErr(1, "setenv \(key) \(e)")
       }
     }
-    
-    if options.aa.isEmpty {
-      for ep in environ {
-        print("\(ep.0)=\(ep.1)", terminator: String(options.term))
-      }
 
-      // FIXME: do I need this?
-      /*
-#if os(macOS)
-      if Darwin.ferror(stdout) != 0 || fflush(stdout) != 0 {
-        err(1, "stdout")
+    guard let oargv = args.first else {
+      // no utility: print the environment, in its original order
+      var ptr = environ
+      while let current = ptr.pointee {
+        print(String(cString: current), terminator: String(options.term))
+        ptr = ptr.advanced(by: 1)
       }
-#endif
-      */
-
       return
+    }
+
+    if options.term == "\0" {
+      throw CmdErr(ExitCode.EXIT_CANCELED.rawValue, "cannot specify command with -0")
+    }
+
+    var argv = oargv
+    if let altpath = options.altpath {
+      argv = search_paths(altpath, argv)
+    } else if let found = searchPath(for: argv) {
+      argv = found
     } else {
-      let oargv = options.aa.first!
-
-      logger.info("\(oargv.utf8)")
-
-      // CommandLine.arguments[Int(optind)]
-      var argv = oargv
-      if options.term == "\0" {
-        err( ExitCode.EXIT_CANCELED.rawValue, "cannot specify command with -0")
+      throw CmdErr(ExitCode.EXIT_ENOENT.rawValue, "\(oargv): No such file or directory")
+    }
+    if env_verbosity != 0 {
+      print("#env executing:  \(oargv)", to: &se)
+      for (argc, parg) in args.enumerated() {
+        print("#env    arg[\(argc)]=  '\(parg)'", to: &se)
       }
-      if let altpath = options.altpath {
-        argv = search_paths(altpath, argv)
-      } else {
-        argv = searchPath(for: argv) ?? argv
-      }
-      if env_verbosity != 0 {
-        print("#env executing:  \(oargv)", to: &se)
-        for (argc, parg) in options.aa.enumerated() {
-          print("#env    arg[\(argc)]=  '\(parg)'", to: &se)
-        }
-        if env_verbosity > 1 {
-          try? await Task.sleep(nanoseconds: 1_000_000_000_000)
-        }
-      }
-      
- //     let pe = execvp(argv, Array(opts.aa) )
+    }
 
-      do {
-        // FIXME: do I need to do something else about output
-        let _ =  try await  DarwinProcess().run(argv, args: Array(options.aa.dropFirst()), output: (nil, nil) )
-      } catch {
-        throw CmdErr(127, "\(error)")
-      }
-
-//      throw CmdErr((pe.code == ENOENT ? ExitCode.EXIT_ENOENT : ExitCode.EXIT_CANNOT_INVOKE).rawValue, argv)
+    let result: DarwinProcess.Output
+    do {
+      result = try await DarwinProcess().run(argv, withStdin: FileDescriptor.standardInput, args: Array(args.dropFirst()), output: (.standardOutput, .standardError))
+    } catch {
+      throw CmdErr(ExitCode.EXIT_CANNOT_INVOKE.rawValue, "\(oargv): \(error)")
+    }
+    if result.code != 0 {
+      throw CmdErr(Int(result.code))
     }
   }
-  
+
 }

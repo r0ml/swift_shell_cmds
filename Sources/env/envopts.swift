@@ -175,6 +175,7 @@ extension Env {
     var in_dq = false
     var in_sq = false
     var curarg = Substring("")
+    var have_arg = false   // true once an argument has started, even if it is still empty (e.g. "")
 
   outer:
     while !str.isEmpty {
@@ -183,6 +184,7 @@ extension Env {
 
       switch char {
         case "\"":
+          have_arg = true
           if in_sq {
             curarg.append(char)
           } else if in_dq {
@@ -191,12 +193,14 @@ extension Env {
             in_dq = true
           }
         case "$":
+          have_arg = true
           if in_sq {
             curarg.append(char)
           } else {
             try curarg.append(contentsOf: expandVars(&str))
           }
         case "'":
+          have_arg = true
           if in_dq {
             curarg.append(char)
           } else if in_sq {
@@ -205,6 +209,8 @@ extension Env {
             in_sq = true
           }
         case "\\":
+          let had_arg = have_arg
+          have_arg = true
           if in_sq {
             if let c = str.first, c == "'" || c == "\\" {
               str.removeFirst()
@@ -213,7 +219,10 @@ extension Env {
               curarg.append(char)
             }
           } else {
-            let c = str.removeFirst()
+            guard let c = str.first else {
+              throw CmdErr(1, "Invalid sequence '\\' at end of -S string")
+            }
+            str.removeFirst()
             switch c {
               case "\"", "#", "$", "'", "\\":
                 curarg.append(c)
@@ -222,13 +231,14 @@ extension Env {
                   curarg.append(" ")
                 } else {
                   found_sep = true
-                  str.removeFirst()
                 }
               case "c":
                 if in_dq {
                   throw CmdErr(1, "Sequence '\\c' is not allowed in quoted strings")
                 }
-                break
+                // '\c' outside of quotes ends processing of the string
+                have_arg = had_arg
+                break outer
               case "f":
                 curarg.append("\u{000C}")
               case "n":
@@ -248,40 +258,44 @@ extension Env {
             }
           }
         default:
-          if (in_dq || in_sq) && !curarg.isEmpty {
+          if in_dq || in_sq {
+            have_arg = true
             curarg.append(char)
           } else if char.isWhitespace {
             found_sep = true
-          } else if curarg.isEmpty && char == "#" {
+          } else if !have_arg && char == "#" {
             break outer
           } else {
+            have_arg = true
             curarg.append(char)
           }
       }
       if found_sep {
-        res.append(String(curarg))
+        if have_arg { res.append(String(curarg)) }
         found_sep = false
+        have_arg = false
         curarg = ""
         str = str.drop { $0.isWhitespace }
       }
     }
 
-    if !curarg.isEmpty {
-      res.append(String(curarg))
-    }
-    
     if in_dq || in_sq {
       let bq_src = in_dq ? "\"" : "'"
       throw CmdErr(1, "No terminating quote for string: \(bq_src)\(curarg)")
     }
 
+    if have_arg {
+      res.append(String(curarg))
+    }
+
     if env_verbosity > 1 {
-      print("#env  split -S:\t'\(str)'")
+      var se = FileDescriptor.standardError
+      print("#env  split -S:\t'\(strx)'", to: &se)
       if !res.isEmpty {
-        print("#env      into:\t'\(res[0])'")
+        print("#env      into:\t'\(res[0])'", to: &se)
       }
       for nn in res.dropFirst() {
-        print("#env          &\t'\(nn)'")
+        print("#env          &\t'\(nn)'", to: &se)
       }
     }
 
