@@ -374,29 +374,20 @@ extension Date {
     return mk == 0 || domktime(&t, type) != -1
   }
 
-  func vary_apply(_ vx: Vary, _ t: inout tm) -> Vary? {
-    var type: Character
-    var which: Character
-    var arg: String
-    var len: Int
-    var val: Int
-
-    var currentVary = vx
-
-    while !currentVary.isEmpty {
-      let current = currentVary.removeFirst()
-
-      type = current.first!
-      arg = current
+  /// Applies the `-v` adjustments, in order, to `t`.
+  /// Returns the first adjustment that could not be applied, or nil if all succeeded.
+  func vary_apply(_ vx: Vary, _ t: inout tm) -> String? {
+    for current in vx {
+      var type: Character = current.first ?? "\0"
+      var arg = current
 
       if type == "+" || type == "-" {
         arg.removeFirst()
       } else {
         type = "\0"
       }
-      len = arg.count
-      if len < 2 {
-        return currentVary
+      if arg.count < 2 {
+        return current
       }
 
       if type == "\0" {
@@ -404,59 +395,60 @@ extension Date {
       }
 
       if arg.dropLast().allSatisfy({ "0"..."9" ~= $0 }) {
-        val = Int(arg)!
-        which = arg.last!
+        guard let val = Int(arg.dropLast()), let which = arg.last else {
+          return current
+        }
 
         switch which {
           case "S":
             if !adjsec(t: &t, type: type, valx: val, mk: 1) {
-              return currentVary
+              return current
             }
           case "M":
             if !adjmin(t: &t, type: type, valx: val, mk: 1) {
-              return currentVary
+              return current
             }
           case "H":
             if !adjhour( &t,  type, val, 1) {
-              return currentVary
+              return current
             }
           case "d":
             t.tm_isdst = -1
             if !adjday( &t, type, val, 1) {
-              return currentVary
+              return current
             }
           case "w":
             t.tm_isdst = -1
             if !adjwday( &t, type, val, 0, 1) {
-              return currentVary
+              return current
             }
           case "m":
             t.tm_isdst = -1
             if !adjmon( &t, type, val, 0, 1) {
-              return currentVary
+              return current
             }
           case "y":
             t.tm_isdst = -1
             if !adjyear( &t,  type, val, 1) {
-              return currentVary
+              return current
             }
           default:
-            return currentVary
+            return current
         }
       } else {
         let transWday = transf(trans_wday, arg)
         if transWday != -1 {
           if !adjwday( &t, type, transWday, 1, 1) {
-            return currentVary
+            return current
           }
         } else {
           let transMon = transf(trans_mon, arg)
           if transMon != -1 {
             if !adjmon( &t, type, transMon, 1, 1) {
-              return currentVary
+              return current
             }
           } else {
-            return currentVary
+            return current
           }
         }
       }

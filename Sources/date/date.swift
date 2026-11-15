@@ -40,6 +40,12 @@ import time_h
 
 import Darwin
 
+
+/* FIXME: 
+ • Daylight-saving transitions: the tests only use -u or fixed time zones, so DST behaviour of -v isn't covered.
+ • Other differences from the system date: -r "" is accepted there as epoch 0, and it has -z and ns precision. I left those alone.
+ */
+
 @main final class Date : ShellCommand {
 
   // from vary.swift
@@ -97,7 +103,7 @@ import Darwin
     var Rflag: Bool = false
     var format: String = ""
     var fmt: String?
-    var v: Vary?
+    var v: Vary = []
     var iso8601_subset : [iso8601_fmt]!
     var tval : DateTime = DateTime()   // defaults to the current time
   }
@@ -109,7 +115,6 @@ import Darwin
 
     unix2003_std = true // compat_mode("bin/date", "unix2003")
 
-    opts.v = nil
     opts.fmt = nil
 
     let go = BSDGetopt("f:I::jnRr:uv:")
@@ -153,9 +158,6 @@ import Darwin
           if optarg.hasPrefix("0x") {
             radix = 16
             n.removeFirst(2)
-          } else if optarg.hasPrefix("0o") {
-            radix = 8
-            n.removeFirst(2)
           } else if optarg.hasPrefix("0") {
             radix = 8
           }
@@ -171,7 +173,7 @@ import Darwin
         case "u":
           try? Environment.setenv("TZ", "UTC0")
         case "v":
-          opts.v?.append(optarg)
+          opts.v.append(optarg)
         default:
           throw CmdErr(1)
       }
@@ -213,10 +215,8 @@ import Darwin
   func runCommand() throws(CmdErr) {
 
     var lt = time_h.localtime(&options.tval.secs).pointee
-    if let v = options.v {
-      if let badv = vary_apply(v, &lt) {
-        throw CmdErr(1, "\(badv): Cannot apply date adjustment")
-      }
+    if let badv = vary_apply(options.v, &lt) {
+      throw CmdErr(1, "\(badv): Cannot apply date adjustment")
     }
 
     if options.Iflag {
