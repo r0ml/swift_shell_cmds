@@ -47,13 +47,16 @@ extension Date {
     return ret
   }
 
+  /// Looks up a month or weekday name.  Like the system date, anything beginning with the first
+  /// three letters of a name matches (so "jan", "janu" and "january" all work, but "ja" does not).
   func transf(_ t: [trans], _ arg: String) -> Int {
-    for f in 0..<t.count {
-      if t[f].str.lowercased().hasPrefix(arg.lowercased()) || t[f].str.lowercased() == arg.lowercased() {
-        return t[f].val
+    let a = arg.lowercased()
+    guard a.count >= 3 else { return -1 }
+    for f in t where f.val != -1 {
+      if a.prefix(3) == f.str.prefix(3) {
+        return f.val
       }
     }
-
     return -1
   }
 

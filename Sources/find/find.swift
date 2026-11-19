@@ -208,13 +208,24 @@ extension find {
     var new: PLAN
     
     while !argv.isEmpty {
-      plan.append(find_create(&argv))
+      if let node = find_create(&argv) {
+        plan.append(node)
+      }
     }
     
+    /*
+     * if the user didn't specify one of -print, -ok or -exec, then -print
+     * is assumed so we bracket the current expression with parens, if
+     * necessary, and add a -print node on the end.
+     */
     if (isoutput == 0) {
       var argv1: ArraySlice<String> = []
-      if let p = optionsx["-print"] {
-        new = p.create(p, &argv1)
+      if let pr = optionsx["-print"] {
+        if !plan.isEmpty, let open = optionsx["("], let close = optionsx[")"] {
+          plan.insert(open.create(open, &argv1), at: plan.startIndex)
+          plan.append(close.create(close, &argv1))
+        }
+        new = pr.create(pr, &argv1)
         plan.append(new)
       }
     }
@@ -242,7 +253,6 @@ extension find {
    *  over all FTSENT's returned for the given search paths.
    */
   func find_execute(plan: [PLAN], paths: [String]) -> Int32 {
-    var e: Int
     var myPaths: [String] = []
     var nonSearchableDirFound : Int32 = 0
     var statInfo = Darwin.stat()
@@ -326,16 +336,8 @@ extension find {
         }
       }
     }
-    e = Int(errno)
-    
     finish_execplus()
     
-    if e != 0 && ((ignore_readdir_race == 0) || e != Darwin.ENOENT) {
-      // FIXME: it's the errc
-      //    errc(1, e, "fts_read")
-      err(1, "fts_read")
-      
-    }
     return exitstatus
   }
 }

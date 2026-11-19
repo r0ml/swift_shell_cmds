@@ -103,15 +103,13 @@ extension find {
       OPTION( "-Btime",  c_Xtime,  f_Xtime,  F_TIME_B ),
       // #endif
       
-      // FIXME: took this out because of that nil
-      //    OPTION( "-a",    c_and,    nil,    0 ),
+      OPTION( "-a",    c_simple,  nil,    0 ),
       // FIXME: ??
       // #if defined(__APPLE__) || defined(ACL_TYPE_NFS4)
       OPTION( "-acl",  c_acl,    f_acl,    0 ),
       // #endif
       OPTION( "-amin",  c_Xmin,    f_Xmin,    F_TIME_A ),
-      // FIXME: that nasty nil
-      //   OPTION( "-and",  c_and,    nil,    0 ),
+      OPTION( "-and",  c_simple,  nil,    0 ),
       OPTION( "-anewer",  c_newer,  f_newer,  F_TIME_A ),
       OPTION( "-atime",  c_Xtime,  f_Xtime,  F_TIME_A ),
       OPTION( "-cmin",  c_Xmin,    f_Xmin,    F_TIME_C ),
@@ -243,12 +241,17 @@ extension find {
   /// TODO:
   /// add create/process function pointers to node, so we can skip
   /// this switch stuff.
-  func find_create(_ argv: inout ArraySlice<String>) -> PLAN {
+  func find_create(_ argv: inout ArraySlice<String>) -> PLAN? {
     
-    guard let p = optionsx[argv.first!] else {
-      fatalError("\(argv.first ?? ""): unknown primary or operator")
+    guard let name = argv.first, let p = optionsx[name] else {
+      errx(1, "\(argv.first ?? ""): unknown primary or operator")
     }
     argv.removeFirst()
+    
+    // -a and -and are implicit between primaries; they produce no node
+    if name == "-a" || name == "-and" {
+      return nil
+    }
     
     let newPlan = p.create(p, &argv)
     return newPlan

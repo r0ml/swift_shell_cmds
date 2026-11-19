@@ -221,10 +221,10 @@ extension find {
           errx(1, "-o: no expression before -o");
         }
         let q = or_squish(Array(plan))
-        next.p_un = .p_data(result, q)
-        if (q == nil) {
+        if q.isEmpty {
           errx(1, "-o: no expression after -o");
         }
+        next.p_un = .p_data(result, q)
         // FIXME: was next, now [next]
         return [next]
       }

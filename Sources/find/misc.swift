@@ -38,6 +38,8 @@
 
 import CMigration
 
+import Darwin
+
 /**
  * brace_subst --
  *  Replace occurrences of {} in s1 with s2 and return the result string.
@@ -47,16 +49,86 @@ func brace_subst(_ orig: String, _ path: String) -> String {
 }
 
 func queryuser(_ argv: [String]) -> Bool {
-    var resp = ""
   var se = FileDescriptor.standardError
   print("\"\(argv.joined(separator: " "))\"? ", terminator: "", to: &se)
-    resp = readLine() ?? ""
-  if let x = (resp.firstIndex { $0 == "\n" }) {
-    resp = String(resp[resp.startIndex..<x])
-  } else {
-    print("\n")
+  fflush(stderr)
+  // at end of file there is no newline echoed by the terminal, so supply one
+  guard let resp = readLine() else {
+    print("", to: &se)
+    return false
   }
-
   return rpmatch(resp) == .yes
+}
+
+
+/**
+ * get_date --
+ *  Parses the date/time argument of -newerXt.  This is a subset of what the yacc-based
+ *  getdate grammar in the original accepts: ISO-style and common numeric/month-name dates
+ *  with an optional time of day and an optional trailing zone (UTC, GMT or +hhmm),
+ *  "now", and "<n> <unit> ago".  Returns -1 if the string can't be parsed.
+ */
+func get_date(_ input: String, now: time_t = time(nil)) -> time_t {
+  var str = input.trimmingPrefix(while: { $0 == " " })
+  while str.last == " " { str.removeLast() }
+  
+  if str.lowercased() == "now" {
+    return now
+  }
+  
+  // "<n> <unit> ago"
+  let words = str.split(separator: " ")
+  if words.count == 3, words[2].lowercased() == "ago", let n = Int(words[0]), n >= 0 {
+    var unit = words[1].lowercased()
+    if unit.hasSuffix("s") { unit.removeLast() }
+    switch unit {
+      case "second", "sec": return now - time_t(n)
+      case "minute", "min": return now - time_t(n * 60)
+      case "hour": return now - time_t(n * 3600)
+      case "day": return now - time_t(n * 86400)
+      case "week": return now - time_t(n * 604800)
+      case "month", "year":
+        var t = now
+        guard var lt = localtime(&t)?.pointee else { return -1 }
+        if unit == "year" { lt.tm_year -= Int32(n) } else { lt.tm_mon -= Int32(n) }
+        lt.tm_isdst = -1
+        return mktime(&lt)
+      default: return -1
+    }
+  }
+  
+  // optional trailing zone: UTC, GMT or [+-]hhmm
+  var zoneOffset: Int? = nil     // seconds east of UTC; nil means local time
+  var body = String(str)
+  if let sp = body.lastIndex(of: " ") {
+    let last = body[body.index(after: sp)...]
+    if last == "UTC" || last == "GMT" {
+      zoneOffset = 0
+      body = String(body[..<sp])
+    } else if last.count == 5, let sign = last.first, sign == "+" || sign == "-",
+              let hh = Int(last.dropFirst().prefix(2)), let mm = Int(last.suffix(2)) {
+      zoneOffset = (sign == "-" ? -1 : 1) * (hh * 3600 + mm * 60)
+      body = String(body[..<sp])
+    }
+  }
+  
+  let formats = [ "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M",
+                  "%Y-%m-%d", "%Y/%m/%d %H:%M:%S", "%Y/%m/%d %H:%M", "%Y/%m/%d", "%m/%d/%Y", "%b %d %Y %H:%M:%S",
+                  "%b %d %Y %H:%M", "%b %d %Y", "%d %b %Y %H:%M:%S", "%d %b %Y %H:%M", "%d %b %Y",
+                  "%Y%m%d" ]
+  for f in formats {
+    var tmv = tm()
+    tmv.tm_isdst = -1
+    let ok: Bool = body.withCString { b in
+      guard let end = strptime(b, f, &tmv) else { return false }
+      return end.pointee == 0
+    }
+    if !ok { continue }
+    if let zoneOffset {
+      return timegm(&tmv) - time_t(zoneOffset)
+    }
+    return mktime(&tmv)
+  }
+  return -1
 }
 

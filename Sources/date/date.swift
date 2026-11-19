@@ -83,7 +83,8 @@ import Darwin
     iso8601_fmt(refname: "date", format_string: "%Y-%m-%d"),
     iso8601_fmt(refname: "hours", format_string: "T%H"),
     iso8601_fmt(refname: "minutes", format_string: ":%M"),
-    iso8601_fmt(refname: "seconds", format_string: ":%S")
+    iso8601_fmt(refname: "seconds", format_string: ":%S"),
+    iso8601_fmt(refname: "ns", format_string: ",%N")
   ]
 
   var iso8601_selected: iso8601_fmt?
@@ -104,6 +105,7 @@ import Darwin
     var format: String = ""
     var fmt: String?
     var v: Vary = []
+    var zone: String?
     var iso8601_subset : [iso8601_fmt]!
     var tval : DateTime = DateTime()   // defaults to the current time
   }
@@ -117,8 +119,8 @@ import Darwin
 
     opts.fmt = nil
 
-    let go = BSDGetopt("f:I::jnRr:uv:")
-    while let (ch, optarg) = try go.getopt() {
+    let (parsedOptions, operands) = try scanOptions(Array(CommandLine.arguments.dropFirst()))
+    for (ch, optarg) in parsedOptions {
       switch ch {
         case "f":
           opts.fmt = optarg
@@ -153,16 +155,15 @@ import Darwin
           opts.Rflag = true
         case "r":
           opts.rflag = true
-          var radix = 10
-          var n = optarg
-          if optarg.hasPrefix("0x") {
-            radix = 16
-            n.removeFirst(2)
-          } else if optarg.hasPrefix("0") {
-            radix = 8
+          // like strtoq(3) with base 0: decimal, octal or hex, optional sign and leading space;
+          // out of range values saturate.  Anything that isn't entirely a number is a file name.
+          let parsed: Int? = optarg.withCString { p in
+            var end: UnsafeMutablePointer<CChar>? = nil
+            let r = strtoll(p, &end, 0)
+            return (end?.pointee ?? 1) == 0 ? Int(r) : nil
           }
-          if let tmp = UInt(n, radix: radix) {
-            opts.tval = DateTime(tmp)
+          if let parsed {
+            opts.tval = DateTime(parsed)
           } else {
             if let sb = try? FilePath(optarg).stat(followTargetSymlink: true) {
               opts.tval = DateTime(sb.st_mtim)
@@ -172,6 +173,8 @@ import Darwin
           }
         case "u":
           try? Environment.setenv("TZ", "UTC0")
+        case "z":
+          opts.zone = optarg
         case "v":
           opts.v.append(optarg)
         default:
@@ -179,7 +182,7 @@ import Darwin
       }
     }
 
-    opts.argv = go.remaining
+    opts.argv = operands
 
 
     opts.format = "%+"
@@ -214,7 +217,16 @@ import Darwin
 
   func runCommand() throws(CmdErr) {
 
-    var lt = time_h.localtime(&options.tval.secs).pointee
+    // -z: just before printing, move to the output time zone (adjustments are made in that zone)
+    if let zone = options.zone {
+      try? Environment.setenv("TZ", zone)
+      tzset()
+    }
+
+    var secs = options.tval.secs
+    guard var lt = time_h.localtime(&secs)?.pointee else {
+      throw CmdErr(1, "invalid time")
+    }
     if let badv = vary_apply(options.v, &lt) {
       throw CmdErr(1, "\(badv): Cannot apply date adjustment")
     }
@@ -227,9 +239,92 @@ import Darwin
       locale_h.setlocale(locale_h.LC_TIME, "C")
     }
 
-    strftime(&buf, buf.count, options.format, &lt)
-    let k = String(platformString: buf)
-    printdate(k)
+    printdate(formatTime(options.format, &lt))
+  }
+
+  /// strftime(3), with the additions of %N (nanoseconds) and no limit on the length of the result.
+  func formatTime(_ format: String, _ lt: UnsafePointer<tm>) -> String {
+    let expanded = expandNanoseconds(format, options.tval.nanosecs)
+    var size = max(1024, expanded.utf8.count * 8)
+    while true {
+      var out = [CChar](repeating: 0, count: size)
+      let n = strftime(&out, size, expanded, lt)
+      if n > 0 || expanded.isEmpty {
+        return String(platformString: out)
+      }
+      // either the result is empty or the buffer was too small; a result of 0 bytes is only
+      // legitimate for formats that expand to nothing, so stop growing at a sane size
+      if size > 1 << 20 { return "" }
+      size *= 4
+    }
+  }
+
+  /// Replaces the first `%N` in `format` with the nine digit nanosecond count (as the system date does,
+  /// later ones are left for strftime); `%%` is skipped over.
+  func expandNanoseconds(_ format: String, _ nanos: Int) -> String {
+    guard format.contains("%N") else { return format }
+    let digits = String(nanos)
+    let ns = String(repeating: "0", count: max(0, 9 - digits.count)) + digits
+    var out = ""
+    var replaced = false
+    var it = format.makeIterator()
+    while let c = it.next() {
+      if c == "%", let d = it.next() {
+        if d == "N" && !replaced {
+          out += ns
+          replaced = true
+        } else {
+          out.append(c)
+          out.append(d)
+        }
+      } else {
+        out.append(c)
+      }
+    }
+    return out
+  }
+
+  /// A getopt for date's options.  `-I` takes an optional argument that must be attached to it
+  /// (`-Iseconds`); a following word is never consumed.
+  func scanOptions(_ args: [String]) throws(CmdErr) -> ([(Character, String)], [String]) {
+    var result: [(Character, String)] = []
+    var i = 0
+    outer: while i < args.count {
+      let a = args[i]
+      guard a.hasPrefix("-"), a.count > 1 else { break }
+      if a == "--" {
+        i += 1
+        break
+      }
+      let chars = Array(a.dropFirst())
+      var k = 0
+      while k < chars.count {
+        let c = chars[k]
+        k += 1
+        switch c {
+          case "j", "n", "R", "u":
+            result.append((c, ""))
+          case "I":
+            result.append((c, String(chars[k...])))
+            k = chars.count
+          case "f", "r", "v", "z":
+            var optarg = String(chars[k...])
+            k = chars.count
+            if optarg.isEmpty {
+              i += 1
+              guard i < args.count else {
+                throw CmdErr(1, "\(CommandLine.arguments[0]): option requires an argument -- \(c)")
+              }
+              optarg = args[i]
+            }
+            result.append((c, optarg))
+          default:
+            throw CmdErr(1, "\(CommandLine.arguments[0]): illegal option -- \(c)")
+        }
+      }
+      i += 1
+    }
+    return (result, Array(args[i...]))
   }
 
 
@@ -243,13 +338,14 @@ import Darwin
 
   func printisodate(_ lt: UnsafeMutablePointer<tm>, _ iso8601_subset: [iso8601_fmt]) {
     var fmtbuf : String = ""
-    let bs = 32
+    let bs = 128
 
     //    fmtbuf[0] = 0
     for it in iso8601_subset {
       fmtbuf +=  it.format_string
     }
 
+    fmtbuf = expandNanoseconds(fmtbuf, options.tval.nanosecs)
     var buf = withUnsafeTemporaryAllocation(of: CChar.self, capacity: bs) {
       let n = strftime($0.baseAddress, bs, fmtbuf, lt)
       return String($0[0..<n].map { Character(UnicodeScalar(UInt8($0)))})
@@ -276,7 +372,6 @@ import Darwin
   /// Unless `jflag` is given the system clock is set.  Returns the resulting time.
   func setthetime(_ fmt: String?, _ p: String, _ jflag: Bool, _ tval: DateTime) throws(CmdErr) -> DateTime {
     var utx = Darwin.utmpx()
-    var tv = time_h.timeval()
 
     var secs = tval.secs
     guard let lt = time_h.localtime(&secs) else {
@@ -287,12 +382,21 @@ import Darwin
 
     if let fmt {
       var se = FileDescriptor.standardError
-      guard let t = time_h.strptime(p, fmt, lt) else {
+      // the unparsed remainder points into the temporary C string, so it must be read inside the closure
+      var leftover: String? = nil
+      let parsedOK: Bool = p.withCString { pp in
+        fmt.withCString { ff in
+          guard let t = time_h.strptime(pp, ff, lt) else { return false }
+          if t.pointee != 0 { leftover = String(cString: t) }
+          return true
+        }
+      }
+      if !parsedOK {
         print("Failed conversion of `\(p)' using format `\(fmt)'",  to: &se)
         throw badformat
       }
-      if t.pointee != 0 {
-        print("Warning: Ignoring \(strlen(t)) extraneous characters in date string \(String(cString: t))", to: &se)
+      if let leftover {
+        print("Warning: Ignoring \(leftover.utf8.count) extraneous characters in date string (\(leftover))", to: &se)
       }
     } else {
       func isDigits(_ s: Substring) -> Bool {
@@ -350,7 +454,7 @@ import Darwin
           }
           if length >= 8 {
             lt.pointee.tm_mon = next2()
-            if lt.pointee.tm_mon < 1 || lt.pointee.tm_mon > 12 {
+            if lt.pointee.tm_mon > 12 {
               throw badformat
             }
             lt.pointee.tm_mon -= 1
@@ -387,10 +491,9 @@ import Darwin
       Darwin.memset(&utx.ut_id, 0, MemoryLayout.size(ofValue: utx.ut_id))
       Darwin.gettimeofday(&utx.ut_tv, nil)
       Darwin.pututxline(&utx)
-      tv.tv_sec = newTime.secs
-      tv.tv_usec = 0
-      if settimeofday(&tv, nil) != 0 {
-        throw CmdErr(1, "settimeofday (timeval): \(String(cString: strerror(errno)))")
+      var ts = timespec(tv_sec: newTime.secs, tv_nsec: 0)
+      if clock_settime(CLOCK_REALTIME, &ts) != 0 {
+        err(1, "clock_settime")
       }
       utx.ut_type = Int16(Darwin.NEW_TIME)
       Darwin.gettimeofday(&utx.ut_tv, nil)
@@ -416,11 +519,11 @@ import Darwin
 
   var usage : String { get {
     return """
-usage: date [-jnRu] [-I[date|hours|minutes|seconds]] [-f input_fmt]
-            [-r filename|seconds] [-v[+|-]val[y|m|w|d|H|M|S]]
+usage: date [-jnRu] [-I[date|hours|minutes|seconds|ns]] [-f input_fmt]
+            [ -z output_zone ] [-r filename|seconds] [-v[+|-]val[y|m|w|d|H|M|S]]
 """ + (unix2003_std ?
-       "            [[[[mm]dd]HH]MM[[cc]yy][.SS] | new_date] [+output_fmt]" :
-        "            [[[[[[cc]yy]mm]dd]HH]MM[.SS] | new_date] [+output_fmt]"
+       "\n            [[[[mm]dd]HH]MM[[cc]yy][.SS] | new_date] [+output_fmt]" :
+        "\n            [[[[[[cc]yy]mm]dd]HH]MM[.SS] | new_date] [+output_fmt]"
 )
 
   }

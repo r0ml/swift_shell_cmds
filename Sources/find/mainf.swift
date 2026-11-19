@@ -86,7 +86,10 @@ var exitstatus : Int32 = 0
   var divsize = 1
   var curdev : DeviceID? /* need a guaranteed illegal dev value */
   var first = true
+  var fs_flags : UInt32 = 0     // statfs info remembered between calls of f_fstype
+  var fs_type = ""
   var lastexecplus : [PLAN] = []
+  var startdir = ""     // the directory find was started in (fts changes directories as it walks)
 
 
   // from option.swift
@@ -111,7 +114,8 @@ var exitstatus : Int32 = 0
     Hflag = false
     Lflag = false
     
-    var ftsoptions = Darwin.FTS_NOSTAT | Darwin.FTS_PHYSICAL
+    // NB: FTS_NOSTAT is deliberately not used: FTSEntry in CMigration requires the stat information
+    ftsoptions = [.PHYSICAL]
     
     let go = BSDGetopt("EHLPXdf:sx")
     while let (ch, optarg) = try go.getopt() {
@@ -137,7 +141,7 @@ var exitstatus : Int32 = 0
       case "s":
           opts.issort = 1
       case "x":
-          ftsoptions |= Darwin.FTS_XDEV
+          ftsoptions.insert(.XDEV)
       case "?":
         fallthrough
       default:
@@ -148,11 +152,11 @@ var exitstatus : Int32 = 0
     opts.args = ArraySlice(go.remaining)
     
     if (Hflag) {
-      ftsoptions |= Darwin.FTS_COMFOLLOW
+      ftsoptions.insert(.COMFOLLOW)
     }
     if (Lflag) {
-      ftsoptions &= ~Darwin.FTS_PHYSICAL
-      ftsoptions |= Darwin.FTS_LOGICAL
+      ftsoptions.remove(.PHYSICAL)
+      ftsoptions.insert(.LOGICAL)
     }
     
     /*
@@ -185,7 +189,10 @@ var exitstatus : Int32 = 0
     
   func runCommand() throws(CmdErr) {
     var opts = options!
-    // ???
+    var cwdbuf = [CChar](repeating: 0, count: Int(PATH_MAX))
+    if getcwd(&cwdbuf, cwdbuf.count) != nil {
+      startdir = String(cString: cwdbuf)
+    }
     let dotfd = open(".", O_RDONLY | O_CLOEXEC, 0)
     if dotfd < 0 {
       ftsoptions.insert(.NOCHDIR)

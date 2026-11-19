@@ -29,6 +29,7 @@
 */
 
 import ShellTesting
+import Darwin
 
 @Suite("find tests") final class findTest : ShellTest {
   let cmd = "find"
@@ -122,6 +123,428 @@ import ShellTesting
     try await run(output: res, args: s, "-type", "f", "-newerBm", myDir.appending("baseline") )
   }
 
-}
+  // MARK: - table driven tests
+  //
+  // The expected output of each case was recorded from the system find, run with -s over the
+  // fixture built by makeFixture().
 
+// GENERATED listing cases
+  static let listingCases : [([String], String)] = [
+    (["."], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "d"], ".\n./a\n./a/b\n./a/b/c\n./d\n./e\n./e/empty\n./sp ace\n"),
+    ([".", "-type", "l"], "./d/dangling\n./d/link\n"),
+    ([".", "-type", "p"], ""),
+    ([".", "-type", "b"], ""),
+    ([".", "-type", "ff"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-name", "*.txt"], "./a/b/f2.txt\n./a/f1.txt\n./d/lines.txt\n./sp ace/file name.txt\n"),
+    ([".", "-name", ".*"], ".\n./e/.hidden\n"),
+    ([".", "-name", "f?.txt"], "./a/b/f2.txt\n./a/f1.txt\n"),
+    ([".", "-name", "f[12].txt"], "./a/b/f2.txt\n./a/f1.txt\n"),
+    ([".", "-name", "F1.TXT"], ""),
+    ([".", "-iname", "F1.TXT"], "./a/f1.txt\n"),
+    ([".", "-iname", "F*"], "./a/b/f2.txt\n./a/f1.txt\n./sp ace/file name.txt\n"),
+    ([".", "-name", "b"], "./a/b\n"),
+    ([".", "-path", "./a/*"], "./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n"),
+    ([".", "-path", "*/f1.txt"], "./a/f1.txt\n"),
+    ([".", "-ipath", "*B/*"], "./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n"),
+    ([".", "-wholename", "./a/*"], "./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n"),
+    ([".", "-iwholename", "./A/*"], "./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n"),
+    ([".", "-lname", "*f1*"], "./d/link\n"),
+    ([".", "-ilname", "*F1*"], "./d/link\n"),
+    ([".", "-lname", "nowhere"], "./d/dangling\n"),
+    ([".", "-regex", ".*/f[0-9]\\.txt"], "./a/b/f2.txt\n./a/f1.txt\n"),
+    ([".", "-iregex", ".*F[0-9]\\.TXT"], "./a/b/f2.txt\n./a/f1.txt\n"),
+    ([".", "-regex", "./a"], "./a\n"),
+    (["-E", ".", "-regex", ".*(f1|f2)\\.txt"], "./a/b/f2.txt\n./a/f1.txt\n"),
+    (["-E", ".", "-iregex", ".*(F1|F2)\\.TXT"], "./a/b/f2.txt\n./a/f1.txt\n"),
+    ([".", "-regex", ".*/f\\(1\\|2\\)\\.txt"], ""),
+    ([".", "-type", "f", "-size", "0"], "./a/b/c/empty.dat\n"),
+    ([".", "-type", "f", "-size", "+0"], "./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-size", "+1k"], "./d/big.bin\n"),
+    ([".", "-size", "3000c"], "./d/big.bin\n"),
+    ([".", "-size", "+2999c"], "./d/big.bin\n"),
+    ([".", "-size", "-3001c"], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-size", "-2"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-size", "1"], "./a/b/f2.txt\n./a/f1.txt\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-size", "6c"], "./a/f1.txt\n"),
+    ([".", "-type", "f", "-size", "+5c"], "./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n"),
+    ([".", "-type", "f", "-size", "0c"], "./a/b/c/empty.dat\n"),
+    ([".", "-size", "3k"], ""),
+    ([".", "-size", "+2k"], "./d/big.bin\n"),
+    ([".", "-size", "-3k"], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-size", "99999999999999999999"], ""),
+    ([".", "-empty"], "./a/b/c/empty.dat\n./e/empty\n"),
+    ([".", "-empty", "-type", "d"], "./e/empty\n"),
+    ([".", "-empty", "-type", "f"], "./a/b/c/empty.dat\n"),
+    ([".", "-type", "f", "-not", "-empty"], "./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-perm", "600"], "./a/f1.txt\n"),
+    ([".", "-perm", "-600"], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-perm", "644"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-perm", "-u=rw"], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-perm", "-o=r"], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./d\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-perm", "+u=x"], "./d/big.bin\n"),
+    ([".", "-type", "f", "-perm", "-u=x"], "./d/big.bin\n"),
+    ([".", "-type", "f", "-perm", "0"], ""),
+    ([".", "-type", "f", "-perm", "-0"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-perm", "u=rw,go="], "./a/f1.txt\n"),
+    ([".", "-perm", "755"], ".\n./a\n./a/b\n./a/b/c\n./d\n./d/big.bin\n./d/dangling\n./d/link\n./e\n./e/empty\n./sp ace\n"),
+    ([".", "-type", "d", "-perm", "755"], ".\n./a\n./a/b\n./a/b/c\n./d\n./e\n./e/empty\n./sp ace\n"),
+    ([".", "-type", "f", "-perm", "a=r"], ""),
+    ([".", "-type", "f", "-newer", "a/f1.txt"], "./a/b/f2.txt\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newer", "a/b/f2.txt"], "./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "!", "-newer", "a/b/f2.txt"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n"),
+    ([".", "-type", "f", "-mnewer", "a/f1.txt"], "./a/b/f2.txt\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermm", "a/f1.txt"], "./a/b/f2.txt\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newerma", "a/f1.txt"], "./a/b/f2.txt\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermt", "2020-06-01"], "./a/b/f2.txt\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermt", "2021-01-01 00:00:00"], "./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermt", "2021-01-01 00:00"], "./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermt", "2020-12-31 23:59:59"], "./a/b/f2.txt\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermt", "2021/01/01"], "./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermt", "01/01/2022"], "./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermt", "1 Jan 2022"], "./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermt", "2021-01-01 00:00:00 UTC"], "./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermt", "2021-01-01 01:00:00 +0100"], "./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermt", "20210101"], "./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermt", "1 year ago"], ""),
+    ([".", "-type", "f", "-newermt", "10 years ago"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-newermt", "now"], ""),
+    ([".", "-type", "f", "-mtime", "+1000"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-mtime", "-1"], ""),
+    ([".", "-type", "f", "-mmin", "+100"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-mmin", "-100"], ""),
+    ([".", "-type", "f", "-atime", "-1"], ""),
+    ([".", "-maxdepth", "0"], ".\n"),
+    ([".", "-maxdepth", "1"], ".\n./a\n./d\n./e\n./sp ace\n"),
+    ([".", "-maxdepth", "2", "-mindepth", "2"], "./a/b\n./a/f1.txt\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e/.hidden\n./e/empty\n./sp ace/file name.txt\n"),
+    ([".", "-mindepth", "3"], "./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n"),
+    ([".", "-mindepth", "1", "-maxdepth", "1", "-type", "d"], "./a\n./d\n./e\n./sp ace\n"),
+    ([".", "-mindepth", "2", "-maxdepth", "1"], ""),
+    ([".", "-depth"], "./a/b/c/empty.dat\n./a/b/c\n./a/b/f2.txt\n./a/b\n./a/f1.txt\n./a\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./d\n./e/.hidden\n./e/empty\n./e\n./sp ace/file name.txt\n./sp ace\n.\n"),
+    (["-d", "."], "./a/b/c/empty.dat\n./a/b/c\n./a/b/f2.txt\n./a/b\n./a/f1.txt\n./a\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./d\n./e/.hidden\n./e/empty\n./e\n./sp ace/file name.txt\n./sp ace\n.\n"),
+    ([".", "-depth", "-type", "d"], "./a/b/c\n./a/b\n./a\n./d\n./e/empty\n./e\n./sp ace\n.\n"),
+    ([".", "-depth", "-name", "c"], "./a/b/c\n"),
+    ([".", "-depth", "1"], "./a\n./d\n./e\n./sp ace\n"),
+    ([".", "-depth", "+1"], "./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e/.hidden\n./e/empty\n./sp ace/file name.txt\n"),
+    ([".", "-depth", "-1"], ".\n"),
+    ([".", "-depth", "0"], ".\n"),
+    ([".", "-name", "a", "-depth"], "./a\n"),
+    ([".", "-type", "f", "-o", "-type", "d"], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d\n./d/big.bin\n./d/lines.txt\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-a", "-name", "*.txt"], "./a/b/f2.txt\n./a/f1.txt\n./d/lines.txt\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-and", "-name", "*.txt"], "./a/b/f2.txt\n./a/f1.txt\n./d/lines.txt\n./sp ace/file name.txt\n"),
+    ([".", "(", "-name", "*.txt", "-o", "-name", "*.dat", ")", "-type", "f"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/lines.txt\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "(", "-name", "*.txt", "-o", "-name", "*.dat", ")"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/lines.txt\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-name", "*.txt", "-o", "-name", "*.dat"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/lines.txt\n./sp ace/file name.txt\n"),
+    ([".", "-not", "-type", "d"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "!", "-type", "d"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "!", "!", "-type", "d"], ".\n./a\n./a/b\n./a/b/c\n./d\n./e\n./e/empty\n./sp ace\n"),
+    ([".", "-type", "f", "!", "-name", "*.txt"], "./a/b/c/empty.dat\n./d/big.bin\n./e/.hidden\n"),
+    ([".", "!", "(", "-name", "a", "-o", "-name", "d", ")"], ".\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "(", "(", "-name", "a", ")", "-o", "(", "-name", "d", ")", ")"], "./a\n./d\n"),
+    ([".", "-name", "a", "-o", "-name", "d", "-o", "-name", "e"], "./a\n./d\n./e\n"),
+    ([".", "-true"], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-false"], ""),
+    ([".", "-true", "-false"], ""),
+    ([".", "-not", "-true"], ""),
+    ([".", "(", "-true", ")"], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-name", "f1.txt", "-print"], "./a/f1.txt\n"),
+    ([".", "-name", "f1.txt", "-print", "-print"], "./a/f1.txt\n./a/f1.txt\n"),
+    ([".", "-print", "-o", "-print"], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-name", "a", "-print", "-o", "-name", "d", "-print"], "./a\n./d\n"),
+    ([".", "-name", "a", "-o", "-name", "d", "-print"], "./d\n"),
+    ([".", "-print", "-name", "a"], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-name", "f1.txt", "-a", "-print"], "./a/f1.txt\n"),
+    ([".", "-name", "*.txt", "-o", "-print"], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./d\n./d/big.bin\n./d/dangling\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n"),
+    ([".", "-name", "a", "-prune"], "./a\n"),
+    ([".", "-name", "a", "-prune", "-o", "-name", "*.txt", "-print"], "./d/lines.txt\n./sp ace/file name.txt\n"),
+    ([".", "-type", "d", "(", "-name", "a", "-o", "-name", "d", ")", "-prune", "-o", "-print"], ".\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-type", "d", "-name", "b", "-prune", "-o", "-type", "f", "-print"], "./a/f1.txt\n./d/big.bin\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-prune"], ".\n"),
+    ([".", "-maxdepth", "1", "-prune"], ".\n"),
+    ([".", "-quit"], ""),
+    ([".", "-name", "*.txt", "-print", "-quit"], "./a/b/f2.txt\n"),
+    ([".", "-print", "-quit"], ".\n"),
+    ([".", "-quit", "-print"], ""),
+    ([".", "-type", "d", "-print", "-quit"], ".\n"),
+    ([".", "-type", "f", "-links", "1"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-links", "+2"], ".\n./a\n./a/b\n./a/b/c\n./d\n./e\n./sp ace\n"),
+    ([".", "-links", "-2"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "d", "-links", "3"], "./a/b/c\n./sp ace\n"),
+    ([".", "-samefile", "a/f1.txt"], "./a/f1.txt\n"),
+    ([".", "-samefile", "d/link"], "./a/f1.txt\n"),
+    ([".", "-type", "f", "-uid", "+99999"], ""),
+    ([".", "-type", "f", "-uid", "-99999"], "./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d/big.bin\n./d/lines.txt\n./e/.hidden\n./sp ace/file name.txt\n"),
+    ([".", "-type", "f", "-gid", "+99999"], ""),
+    ([".", "-nouser"], ""),
+    ([".", "-nogroup"], ""),
+    (["-H", "d/link"], "d/link\n"),
+    (["-H", "d/dangling"], "d/dangling\n"),
+    (["-H", "d/link", "-type", "f"], "d/link\n"),
+    (["-P", "d/link"], "d/link\n"),
+    (["-P", "d/link", "-type", "l"], "d/link\n"),
+    (["-L", "d"], "d\nd/big.bin\nd/dangling\nd/lines.txt\nd/link\n"),
+    (["-L", "d/link"], "d/link\n"),
+    (["-L", "d/dangling"], "d/dangling\n"),
+    (["-L", ".", "-type", "l"], "./d/dangling\n"),
+    (["-L", ".", "-type", "f", "-name", "link"], "./d/link\n"),
+    (["-L", ".", "-name", "dangling", "-type", "f"], ""),
+    (["-L", ".", "-name", "dangling", "-type", "l"], "./d/dangling\n"),
+    ([".", "-follow", "-type", "l"], "./d/dangling\n"),
+    ([".", "-follow", "-type", "f", "-name", "link"], "./d/link\n"),
+    (["d/link", "-type", "l"], "d/link\n"),
+    (["a", "d"], "a\na/b\na/b/c\na/b/c/empty.dat\na/b/f2.txt\na/f1.txt\nd\nd/big.bin\nd/dangling\nd/lines.txt\nd/link\n"),
+    (["-f", "a", "-f", "d"], "a\na/b\na/b/c\na/b/c/empty.dat\na/b/f2.txt\na/f1.txt\nd\nd/big.bin\nd/dangling\nd/lines.txt\nd/link\n"),
+    (["-f", "a", "d"], "a\na/b\na/b/c\na/b/c/empty.dat\na/b/f2.txt\na/f1.txt\nd\nd/big.bin\nd/dangling\nd/lines.txt\nd/link\n"),
+    (["a/f1.txt"], "a/f1.txt\n"),
+    (["a/f1.txt", "a/b/f2.txt", "-print"], "a/b/f2.txt\na/f1.txt\n"),
+    (["a/f1.txt", "-type", "d"], ""),
+    (["./a/./b", "-type", "f"], "./a/./b/c/empty.dat\n./a/./b/f2.txt\n"),
+    (["./a/../d", "-name", "*.bin"], "./a/../d/big.bin\n"),
+    (["-d", "a", "-type", "d"], "a/b/c\na/b\na\n"),
+    (["-x", "."], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    (["-X", "a"], "a\na/b\na/b/c\na/b/c/empty.dat\na/b/f2.txt\na/f1.txt\n"),
+    ([".", "-xdev", "-type", "d"], ".\n./a\n./a/b\n./a/b/c\n./d\n./e\n./e/empty\n./sp ace\n"),
+    ([".", "-mount", "-type", "d"], ".\n./a\n./a/b\n./a/b/c\n./d\n./e\n./e/empty\n./sp ace\n"),
+    ([".", "-ignore_readdir_race", "-type", "d"], ".\n./a\n./a/b\n./a/b/c\n./d\n./e\n./e/empty\n./sp ace\n"),
+    ([".", "-noleaf", "-maxdepth", "0"], ".\n"),
+    ([".", "-fstype", "apfs", "-maxdepth", "0"], ".\n"),
+    ([".", "-fstype", "local", "-maxdepth", "0"], ".\n"),
+    ([".", "-fstype", "nosuchfs"], ""),
+    ([".", "-fstype", "rdonly"], ""),
+    ([".", "-xattr", "-type", "f", "-maxdepth", "0"], ""),
+    ([".", "-name", "f1.txt", "-exec", "echo", "{}", ";"], "./a/f1.txt\n"),
+    ([".", "-name", "f1.txt", "-exec", "echo", "X", "{}", "Y", ";"], "X ./a/f1.txt Y\n"),
+    ([".", "-name", "*.txt", "-exec", "echo", "{}", "+"], "./a/b/f2.txt ./a/f1.txt ./d/lines.txt ./sp ace/file name.txt\n"),
+    ([".", "-name", "*.txt", "-exec", "echo", "a", "{}", "+"], "a ./a/b/f2.txt ./a/f1.txt ./d/lines.txt ./sp ace/file name.txt\n"),
+    ([".", "-name", "*.txt", "-exec", "echo", "{}", ";", "-print"], "./a/b/f2.txt\n./a/b/f2.txt\n./a/f1.txt\n./a/f1.txt\n./d/lines.txt\n./d/lines.txt\n./sp ace/file name.txt\n./sp ace/file name.txt\n"),
+    ([".", "-name", "*.txt", "-exec", "echo", "[{}]", ";"], "[./a/b/f2.txt]\n[./a/f1.txt]\n[./d/lines.txt]\n[./sp ace/file name.txt]\n"),
+    ([".", "-name", "*.txt", "-exec", "echo", "{}{}", ";"], "./a/b/f2.txt./a/b/f2.txt\n./a/f1.txt./a/f1.txt\n./d/lines.txt./d/lines.txt\n./sp ace/file name.txt./sp ace/file name.txt\n"),
+    ([".", "-name", "*.txt", "-exec", "echo", "{}", "{}", ";"], "./a/b/f2.txt ./a/b/f2.txt\n./a/f1.txt ./a/f1.txt\n./d/lines.txt ./d/lines.txt\n./sp ace/file name.txt ./sp ace/file name.txt\n"),
+    ([".", "-name", "*.txt", "-exec", "sh", "-c", "echo $0", "{}", ";"], "./a/b/f2.txt\n./a/f1.txt\n./d/lines.txt\n./sp ace/file name.txt\n"),
+    ([".", "-name", "*.txt", "-exec", "sh", "-c", "for f; do echo \"[$f]\"; done", "sh", "{}", "+"], "[./a/b/f2.txt]\n[./a/f1.txt]\n[./d/lines.txt]\n[./sp ace/file name.txt]\n"),
+    ([".", "-name", "nosuch", "-exec", "echo", "{}", "+"], ""),
+    ([".", "-name", "nosuch", "-exec", "echo", "{}", ";"], ""),
+    ([".", "-name", "*.txt", "-exec", "cat", "{}", ";"], "hello world\nhello\na\nb\nx\n"),
+    ([".", "-name", "*.txt", "-exec", "cat", "{}", "+"], "hello world\nhello\na\nb\nx\n"),
+    ([".", "-name", "*.txt", "-exec", "test", "-f", "{}", ";"], ""),
+    ([".", "-name", "*.txt", "-exec", "test", "-d", "{}", ";"], ""),
+    ([".", "-name", "*.txt", "!", "-exec", "test", "-d", "{}", ";"], ""),
+    ([".", "-name", "f1.txt", "-exec", "false", ";", "-print"], ""),
+    ([".", "-name", "f1.txt", "-exec", "true", ";", "-print"], "./a/f1.txt\n"),
+    ([".", "-name", "f1.txt", "(", "-exec", "false", ";", "-o", "-print", ")"], "./a/f1.txt\n"),
+    ([".", "-name", "f1.txt", "-exec", "sh", "-c", "exit 3", ";"], ""),
+    ([".", "-type", "f", "-exec", "sh", "-c", "exit 1", ";"], ""),
+    ([".", "-type", "f", "-exec", "sh", "-c", "exit 1", ";", "-o", "-print"], ".\n./a\n./a/b\n./a/b/c\n./a/b/c/empty.dat\n./a/b/f2.txt\n./a/f1.txt\n./d\n./d/big.bin\n./d/dangling\n./d/lines.txt\n./d/link\n./e\n./e/.hidden\n./e/empty\n./sp ace\n./sp ace/file name.txt\n"),
+    ([".", "-name", "*.txt", "-exec", "echo", "a", ";", "-exec", "echo", "b", ";"], "a\nb\na\nb\na\nb\na\nb\n"),
+    ([".", "-name", "*.txt", "-exec", "echo", "a", "{}", "+", "-exec", "echo", "b", "{}", "+"], "b ./a/b/f2.txt ./a/f1.txt ./d/lines.txt ./sp ace/file name.txt\na ./a/b/f2.txt ./a/f1.txt ./d/lines.txt ./sp ace/file name.txt\n"),
+    ([".", "-name", "*.txt", "-exec", "echo", "a", "{}", "+", "-print"], "./a/b/f2.txt\n./a/f1.txt\n./d/lines.txt\n./sp ace/file name.txt\na ./a/b/f2.txt ./a/f1.txt ./d/lines.txt ./sp ace/file name.txt\n"),
+    ([".", "-name", "*.txt", "-print", "-exec", "echo", "a", "{}", "+"], "./a/b/f2.txt\n./a/f1.txt\n./d/lines.txt\n./sp ace/file name.txt\na ./a/b/f2.txt ./a/f1.txt ./d/lines.txt ./sp ace/file name.txt\n"),
+    ([".", "-name", "*.txt", "-execdir", "echo", "{}", ";"], "f2.txt\nf1.txt\nlines.txt\nfile name.txt\n"),
+    ([".", "-name", "*.txt", "-execdir", "echo", "{}", "+"], "f2.txt\nf1.txt\nlines.txt\nfile name.txt\n"),
+    ([".", "-type", "d", "-execdir", "echo", "{}", ";"], ".\na\nb\nc\nd\ne\nempty\nsp ace\n"),
+    ([".", "-maxdepth", "1", "-execdir", "echo", "{}", ";"], ".\na\nd\ne\nsp ace\n"),
+    (["a/b/f2.txt", "-execdir", "echo", "{}", ";"], "f2.txt\n"),
+    (["a/b/f2.txt", "-exec", "echo", "{}", ";"], "a/b/f2.txt\n"),
+    (["a", "-execdir", "echo", "{}", ";"], "a\nb\nc\nempty.dat\nf2.txt\nf1.txt\n"),
+    ([".", "-name", "f1.txt", "-ok", "echo", "{}", ";"], ""),
+    ([".", "-name", "f1.txt", "-okdir", "echo", "{}", ";"], ""),
+    ([".", "-name", "*.txt", "-exec", "echo", "{}", ";", "-quit"], "./a/b/f2.txt\n")
+  ]
+// GENERATED failing cases
+  static let failingCases : [([String], Int)] = [
+    (["a", "nonexistent", "d"], 1),
+    (["-f", "a", "-name", "f1.txt"], 1),
+    ([".", "-name", "f1.txt", "-exec", "sh", "-c", "exit 3", "{}", "+"], 1),
+    ([".", "-type"], 1),
+    ([".", "-type", "x"], 1),
+    ([".", "-name"], 1),
+    ([".", "-iname"], 1),
+    ([".", "-path"], 1),
+    ([".", "-regex"], 1),
+    ([".", "-foo"], 1),
+    ([".", "-size", "abc"], 1),
+    ([".", "-size", "1x"], 1),
+    ([".", "-size"], 1),
+    ([".", "-mtime", "abc"], 1),
+    ([".", "-mtime"], 1),
+    ([".", "-mmin", "1x"], 1),
+    ([".", "-mmin", "x1"], 1),
+    ([".", "-links", "abc"], 1),
+    ([".", "-links", "1x"], 1),
+    ([".", "-inum", "abc"], 1),
+    ([".", "-uid", "x"], 1),
+    ([".", "-perm", "zzz"], 1),
+    ([".", "-perm", "/111"], 1),
+    ([".", "-perm"], 1),
+    ([".", "-perm", "99999"], 1),
+    ([".", "-exec", "echo"], 1),
+    ([".", "-exec", "echo", "{}"], 1),
+    ([".", "-exec"], 1),
+    ([".", "-exec", ";"], 1),
+    ([".", "-exec", "+"], 1),
+    ([".", "(", "-name", "a"], 1),
+    ([".", "-name", "a", ")"], 1),
+    ([".", "(", ")"], 1),
+    ([".", "-name", "a", "-o"], 1),
+    ([".", "-o", "-name", "a"], 1),
+    ([".", "!"], 1),
+    ([".", "-not"], 1),
+    ([".", "!", "-o"], 1),
+    ([".", "-maxdepth"], 1),
+    ([".", "-maxdepth", "-1"], 1),
+    ([".", "-maxdepth", "abc"], 1),
+    ([".", "-mindepth", "-1"], 1),
+    ([".", "-newermt", "garbage"], 1),
+    ([".", "-newermt", "2021-01-01T00:00:00Z"], 1),
+    ([".", "-newermt", "@1600000000"], 1),
+    ([".", "-newer", "nonexistent"], 1),
+    ([".", "-newer"], 1),
+    ([".", "-samefile", "nonexistent"], 1),
+    ([".", "-samefile"], 1),
+    ([".", "-regex", "["], 1),
+    (["-E", ".", "-regex", "("], 1),
+    ([".", "-user", "nosuchuser_xyz"], 1),
+    ([".", "-group", "nosuchgroup_xyz"], 1),
+    ([".", "-flags", "nosuchflag"], 1),
+    ([".", "-xattrname"], 1),
+    ([".", "-fstype"], 1),
+    ([".", "-ok"], 1),
+    (["nonexistent"], 1),
+    ([".", "nonexistent"], 1),
+    (["nonexistent1", "nonexistent2"], 1),
+    (["-x"], 1),
+    (["-y"], 1)
+  ]
+
+  /// Creates a unique directory holding the fixture tree used by the table-driven tests.
+  ///
+  ///     a/f1.txt  a/b/f2.txt  a/b/c/empty.dat  d/big.bin  d/lines.txt  d/link -> ../a/f1.txt
+  ///     d/dangling -> nowhere  e/.hidden  e/empty/  "sp ace/file name.txt"
+  ///
+  /// Every file has a fixed access and modification time so the results do not depend on the date.
+  func makeFixture() throws -> FilePath {
+    let base = try tmpdir()
+    let root = base.appending("findtest_\(getpid())_\(UInt32.random(in: 0...UInt32.max))")
+    try? root.removeTree()
+    try root.createDirectory(FilePermissions(rawValue: 0o755))
+    
+    for d in ["a", "a/b", "a/b/c", "d", "e", "e/empty", "sp ace"] {
+      let dir = root.appending(d)
+      try dir.createDirectory(FilePermissions(rawValue: 0o755))
+      chmod(dir.string, 0o755)
+    }
+    
+    func put(_ name: String, _ bytes: [UInt8], mode: mode_t, time: String) throws {
+      let f = root.appending(name)
+      let h = try FileDescriptor.open(f, .writeOnly, options: .create, permissions: FilePermissions(rawValue: 0o600))
+      try h.writeAllBytes(bytes)
+      try h.close()
+      chmod(f.string, mode)
+      let t = try DateTime(fromISO8601: time)
+      try f.setTimes(modified: t, accessed: t)
+    }
+    
+    try put("a/f1.txt", Array("hello\n".utf8), mode: 0o600, time: "2020-01-01T00:00:00Z")
+    try put("a/b/f2.txt", Array("hello world\n".utf8), mode: 0o644, time: "2021-01-01T00:00:00Z")
+    try put("a/b/c/empty.dat", [], mode: 0o644, time: "2018-01-01T00:00:00Z")
+    try put("d/big.bin", [UInt8](repeating: 0, count: 3000), mode: 0o755, time: "2019-01-01T00:00:00Z")
+    try put("d/lines.txt", Array("a\nb\n".utf8), mode: 0o644, time: "2022-01-01T00:00:00Z")
+    try put("sp ace/file name.txt", Array("x\n".utf8), mode: 0o644, time: "2023-01-01T00:00:00Z")
+    try put("e/.hidden", Array("y\n".utf8), mode: 0o644, time: "2023-06-01T00:00:00Z")
+    try root.appending("d/link").createSymbolicLink(to: FilePath("../a/f1.txt"))
+    try root.appending("d/dangling").createSymbolicLink(to: FilePath("nowhere"))
+    return root
+  }
+
+  @Test("find output matches the system find", arguments: listingCases)
+  func listing(_ args: [String], _ expected: String) async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    try await run(output: expected, args: ["-s"] + args, env: ["TZ": "UTC"], cd: root)
+  }
+
+  @Test("find reports errors with a non-zero status", arguments: failingCases)
+  func failing(_ args: [String], _ status: Int) async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    try await run(status: status, args: ["-s"] + args, env: ["TZ": "UTC"], cd: root)
+  }
+
+  // MARK: - individual behaviours
+
+  @Test func lsFormat() async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    try await run(output: /^ *\d+ +\d+ -rw-------  +1 \S+ +\S+ +6 Jan  1  2020 \.\/a\/f1\.txt\n$/,
+                  args: ".", "-name", "f1.txt", "-type", "f", "-ls", env: ["TZ": "UTC"], cd: root)
+  }
+
+  @Test func lsSymbolicLink() async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    try await run(output: /^ *\d+ +\d+ lrwx\S*  +1 \S+ +\S+ +\d+ \w{3} +\d+ +[\d:]+ \.\/d\/link -> \.\.\/a\/f1\.txt\n$/,
+                  args: ".", "-type", "l", "-name", "link", "-ls", env: ["TZ": "UTC"], cd: root)
+  }
+
+  @Test func print0() async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    try await run(output: "./a/b/f2.txt\0./a/f1.txt\0", args: "-s", ".", "-name", "f?.txt", "-print0", cd: root)
+  }
+
+  @Test func deleteFile() async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    try await run(output: "", args: ".", "-name", "empty.dat", "-delete", cd: root)
+    try await run(output: "./a/b/c\n", args: "-s", ".", "-path", "./a/b/c*", cd: root)
+  }
+
+  @Test func deleteEmptyDirectoriesAndFiles() async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    try await run(output: "", args: ".", "-empty", "-delete", cd: root)
+    try await run(output: "", args: ".", "-empty", cd: root)
+    try await run(output: "./a\n./a/b\n./a/b/f2.txt\n./a/f1.txt\n", args: "-s", ".", "-path", "./a*", cd: root)
+  }
+
+  @Test func deleteIsForbiddenWhenFollowingLinks() async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    try await run(status: 1, args: "-L", ".", "-name", "f1.txt", "-delete", cd: root)
+    try await run(output: "./a/f1.txt\n", args: ".", "-name", "f1.txt", cd: root)
+  }
+
+  @Test func okRefusedWithoutAnswer() async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    try await run(output: "", args: ".", "-name", "f1.txt", "-ok", "echo", "{}", ";", cd: root)
+  }
+
+  @Test func okAccepted() async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    try await run(withStdin: "y\n", output: "./a/f1.txt\n", args: ".", "-name", "f1.txt", "-ok", "echo", "{}", ";", cd: root)
+  }
+
+  @Test func execRunsInTheStartingDirectory() async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    // a relative path argument is only valid if the command runs where find was started
+    try await run(output: "hello\n", args: ".", "-name", "f1.txt", "-exec", "cat", "{}", ";", cd: root)
+  }
+
+  @Test func execExitStatusMakesPrimaryFalse() async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    try await run(output: "./a/f1.txt\n", args: ".", "-name", "f1.txt", "(", "-exec", "false", ";", "-o", "-print", ")", cd: root)
+    try await run(output: "", args: ".", "-name", "f1.txt", "(", "-exec", "true", ";", "-o", "-print", ")", cd: root)
+  }
+
+  @Test func execPlusIsNotRunWithoutMatches() async throws {
+    let root = try makeFixture()
+    defer { rm(root) }
+    try await run(output: "", args: ".", "-name", "nosuchname", "-exec", "echo", "ran", "{}", "+", cd: root)
+  }
+}
 

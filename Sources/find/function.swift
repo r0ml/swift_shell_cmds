@@ -66,7 +66,7 @@ extension find {
    * find_parsenum --
    *  Parse a string of the form [+-]# and return the value.
    */
-  func find_parsenum(plan: inout PLAN, option: String, vp: String, endch: inout Character?) -> Int {
+  func find_parsenum(plan: inout PLAN, option: String, vp: String, endch: inout Character?, trailingOK: Bool = false) -> Int {
     var str: String
     
     str = vp
@@ -83,13 +83,17 @@ extension find {
     
     
     let vv = str.prefixMatch(of: /[0-9]+/)
-    if vv == nil || vv!.range.isEmpty {
-      errx(1, "\(option): \(vp): illegal time value")
+    guard let vv else {
+      errx(1, "\(option): \(vp): illegal numeric value")
     }
-    let value = Int(vv!.output)!
-    str.removeSubrange(vv!.range)
+    // like strtoq(3), saturate rather than fail on overflow
+    let value = Int(vv.output) ?? Int.max
+    str.removeSubrange(vv.range)
     
     endch = str.first
+    if !trailingOK && !str.isEmpty {
+      errx(1, "\(option): \(vp): illegal trailing character")
+    }
     return value
   }
   
@@ -162,7 +166,7 @@ extension find {
    */
   func nextarg(option: OPTION, argvp: inout ArraySlice<String>) -> String {
     guard let arg = argvp.first else {
-      fatalError("\(option.name): requires additional arguments")
+      errx(1, "\(option.name): requires additional arguments")
     }
     argvp.removeFirst()
     return arg
@@ -204,6 +208,7 @@ extension find {
   
   func c_Xmin(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
     let nmins = nextarg(option: option, argvp: &argvp)
+    ftsoptions.remove(.NOSTAT)
     var new = PLAN(option)
     var endch : Character?
     
@@ -243,6 +248,7 @@ extension find {
   
   func c_Xtime(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
     let value = nextarg(option: option, argvp: &argvp)
+    ftsoptions.remove(.NOSTAT)
     var new = PLAN(option)
     var td = timespec()
     td.tv_sec = Int(find_parsetime(plan: &new, option: option.name, vp: value))
@@ -258,7 +264,7 @@ extension find {
   func c_mXXdepth(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
     let dstr = nextarg(option: option, argvp: &argvp)
     if dstr.first == "-" {
-      fatalError("\(option.name): \(dstr): value must be positive")
+      errx(1, "\(option.name): \(dstr): value must be positive")
     }
     
     var new = PLAN(option)
@@ -388,15 +394,13 @@ extension find {
   }
   
   func f_depth(_ plan: PLAN, _ entry: inout FTSEntry) -> Bool {
-    if case let .d_data(dd) = plan.p_un {
-      if (plan.flags & F_DEPTH) != 0 {
+    if (plan.flags & F_DEPTH) != 0 {
+      if case let .d_data(dd) = plan.p_un {
         return COMPARE(entry.level, Int(dd), plan)
-      } else {
-        return true
       }
+      fatalError("badly formed plan")
     }
-    fatalError("badly formed plan")
-    
+    return true
   }
   
   func c_depth(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
@@ -407,10 +411,7 @@ extension find {
       if str.hasPrefix("+") || str.hasPrefix( "-") {
         str.removeFirst()
       }
-      if str.hasPrefix("+") || str.hasPrefix("-") {
-        str.removeFirst()
-      }
-      if let x = str.first, x.isNumber {
+      if let x = str.first, x.isASCII, x.isNumber {
         new.flags |= F_DEPTH
       }
     }
@@ -448,7 +449,7 @@ extension find {
         let dn = withUnsafeBytes(of: dp.pointee.d_name) { p in
           String(cString: p.assumingMemoryBound(to: CChar.self).baseAddress!)
         }
-        if dn != "." || dn != ".." {
+        if dn != "." && dn != ".." {
           empty = false
           break
         }
@@ -474,35 +475,53 @@ extension find {
       if (plan.flags & F_EXECDIR) != 0 {
         if let rr = fts_path.lastIndex(of: "/") {
           file = String(fts_path[rr...].dropFirst())
-          
-          //          file = strrchr(entry.fts_path, "/")
-          //          if file != nil {
-          //            file = file?.advanced(by: 1)
         }
       }
       
       if (plan.flags & F_EXECPLUS) != 0 {
         epee.e_argv.append(file)
         
-        // FIXME: if I have run out of available arguments...
-        // don't return, but continue on to execute
-        // if eee.e_ppos < eee.e_pnummax /* &&
-//                                        eee.e_psize < eee.e_psizemax */ {
-        if epee.e_argv.count < epee.e_argmax {
+        // -execdir only ever takes a single file at a time
+        if (plan.flags & F_EXECDIR) == 0 && epee.e_argv.count < epee.e_argmax {
           return true
         }
-//         }
       } else {
         epee.e_argv = epee.e_orig.map { brace_subst($0, file) }
-        //            for cnt in 0..<(eee.e_argv.count) {
-        //              if eee.e_len[cnt] != 0 {
-        //                eee.e_argv[cnt] = brace_subst(eee.e_orig[cnt], fil)
-        //              }
       }
       
       return do_exec(plan, entry)
     }
     fatalError("badly formed plan")
+  }
+  
+  /// Runs `argv` (searching PATH), waits for it to finish, and returns the wait(2) status.
+  /// If `cd` is non-nil the child starts in that directory.
+  func spawnAndWait(_ argv: [String], cd: String?) -> Int32 {
+    var actions: posix_spawn_file_actions_t? = nil
+    posix_spawn_file_actions_init(&actions)
+    defer { posix_spawn_file_actions_destroy(&actions) }
+    if let cd {
+      posix_spawn_file_actions_addchdir_np(&actions, cd)
+    }
+    
+    var cargs: [UnsafeMutablePointer<CChar>?] = argv.map { strdup($0) }
+    cargs.append(nil)
+    defer { cargs.forEach { free($0) } }
+    
+    var pid = pid_t()
+    let rc = posix_spawnp(&pid, argv[0], &actions, nil, cargs, environ)
+    if rc != 0 {
+      warnx("\(argv[0]): \(String(cString: strerror(rc)))")
+      return Int32(127) << 8
+    }
+    
+    var status: Int32 = 0
+    while waitpid(pid, &status, 0) == -1 {
+      if errno != EINTR {
+        return Int32(-1)
+      }
+    }
+    return status
   }
   
   func do_exec(_ plan : PLAN, _ entry : FTSEntry?) -> Bool {
@@ -514,40 +533,14 @@ extension find {
       fflush(Darwin.stdout)
       fflush(Darwin.stderr)
       
-      
-      
-      
-//      let p = Process()
-//      p.arguments = Array(epee.e_argv.dropFirst())
-//      p.executableURL = URL.init(filePath: searchPath(for: epee.e_argv.first!)!)
-      
-
-      // FIXME: change the current directory as needed
+      // -exec runs in the directory find was started in; -execdir runs in the directory
+      // containing the file, which is where fts has already changed to.
       var cwd : String?
-      if let entry, (plan.flags & F_EXECDIR) == 0 && !ftsoptions.contains(.NOCHDIR) {
-        cwd = String(cString: entry.parent!.path)
-       }
-      
-
-      var status : Int32 = 0
-      // FIXME: this broke when I made ProcessRunner async
-      do {
-        let cmd = searchPath(for: epee.e_argv.first!)!
-        let args = Array(epee.e_argv.dropFirst())
-        Task {
-        try await DarwinProcess().run(cmd, args: args, cd: FilePath(cwd ?? ".") )
-        }
-      } catch let e as Errno {
-        status = e.rawValue
-      } catch {
-        status = -1
+      if (plan.flags & F_EXECDIR) == 0 && !ftsoptions.contains(.NOCHDIR) {
+        cwd = startdir
       }
       
-      
-      
-//     try! p.run()
-//      p.waitUntilExit()
-//      let status = p.terminationStatus
+      let status = spawnAndWait(epee.e_argv, cd: cwd)
       
       epee.e_argv = epee.e_orig
       
@@ -640,9 +633,11 @@ extension find {
 
   
   func finish_execplus() {
-    for p in lastexecplus {
-      // FIXME: this was execute(nil)
+    // the most recently created -exec ... + runs first, like the original
+    for p in lastexecplus.reversed() {
+      if case let .ex_data(epee) = p.p_un, epee.e_argv.count > epee.e_orig.count {
         let _ = do_exec(p, nil)
+      }
     }
   }
   
@@ -721,8 +716,6 @@ extension find {
    */
   func f_fstype(_ plan: PLAN, _ entry: inout FTSEntry) -> Bool {
     var sb = statfs()
-    var val_flags : Int16 = 0
-    var fstype : String = ""
     
     if ((plan.flags & F_MTMASK) == F_MTUNKNOWN) {
       return false
@@ -770,22 +763,22 @@ extension find {
        * Further tests may need both of these values, so
        * always copy both of them.
        */
-      val_flags = Int16(sb.f_flags)
+      fs_flags = sb.f_flags
       
-      fstype = withUnsafeBytes(of: sb.f_fstypename) { p in
+      fs_type = withUnsafeBytes(of: sb.f_fstypename) { p in
         String(cString: p.assumingMemoryBound(to: CChar.self).baseAddress!)
       }
     }
     switch (plan.flags & F_MTMASK) {
     case F_MTFLAG:
       if case let .mt_data(mt) = plan.p_un {
-        return ((val_flags & mt) != 0)
+        return ((fs_flags & UInt32(mt)) != 0)
       }
       fatalError("badly formed plan")
       
     case F_MTTYPE:
       if case let .c_data(ct) = plan.p_un {
-        return fstype == ct
+        return fs_type == ct
       }
       fatalError("badly formed plan")
       
@@ -1095,12 +1088,7 @@ extension find {
     
     if ((option.flags & F_TIME2_T) != 0) {
       var td = Darwin.timespec()
-      fn_or_tspec.withCString { p in
-        // FIXME: get_date not implemented (it's a yacc file)
-        fatalError("get_date not implemented")
-//        td.tv_sec = get_date(UnsafeMutablePointer(mutating: p) )
-        new.p_un = .t_data(td)
-      }
+      td.tv_sec = get_date(fn_or_tspec, now: now)
       if (td.tv_sec == time_t(-1)) {
         errx(1, "Can't parse date/time: \(fn_or_tspec)")
       }
@@ -1200,15 +1188,15 @@ extension find {
    */
   func f_perm(_ plan: PLAN, _ entry: inout FTSEntry) -> Bool {
     if case let .m_data(md) = plan.p_un {
-      let mode = entry.statp.permissions
+      let mode = entry.statp.permissions.rawValue & 0o7777
       if ((plan.flags & F_ATLEAST) != 0) {
-        return (md | mode.rawValue) == mode.rawValue
+        return (md | mode) == mode
       }
       else if ((plan.flags & F_ANY) != 0) {
-        return ((mode.rawValue & md) != 0)
+        return ((mode & md) != 0)
       }
       else {
-        return mode.rawValue == md
+        return mode == md
       }
     }
     fatalError("badly formed plan")
@@ -1225,33 +1213,27 @@ extension find {
   
   
   func c_perm(_ option: OPTION, _ argvp: inout ArraySlice<String>) -> PLAN {
-    var perm: String
-    var new: PLAN
-    var set: UnsafeMutablePointer<Darwin.mode_t>?
-    
-    perm = nextarg(option: option, argvp: &argvp)
+    var perm = nextarg(option: option, argvp: &argvp)
     ftsoptions.remove(.NOSTAT)
 
-    new = PLAN(option)
+    var new = PLAN(option)
     
     if perm.hasPrefix("-") {
       new.flags |= F_ATLEAST
       perm.removeFirst()
     } else if perm.hasPrefix("+") {
-      set = Darwin.setmode((String(perm.dropFirst()))).assumingMemoryBound(to: Darwin.mode_t.self)
-      if set != nil {
+      if let set = Darwin.setmode(String(perm.dropFirst())) {
         new.flags |= F_ANY
         perm.removeFirst()
         free(set)
       }
     }
     
-    set = Darwin.setmode(perm).assumingMemoryBound(to: Darwin.mode_t.self)
-    if set == nil {
+    guard let set = Darwin.setmode(perm) else {
       errx(1, "\(option.name): \(perm): illegal mode string")
     }
     
-    new.p_un = .m_data(getmode(set, 0))
+    new.p_un = .m_data(getmode(set, 0) & 0o7777)
     Darwin.free(set)
     return new
   }
@@ -1286,7 +1268,7 @@ extension find {
     
     if case var .re_data(pre) = plan.p_un {
       str = entry.path
-      len = str.count
+      len = str.utf8.count
       pmatch.rm_so = 0
       pmatch.rm_eo = regoff_t(len)
       
@@ -1364,9 +1346,9 @@ extension find {
     ftsoptions.remove(.NOSTAT)
 
     new = PLAN(option)
-    endch = "c"
-    new.p_un = .o_data(off_t(find_parsenum(plan: &new, option: option.name, vp: size_str, endch: &endch)))
-    if endch != "\0" {
+    endch = nil
+    new.p_un = .o_data(off_t(find_parsenum(plan: &new, option: option.name, vp: size_str, endch: &endch, trailingOK: true)))
+    if endch != nil {
       divsize = 0
       
       switch endch {
@@ -1431,7 +1413,7 @@ extension find {
       ftsoptions.remove(.NOSTAT)
     }
     
-    switch typestring {
+    switch typestring.first.map({ String($0) }) ?? "" {
     case "b":
         mask = Darwin.S_IFBLK
     case "c":

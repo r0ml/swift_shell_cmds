@@ -42,27 +42,31 @@ import Darwin
 
 extension find {
   func printlong(name: String, accpath: String, sb: Stat) {
-    //    var modep = [CChar](repeating: 0, count: 15)
     
-    print("%6ju %8lld ".cFormat(sb.inode.rawValue, sb.blocksAllocated), terminator: "")
+    func pad(_ s: String, _ width: Int, left: Bool = false) -> String {
+      let fill = String(repeating: " ", count: max(0, width - s.count))
+      return left ? s + fill : fill + s
+    }
+    
+    var line = pad(String(sb.inode.rawValue), 6) + " " + pad(String(sb.blocksAllocated), 8) + " "
 
     let modep = withUnsafeTemporaryAllocation(byteCount: 15, alignment: 1) {p in
       let pp = p.assumingMemoryBound(to: CChar.self).baseAddress!
       strmode( Int32(sb.type.rawValue | sb.permissions.rawValue), pp)
       return String(cString: pp)
     }
-    print(
-      modep.withCString { a in
-        "\(a) %3ju %-*s %-*s ".cFormat(sb.linkCount,
-                                       MAXLOGNAME - 1, user_from_uid(sb.userID.rawValue, 0),
-                                       MAXLOGNAME - 1, group_from_gid(sb.groupID.rawValue, 0))
-      }
-    , terminator: "")
+    
+    // the user and group names are padded on the right to a fixed width
+    let owner = user_from_uid(sb.userID.rawValue, 0).map { String(cString: $0) } ?? String(sb.userID.rawValue)
+    let group = group_from_gid(sb.groupID.rawValue, 0).map { String(cString: $0) } ?? String(sb.groupID.rawValue)
+    line += modep + " " + pad(String(sb.linkCount), 3) + " " + pad(owner, 16, left: true) + " " + pad(group, 16, left: true) + " "
+    
     if sb.type == .characterSpecial || sb.type == .blockSpecial {
-      print("%#8jx ".cFormat(sb.specialDeviceID.rawValue), terminator: "")
+      line += pad("0x" + String(sb.specialDeviceID.rawValue, radix: 16), 8) + " "
     } else {
-      print("%8lld ".cFormat(sb.size), terminator: "")
+      line += pad(String(sb.size), 8) + " "
     }
+    print(line, terminator: "")
     printtime(sb.st_mtim.tv_sec)
     print(name, terminator: "")
     if sb.type == .symbolicLink {
@@ -75,11 +79,9 @@ extension find {
     var longstring = [CChar](repeating: 0, count: 80)
     var lnow: time_t = 0
     var format: String
-    var d_first = -1
+    // month before day, matching the system find
+    let d_first = 0
     
-    if d_first < 0 {
-      d_first = 1
-    }
     if lnow == 0 {
       lnow = time(nil)
     }
@@ -96,7 +98,7 @@ extension find {
     } else {
       strlcpy(&longstring, "bad date val ", longstring.count)
     }
-    print(longstring, terminator: "")
+    print(String(cString: longstring), terminator: "")
   }
   
   func printlink(_ name: String) {
