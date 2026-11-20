@@ -119,8 +119,8 @@ import Darwin
 
     opts.fmt = nil
 
-    let (parsedOptions, operands) = try scanOptions(Array(CommandLine.arguments.dropFirst()))
-    for (ch, optarg) in parsedOptions {
+    let go = BSDGetopt("f:I::jnRr:uv:z:")
+    while let (ch, optarg) = try go.getopt() {
       switch ch {
         case "f":
           opts.fmt = optarg
@@ -182,7 +182,7 @@ import Darwin
       }
     }
 
-    opts.argv = operands
+    opts.argv = go.remaining
 
 
     opts.format = "%+"
@@ -283,50 +283,6 @@ import Darwin
     }
     return out
   }
-
-  /// A getopt for date's options.  `-I` takes an optional argument that must be attached to it
-  /// (`-Iseconds`); a following word is never consumed.
-  func scanOptions(_ args: [String]) throws(CmdErr) -> ([(Character, String)], [String]) {
-    var result: [(Character, String)] = []
-    var i = 0
-    outer: while i < args.count {
-      let a = args[i]
-      guard a.hasPrefix("-"), a.count > 1 else { break }
-      if a == "--" {
-        i += 1
-        break
-      }
-      let chars = Array(a.dropFirst())
-      var k = 0
-      while k < chars.count {
-        let c = chars[k]
-        k += 1
-        switch c {
-          case "j", "n", "R", "u":
-            result.append((c, ""))
-          case "I":
-            result.append((c, String(chars[k...])))
-            k = chars.count
-          case "f", "r", "v", "z":
-            var optarg = String(chars[k...])
-            k = chars.count
-            if optarg.isEmpty {
-              i += 1
-              guard i < args.count else {
-                throw CmdErr(1, "\(CommandLine.arguments[0]): option requires an argument -- \(c)")
-              }
-              optarg = args[i]
-            }
-            result.append((c, optarg))
-          default:
-            throw CmdErr(1, "\(CommandLine.arguments[0]): illegal option -- \(c)")
-        }
-      }
-      i += 1
-    }
-    return (result, Array(args[i...]))
-  }
-
 
   func printdate(_ buf: String) {
     print(buf)

@@ -78,8 +78,10 @@ import CMigration
       i += 1
       if z == UInt8(ascii: "c") { return false }
       if !posix {
+        // only \c is special here; any other backslash is literal and the next character is
+        // looked at afresh (so "\\c" is a backslash followed by \c)
         out.append(ch)
-        out.append(z)
+        i -= 1
         continue
       }
       switch z {

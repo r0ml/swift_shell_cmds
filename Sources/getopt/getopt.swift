@@ -12,43 +12,72 @@ import CMigration
 @main final class Getopt : ShellCommand {
 
   struct CommandOptions {
+    /// The option string, or nil if the command was given no arguments at all.
+    var optstring : String? = nil
+    /// The words after the option string: the options to be parsed, followed by the operands.
     var args : [String] = []
-    var help = false
   }
 
   var options : CommandOptions!
 
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
-
-    let go = BSDGetopt( CommandLine.arguments[0] )
-    go.skip()
-
-    while let (ch, optarg) = try go.getopt() {
-      switch ch {
-        case "?":
-          opts.help = true
-        default:
-          if !optarg.isEmpty {
-            print(" -\(ch) \(optarg)", terminator: "")
-          } else {
-            print(" -\(ch)", terminator: "")
-          }
-      }
+    let argv = CommandLine.arguments
+    if argv.count > 1 {
+      opts.optstring = argv[1]
+      opts.args = Array(argv.dropFirst(2))
     }
-
-    opts.args = go.remaining
     return opts
   }
 
+  /// Splits the options the way getopt(3) does, printing each one as " -x" (followed by " arg" if it
+  /// takes an argument), then " --" and the remaining operands.  The exit status is 1 if there was an
+  /// unknown option or a missing argument; those are reported on stderr and parsing continues.
   func runCommand() throws(CmdErr) {
-    print(" --", terminator: "")
-    for i in options.args {
-      print(" \(i)", terminator: "")
+    guard let optstring = options.optstring else {
+      print(" --")
+      return
     }
-    print("")
+
+    let go = BSDGetopt(optstring, args: ArraySlice(options.args))
+    var status = 0
+    var output = ""
+    var se = FileDescriptor.standardError
+
+    while true {
+      do {
+        guard let (ch, optarg) = try go.getopt() else {
+          break
+        }
+        // an option that isn't in the option string is an error (BSDGetopt only says so when the
+        // option string doesn't start with a colon)
+        if ch == "?" || (ch != ":" && !optstring.contains(ch)) {
+          status = 1
+          continue
+        }
+        output += " -\(ch)"
+        // ":" is what getopt reports for a missing argument when the option string starts with a colon
+        if ch != ":" && optstring.contains("\(ch):") {
+          // an optional argument ("x::") is only printed when it was given
+          if !(optstring.contains("\(ch)::") && optarg.isEmpty) {
+            output += " \(optarg)"
+          }
+        }
+      } catch {
+        print(error.message, to: &se)
+        status = 1
+      }
+    }
+
+    output += " --"
+    for operand in go.remaining {
+      output += " \(operand)"
+    }
+    print(output)
+    if status != 0 {
+      throw CmdErr(status)
+    }
   }
 
-  var usage = "getopt optionString [arguments]"
+  var usage = "usage: getopt optstring [arg ...]"
 }
-

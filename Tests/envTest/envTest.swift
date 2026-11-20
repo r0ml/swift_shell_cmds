@@ -157,4 +157,47 @@ import ShellTesting
   @Test func splitStringBadVariableSyntax() async throws {
     try await run(status: 1, args: "-S", "/bin/echo $FOO")
   }
+
+  @Test func utilityGetsExactlyTheRequestedEnvironment() async throws {
+    // nothing else (such as a locale variable) may be added
+    await withKnownIssue("DarwinProcess (Process.swift) always sets LC_CTYPE for the child, so env cannot pass the environment through unchanged") {
+      try await run(output: "", args: "-i", "/usr/bin/env")
+      try await run(output: "A=1\n", args: "-i", "A=1", "/usr/bin/env")
+    }
+  }
+
+  @Test func localeVariablesPassThroughUnchanged() async throws {
+    await withKnownIssue("DarwinProcess (Process.swift) rewrites LC_CTYPE for the child instead of passing the value given to env") {
+      try await run(output: "LC_CTYPE=C\n", args: "-i", "LC_CTYPE=C", "/usr/bin/env")
+    }
+  }
+
+  @Test func variableOrderIsPreserved() async throws {
+    await withKnownIssue("DarwinProcess (Process.swift) builds the child environment from a dictionary, so the order of the variables is lost") {
+      try await run(output: "A=1\nB=2\nC=3\n", args: "-i", "A=1", "B=2", "C=3", "/usr/bin/env")
+    }
+  }
+
+  @Test func commandNotFoundIs127() async throws {
+    try await run(status: 127, args: "-i", "/nonexistent/cmd")
+  }
+
+  @Test func commandNotExecutableIs126() async throws {
+    try await run(status: 126, args: "-i", "/etc/hosts")
+  }
+
+  @Test func utilityIsKilledBySignalLikeAnyOtherCommand() async throws {
+    // the utility must not inherit blocked signals from env
+    try await run(status: 143, args: "-i", "/bin/sh", "-c", "kill -TERM $$")
+  }
+
+  @Test func chdirBeforeRunning() async throws {
+    try await run(output: "yes\n", args: "-C", "/usr/bin", "/bin/sh", "-c", "test -f ./env && echo yes")
+    try await run(output: "yes\n", args: "-C/usr/bin", "/bin/sh", "-c", "test -f ./env && echo yes")
+  }
+
+  @Test func chdirFailureIs125() async throws {
+    try await run(status: 125, args: "-C", "/nonexistent", "/bin/echo", "x")
+  }
 }
+

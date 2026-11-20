@@ -88,4 +88,14 @@ final class echoTest : ShellTest {
   @Test func posixNIsOperand() async throws {
     try await run(output: "-n a\n", args: "-n", "a", env: ["POSIXLY_CORRECT": "1"])
   }
+
+  @Test func backslashBeforeBackslashCStopsOutput() async throws {
+    // the first backslash is literal; the second begins \c
+    try await run(output: "a\\", args: "a\\\\c")
+  }
+
+  @Test func doubleBackslashWithoutCIsLiteral() async throws {
+    try await run(output: "a\\\\b\n", args: "a\\\\b")
+  }
 }
+

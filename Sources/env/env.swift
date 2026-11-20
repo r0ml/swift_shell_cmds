@@ -37,7 +37,6 @@ import CMigration
 
 import Darwin
 
-// FIXME: add implementation for the -C workdir option 
 @main final class Env : ShellCommand {
     // from envopts.swift
     var env_verbosity : Int = 0
@@ -67,7 +66,7 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
 
     var want_clear = false
 
-    var go = BSDGetopt("-0iP:S:u:v")
+    var go = BSDGetopt("-0iC:P:S:u:v")
     /* -S splices the split-up string into the remaining arguments, which are then
        scanned for further options, so the parser is restarted after each -S. */
     while let (ch, optarg) = try go.getopt() {
@@ -79,6 +78,10 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
         want_clear = true
       case "0":
           opts.term = "\0"
+      case "C":
+          if chdir(optarg) < 0 {
+            err(ExitCode.EXIT_CANCELED.rawValue, "cannot change directory to '\(optarg)'")
+          }
       case "P":
           opts.altpath = optarg
       case "S":
@@ -170,6 +173,10 @@ usage: env [-0iv] [-C workdir] [-P utilpath] [-S string]
     let result: DarwinProcess.Output
     do {
       result = try await DarwinProcess().run(argv, withStdin: FileDescriptor.standardInput, args: Array(args.dropFirst()), output: (.standardOutput, .standardError))
+    } catch let e as POSIXErrno {
+      // like the original: 127 if the utility doesn't exist, 126 if it exists but can't be run
+      let status = e.code == ENOENT ? ExitCode.EXIT_ENOENT : ExitCode.EXIT_CANNOT_INVOKE
+      throw CmdErr(status.rawValue, "\(oargv): \(String(cString: strerror(e.code)))")
     } catch {
       throw CmdErr(ExitCode.EXIT_CANNOT_INVOKE.rawValue, "\(oargv): \(error)")
     }
