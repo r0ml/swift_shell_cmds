@@ -44,8 +44,16 @@ import Darwin
     sigemptyset(&none)
     posix_spawnattr_setsigdefault(&attr, &all)
     posix_spawnattr_setsigmask(&attr, &none)
-    posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK))
-    posix_spawnp(&pid, "sleep", nil, &attr, argv, environ)
+    // Don't pass on any file descriptors: tests run in parallel, and a long-lived child that held the end of
+    // another test's pipe would keep that test waiting for end-of-file.
+    posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_CLOEXEC_DEFAULT))
+    var actions: posix_spawn_file_actions_t? = nil
+    posix_spawn_file_actions_init(&actions)
+    defer { posix_spawn_file_actions_destroy(&actions) }
+    for fd in 0...2 {
+      posix_spawn_file_actions_addopen(&actions, Int32(fd), "/dev/null", fd == 0 ? O_RDONLY : O_WRONLY, 0)
+    }
+    posix_spawnp(&pid, "sleep", &actions, &attr, argv, environ)
     return pid
   }
 

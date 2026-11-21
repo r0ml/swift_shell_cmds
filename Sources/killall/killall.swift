@@ -35,499 +35,431 @@ import CMigration
 
 import Darwin
 
+
 @main final class killall : ShellCommand {
-  
-  var signames : [String] = []
+
+  /// The names the system gives the signals, indexed by signal number (index 0 is "Signal 0").
+  let signames : [String]
   let OPTIONS = "c:dej:Ilmqst:u:vz"
 
-//  var procs: [kinfo_proc]
-//  var pw: UnsafeMutablePointer<passwd>?
-  var rgx = regex_t()
-  var pmatch = regmatch_t()
-  var buf : String = ""
-//  var first: CChar
-  
   struct CommandOptions {
     var user: String?
     var tty: String?
     var cmd: String?
-    var qflag = 0
-    var vflag = 0
-    var sflag = 0
-    var dflag = 0
-    var eflag = 0
-    var jflag = 0
-    var Iflag = 0
-    var mflag = 0
-    var zflag = 0
-    var uid: UserID = UserID(0)
-    var tdev: DeviceID = DeviceID(0)
-    //  var mypid: pid_t
-    var thiscmd: String?
-
+    var qflag = false
+    var vflag = false
+    var sflag = false
+    var dflag = false
+    var eflag = false
+    var Iflag = false
+    var mflag = false
+    var zflag = false
+    var sig = SIGTERM
+    /// -l has already written the list of signals
+    var justPrint = false
     var args = [String]()
   }
 
   var options : CommandOptions!
 
-//  var thispid: pid_t
-//  var thistdev: dev_t
-  var sig = SIGTERM
-  var errors = 0
-  var jid: Int = 0
-  var mib = [UInt32](repeating: 0, count: 4)
-//  var miblen: u_int
-//  var size: size_t
-//  var matched: Int
-  var killed = 0
-  
-  var justPrint = false
-  
-
   required init() {
-    signames = swiftify_signames()
+    signames = Self.systemSignalNames()
   }
-  
-  // copied from kill
-  func swiftify_signames() -> [String] {
-    return withUnsafePointer(to: sys_signame) { p in
-      let j = MemoryLayout.size(ofValue: sys_signame)
-      let k = j / MemoryLayout<UnsafePointer<CChar>>.size
-      let ss = p.withMemoryRebound(to: UnsafePointer<CChar>.self, capacity: k) { pp in
-        var kk = [String]()
-        for i in 0..<k {
-          kk.append(String(cString: pp[i]))
-        }
-        return kk
+
+  static func systemSignalNames() -> [String] {
+    withUnsafePointer(to: sys_signame) { p in
+      let k = MemoryLayout.size(ofValue: sys_signame) / MemoryLayout<UnsafePointer<CChar>>.size
+      return p.withMemoryRebound(to: UnsafePointer<CChar>.self, capacity: k) { pp in
+        (0..<k).map { String(cString: pp[$0]) }
       }
-      return ss
     }
   }
-  
-  var usage : String { get {
-#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
-    let a = "usage: killall [-delmsqvz] [-help] [-I]"
-#else
-    let a = "usage: killall [-delmsqvz] [-help] [-I] [-j jail]"
-#endif
-    return a + """
 
-               [-u user] [-t tty] [-c cmd] [-SIGNAL] [cmd]...
-At least one option or argument to specify processes must be given."
-"""
-  } }
-  
+  var usage : String { """
+    usage: killall [-delmsqvz] [-help] [-I]
+                   [-u user] [-t tty] [-c cmd] [-SIGNAL] [cmd]...
+    At least one option or argument to specify processes must be given.
+    """ }
+
+  // MARK: signals
+
+  /// Writes the signal names, starting a new line once 75 columns have been used.
   func printsig(_ fpx: FileDescriptor) {
-    var output = ""
     var fp = fpx
-    
-    var ind = 0
-    for p in signames.dropFirst() {
-      output += p
-      ind += p.count
-      if ind > 75 {
+    var output = ""
+    var offset = 0
+    for n in 1..<Int(NSIG) {
+      output += signames[n] + " "
+      offset += signames[n].utf8.count + 1
+      if offset >= 75 && n < Int(NSIG) - 1 {
         output += "\n"
-        ind = 0
-      } else {
-        output += " "
-        ind += 1
+        offset = 0
       }
     }
     print(output, to: &fp)
   }
-  
-  func nosig(_ name: String) {
+
+  func nosig(_ name: String) -> Never {
     warnx("unknown signal \(name); valid signals:")
     printsig(FileDescriptor.standardError)
-    Darwin.exit(1)
+    exit(1)
   }
-  
-  func kludge_signal_arg(_ argr : String) throws(CmdErr) -> Int32? {
-    var sig: Int = -1
-    var arg = Substring(argr)
-    
-    guard let ch = arg.first else { return nil }
-    if ch.isLetter {
-      if arg == "help" {
+
+  func isASCIIDigit(_ c: UInt8) -> Bool { c >= 0x30 && c <= 0x39 }
+  func isASCIIAlpha(_ c: UInt8) -> Bool { (c | 0x20) >= 0x61 && (c | 0x20) <= 0x7a }
+
+  /// Recognizes an argument of the form `-SIGNAL` (a name with or without `SIG`, or a number).  Returns nil when the
+  /// argument isn't a signal and is left for getopt.  Reports the arguments that are signals but don't name one.
+  func signalArgument(_ arg: String) throws(CmdErr) -> Int32? {
+    guard arg.utf8.count > 1, arg.utf8.first == UInt8(ascii: "-") else { return nil }
+    let name = String(decoding: arg.utf8.dropFirst(), as: UTF8.self)
+    guard let c = name.utf8.first else { return nil }
+
+    if isASCIIAlpha(c) {
+      if name == "help" {
         throw CmdErr(1)
       }
-      if arg.uppercased().hasPrefix("SIG") {
-        arg  = arg.dropFirst(3)
+      var bare = Substring(name)
+      if bare.utf8.count >= 3 && bare.utf8.prefix(3).elementsEqual("SIG".utf8, by: { ($0 | 0x20) == ($1 | 0x20) }) {
+        bare = bare.dropFirst(3)
       }
-      let sig = signames.dropFirst().firstIndex(of: argr)
-      if sig == nil {
-        nosig(argr)
+      let wanted = bare.lowercased()
+      if let n = (1..<Int(NSIG)).first(where: { signames[$0] == wanted }) {
+        return Int32(n)
       }
-    } else if ch.isNumber {
-      if let x = Int(arg) {
-        sig = x
-      } else {
-        errx(1, "illegal signal number: \(argr)")
+      // a letter that getopt knows is left to it (so -sq is two options); any other letter is a bad signal
+      if OPTIONS.utf8.contains(c) {
+        return nil
       }
+      nosig(String(bare))
+    } else if isASCIIDigit(c) {
+      guard name.utf8.allSatisfy(isASCIIDigit) else {
+        errx(1, "illegal signal number: \(name)")
+      }
+      // strtol saturates, and the result is then truncated to an int
+      let sig = Int32(truncatingIfNeeded: Int(name) ?? Int.max)
       if sig < 0 || sig >= NSIG {
-        nosig(String(argr) )
+        nosig(name)
       }
-    } else {
-      nosig(String(argr) )
+      return sig
     }
-    
-    // FIXME: the original implementation finds the last
-    // argument with a signal instead of the first
-    return Int32(sig)
+    nosig(name)
   }
-  
 
-    
-  
+  // MARK: options
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
-      
-      if CommandLine.arguments.count < 2 {
-        throw CmdErr(1)
-      }
-      let go = BSDGetopt(OPTIONS)
-      while let (ch, optarg) = try go.getopt() {
-        switch ch {
-        case "c":
-            opts.cmd = optarg
-        case "d":
-            opts.dflag += 1
-        case "e":
-            opts.eflag += 1
-        case "I":
-            opts.Iflag += 1
-#if !(os(macOS) || targetEnvironment(macCatalyst))
-        case "j":
-            opts.jflag += 1
-          if let x = Int(String(cString: optarg)) {
-            opts.jid = x
-          } else {
-            errx(1, "illegal jid: \(String(cString: optarg))")
-          }
-          if jail_attach(jid) == -1 {
-            err(1, "jail_attach(\(jid)")
-          }
-#endif
-        case "l":
-          printsig(FileDescriptor.standardOutput)
-          justPrint = true
-          return opts
-        case "m":
-            opts.mflag += 1
-        case "q":
-            opts.qflag += 1
-        case "s":
-            opts.sflag += 1
-        case "t":
-            opts.tty = optarg
-        case "u":
-            opts.user = optarg
-        case "v":
-            opts.vflag += 1
-        case "z":
-            opts.zflag += 1
-        default:
-          if let s = try kludge_signal_arg(optarg) {
-            sig = s
-          } else {
-            throw CmdErr(1)
-          }
-        }
-      }
-      
-    opts.args = go.remaining
-      
-#if os(macOS) || targetEnvironment(macCatalyst)
-    if opts.user == nil && opts.tty == nil && opts.cmd == nil && CommandLine.arguments.count == 0 {
-        throw CmdErr(1)
-      }
-#else
-      if user == nil && tty == nil && cmd == nil && !jflag && CommandLine.arguments.count == 0 {
-        throw CmdErr(1)
-      }
-#endif
-    return opts
+    let arguments = Array(CommandLine.arguments.dropFirst())
+    if arguments.isEmpty {
+      throw CmdErr(1)
     }
-    
-    
-  func runCommand() throws(CmdErr) {
-    var opts = options!
 
-      if justPrint { return }
-      
-      if let tty = opts.tty {
-        if tty.hasPrefix("/dev/") {
-          buf = tty
-        } else if tty.hasPrefix("tty") {
-          buf = "/dev/\(tty)"
-        } else {
-          buf = "/dev/tty\(tty)"
-        }
-        guard let sb = try? FilePath(buf).stat(followTargetSymlink: true) else {
-          err(1, "stat(\(buf)")
-        }
-        guard sb.type == .characterSpecial else {
-          errx(1, "\(buf): not a character device")
-        }
-        opts.tdev = sb.specialDeviceID
-        if opts.dflag != 0 {
-          print("ttydev:0x\("%x".cFormat(opts.tdev.rawValue))")
+    // a -SIGNAL can be anywhere before a "--", and the last one wins
+    var rest = [String]()
+    var endOfOptions = false
+    for a in arguments {
+      if !endOfOptions {
+        if a == "--" {
+          endOfOptions = true
+        } else if let s = try signalArgument(a) {
+          opts.sig = s
+          continue
         }
       }
-    if let user = opts.user {
-      if let x = UInt(user) {
-        opts.uid = UserID(UInt32(x))
-        } else {
-          if let pw = getPasswd(for: user) {
-            opts.uid = UserID(UInt32(pw.userId))
-            if opts.dflag != 0 {
-              print("uid:\(opts.uid)")
-            }
-          } else {
-            throw CmdErr(1, "user \(user) does not exist")
-          }
-        }
-      } else {
-        opts.uid = UserID(UInt32(userId))
-        if opts.uid.rawValue != 0 {
-          if let pw = getPasswd(of: Int(opts.uid.rawValue) ) {
-            opts.user = pw.name
-          }
-          if opts.dflag != 0 {
-            print("uid:\(opts.uid)", opts.uid)
-          }
-        }
-      }
-      var size = 0
+      rest.append(a)
+    }
 
-      mib[0] = UInt32(CTL_KERN)
-      mib[1] = UInt32(KERN_PROC)
-      
-      var miblen : UInt32
-      
-    if opts.user != nil {
-      mib[2] = UInt32(opts.eflag != 0 ? KERN_PROC_UID : KERN_PROC_RUID)
-      mib[3] = opts.uid.rawValue
-        miblen = 4
-    } else if opts.tty != nil {
-        mib[2] = UInt32(KERN_PROC_TTY)
-      mib[3] = UInt32(opts.tdev.rawValue)
-        miblen = 4
-      } else {
-#if os(macOS) || targetEnvironment(macCatalyst)
-        mib[2] = UInt32(KERN_PROC_ALL)
-#else
-        mib[2] = UInt32(KERN_PROC_PROC)
-#endif
-        mib[3] = 0
-        miblen = 3
+    let go = BSDGetopt(OPTIONS, args: ArraySlice(rest))
+    while let (ch, optarg) = try go.getopt() {
+      switch ch {
+      case "c":
+        opts.cmd = optarg
+      case "d":
+        opts.dflag = true
+      case "e":
+        opts.eflag = true
+      case "I":
+        opts.Iflag = true
+      case "l":
+        printsig(FileDescriptor.standardOutput)
+        opts.justPrint = true
+        return opts
+      case "m":
+        opts.mflag = true
+      case "q":
+        opts.qflag = true
+      case "s":
+        opts.sflag = true
+      case "t":
+        opts.tty = optarg
+      case "u":
+        opts.user = optarg
+      case "v":
+        opts.vflag = true
+      case "z":
+        opts.zflag = true
+      default:
+        // includes -j, which is only supported where there are jails
+        throw CmdErr(1)
       }
-      
-      var st : Int32 = -1
-      
-      var procs: [kinfo_proc]
-      
-      repeat {
-        st = sysctl(&mib, miblen, nil, &size, nil, 0)
-        if st == -1 {
-          err(1, "could not sysctl(KERN_PROC)")
-        }
-        if size == 0 {
-          errx(1, "could not get size from sysctl(KERN_PROC)")
-        }
-        size += size / 10
-        //      newprocs = realloc(procs, size)
-        //      if newprocs == nil {
-        //        free(procs)
-        //        err(1, "could not reallocate memory")
-        //      }
-        procs = withUnsafeTemporaryAllocation(byteCount: size, alignment: 16) { p in
-          st = sysctl(&mib, miblen, p.baseAddress!, &size, nil, 0)
-          var procs = Array(repeating: kinfo_proc(), count: size / MemoryLayout<kinfo_proc>.stride)
-          for i in 0..<procs.count {
-            procs[i]=p.bindMemory(to: kinfo_proc.self)[i]
-          }
-          return procs
-        }
-      } while st == -1 && errno == ENOMEM
-      if st == -1 {
+    }
+
+    opts.args = go.remaining
+    if opts.user == nil && opts.tty == nil && opts.cmd == nil && opts.args.isEmpty {
+      throw CmdErr(1)
+    }
+    return opts
+  }
+
+  // MARK: processes
+
+  /// The processes selected by the sysctl `mib`.
+  func processList(_ mib: inout [Int32]) -> [kinfo_proc] {
+    var size = 0
+    repeat {
+      if sysctl(&mib, UInt32(mib.count), nil, &size, nil, 0) == -1 {
         err(1, "could not sysctl(KERN_PROC)")
       }
-      if size % MemoryLayout<kinfo_proc>.size != 0 {
-        var f = FileDescriptor.standardError
-        print("proc size mismatch (\(size) total, \(MemoryLayout<kinfo_proc>.size) chunks)", to: &f)
-        print("userland out of sync with kernel", to: &f)
-        exit(1)
+      if size == 0 {
+        errx(1, "could not get size from sysctl(KERN_PROC)")
       }
-      let nprocs = size / MemoryLayout<kinfo_proc>.size
-    if opts.dflag != 0 {
-        print("nprocs \(nprocs)")
+      // processes can appear between the two calls
+      size += size / 10
+      var st: Int32 = 0
+      var count = 0
+      let procs = [kinfo_proc](unsafeUninitializedCapacity: size / MemoryLayout<kinfo_proc>.stride + 1) { buf, n in
+        var bytes = buf.count * MemoryLayout<kinfo_proc>.stride
+        st = sysctl(&mib, UInt32(mib.count), buf.baseAddress, &bytes, nil, 0)
+        count = st == -1 ? 0 : bytes / MemoryLayout<kinfo_proc>.stride
+        n = count
       }
-      let mypid = getpid()
-      
-      for i in 0..<nprocs {
-#if os(macOS) || targetEnvironment(macCatalyst)
-        if procs[i].kp_proc.p_stat == SZOMB && opts.zflag == 0 {
+      if st == -1 {
+        if errno == ENOMEM {
           continue
         }
-        let thispid = procs[i].kp_proc.p_pid
-        
-        var mib = [Int32](repeating: 0, count: 3)
-        var argmax: UInt = 0
-        var syssize: size_t
-        
-        mib[0] = CTL_KERN
-        mib[1] = KERN_ARGMAX
-        
-        syssize = MemoryLayout<Int>.size
-        if sysctl(&mib, 2, &argmax, &syssize, nil, 0) == -1 {
-          continue
+        err(1, "could not sysctl(KERN_PROC)")
+      }
+      return procs
+    } while true
+  }
+
+  /// The name of the program a process is running: the last component of the path it was executed with.
+  func commandName(of pid: pid_t, scratch: inout [UInt8]) -> String? {
+    var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+    var size = scratch.count
+    let st = scratch.withUnsafeMutableBytes { sysctl(&mib, 3, $0.baseAddress, &size, nil, 0) }
+    if st == -1 || size <= MemoryLayout<Int32>.size {
+      return nil
+    }
+    let path = scratch[MemoryLayout<Int32>.size..<size].prefix { $0 != 0 }
+    let name = path[(path.lastIndex(of: UInt8(ascii: "/")).map { $0 + 1 } ?? path.startIndex)...]
+    return String(decoding: name, as: UTF8.self)
+  }
+
+  /// Whether `name` matches the regular expression `pattern`.  A pattern that doesn't compile can't match.
+  func regexMatches(_ pattern: String, _ name: String) -> Bool? {
+    var rgx = regex_t()
+    if regcomp(&rgx, pattern, REG_EXTENDED | REG_NOSUB) != 0 {
+      return nil
+    }
+    defer { regfree(&rgx) }
+    var pmatch = regmatch_t()
+    pmatch.rm_so = 0
+    pmatch.rm_eo = regoff_t(name.utf8.count)
+    return regexec(&rgx, name, 0, &pmatch, REG_STARTEND) == 0
+  }
+
+  func runCommand() throws(CmdErr) {
+    var opts = options!
+    if opts.justPrint { return }
+
+    var tdev: dev_t = 0
+    if let tty = opts.tty {
+      let buf: String
+      if tty.hasPrefix("/dev/") {
+        buf = tty
+      } else if tty.hasPrefix("tty") {
+        buf = "/dev/" + tty
+      } else {
+        buf = "/dev/tty" + tty
+      }
+      var sb = stat()
+      if stat(buf, &sb) < 0 {
+        err(1, "stat(\(buf))")
+      }
+      if (sb.st_mode & S_IFMT) != S_IFCHR {
+        errx(1, "\(buf): not a character device")
+      }
+      tdev = sb.st_rdev
+      if opts.dflag {
+        print("ttydev:0x" + String(UInt32(bitPattern: tdev), radix: 16))
+      }
+    }
+
+    var uid: uid_t
+    if let user = opts.user {
+      // a number is a uid, anything else is a user name
+      var end: UnsafeMutablePointer<CChar>? = nil
+      uid = user.withCString { p in
+        let v = strtoul(p, &end, 10)
+        return uid_t(truncatingIfNeeded: v)
+      }
+      let wholeNumber = !user.isEmpty && end?.pointee == 0
+      if !wholeNumber {
+        guard let pw = getPasswd(for: user) else {
+          throw CmdErr(1, "user \(user) does not exist")
         }
-        
-        // argmax += MemoryLayout<Int>.size
-        
-        //      procargs = malloc(argmax)
-        //      if procargs == nil {
-        //          continue
-        //      }
-        
-        mib[0] = CTL_KERN
-        mib[1] = KERN_PROCARGS2
-        mib[2] = thispid
-        
-        syssize = size_t(argmax)
-        opts.thiscmd = withUnsafeTemporaryAllocation(byteCount: syssize, alignment: 16) {p in
-          if sysctl(&mib, 3, p.baseAddress!, &syssize, nil, 0) != -1 {
-            let procargs = Array(UnsafeRawBufferPointer(start: p.baseAddress!.advanced(by: 4), count: syssize-4))
-            
-            let fi = procargs.firstIndex(where: {$0==0}) ?? procargs.count
-            let pa = procargs[0..<fi]
-            
-            var thiscmd = String(decoding: pa, as: Unicode.ASCII.self)
-            if let j = thiscmd.lastIndex(where: { $0 == "/" }) {
-              thiscmd = String(thiscmd[j...].dropFirst())
-            }
-            return thiscmd
-            
-          }
-          return nil
+        uid = uid_t(truncatingIfNeeded: pw.userId)
+        if opts.dflag {
+          print("uid:\(Int32(bitPattern: uid))")
         }
-         let thistdev = DeviceID(procs[i].kp_eproc.e_tdev)
-#else
-        if procs![i].ki_stat == SZOMB && opts.zflag == 0 {
-          continue
+      }
+    } else {
+      uid = getuid()
+      if uid != 0 {
+        if let pw = getPasswd(of: Int(uid)) {
+          opts.user = pw.name
         }
-        thispid = procs![i].ki_pid
-        thiscmd = strdup(procs![i].ki_comm)
-        let thistdev = procs![i].ki_tdev
-#endif
-        if thispid == mypid {
-          continue
+        if opts.dflag {
+          print("uid:\(Int32(bitPattern: uid))")
         }
-        
-        var matched = true
-        if let tty = opts.tty {
-          if thistdev != opts.tdev {
-            matched = false
-          }
-        }
-        if let cmd = opts.cmd {
-          if opts.mflag != 0 {
-            if regcomp(&rgx, cmd, REG_EXTENDED|REG_NOSUB) != 0 {
-              opts.mflag = 0
-              warnx("\(cmd): illegal regexp")
-            }
-          }
-          if opts.mflag != 0 {
-            pmatch.rm_so = 0
-            pmatch.rm_eo = regoff_t(opts.thiscmd!.count)
-            if regexec(&rgx, opts.thiscmd, 0, &pmatch, REG_STARTEND) != 0 {
-              matched = false
-            }
-            regfree(&rgx)
+      }
+    }
+
+    var mib: [Int32]
+    if opts.user != nil {
+      mib = [CTL_KERN, KERN_PROC, opts.eflag ? KERN_PROC_UID : KERN_PROC_RUID, Int32(bitPattern: uid)]
+    } else if opts.tty != nil {
+      mib = [CTL_KERN, KERN_PROC, KERN_PROC_TTY, tdev]
+    } else {
+      mib = [CTL_KERN, KERN_PROC, KERN_PROC_ALL]
+    }
+
+    let procs = processList(&mib)
+    if opts.dflag {
+      print("nprocs \(procs.count)")
+    }
+
+    var argmaxMib: [Int32] = [CTL_KERN, KERN_ARGMAX]
+    var argmax: Int32 = 0
+    var argmaxSize = MemoryLayout<Int32>.size
+    if sysctl(&argmaxMib, 2, &argmax, &argmaxSize, nil, 0) == -1 {
+      argmax = 0
+    }
+    var scratch = [UInt8](repeating: 0, count: Int(argmax))
+
+    let mypid = getpid()
+    var errors: Int32 = 0
+    var killed = 0
+    let sig = opts.sig
+
+    for proc in procs {
+      if Int32(proc.kp_proc.p_stat) == SZOMB && !opts.zflag {
+        continue
+      }
+      let thispid = proc.kp_proc.p_pid
+      guard let thiscmd = commandName(of: thispid, scratch: &scratch) else {
+        continue
+      }
+      let thistdev = proc.kp_eproc.e_tdev
+
+      if thispid == mypid {
+        continue
+      }
+
+      var matched = true
+      if opts.tty != nil && thistdev != tdev {
+        matched = false
+      }
+      if let cmd = opts.cmd {
+        if opts.mflag {
+          if let m = regexMatches(cmd, thiscmd) {
+            if !m { matched = false }
           } else {
-            // FIXME: what is this?
-            if strncmp(opts.thiscmd, cmd, Int(MAXCOMLEN)) != 0 {
-              matched = false
-            }
+            opts.mflag = false
+            warnx("\(cmd): illegal regexp")
+            if thiscmd != cmd { matched = false }
           }
-        }
-        if matched == false {
-          continue
-        }
-        if CommandLine.arguments.count > 0 {
+        } else if !sameFirst16(thiscmd, cmd) {
+          // a -c name is compared as the kernel keeps it: only the first 16 characters count
           matched = false
         }
-        for j in CommandLine.arguments {
-          if opts.mflag != 0 {
-            if regcomp(&rgx, j, REG_EXTENDED|REG_NOSUB) != 0 {
-              opts.mflag = 0
+      }
+      if !matched {
+        continue
+      }
+
+      if !opts.args.isEmpty {
+        matched = false
+        for j in opts.args {
+          if opts.mflag {
+            if let m = regexMatches(j, thiscmd) {
+              if m { matched = true }
+            } else {
+              opts.mflag = false
               warnx("\(j): illegal regexp")
+              if thiscmd == j { matched = true }
             }
-          }
-          if opts.mflag != 0 {
-            pmatch.rm_so = 0
-            pmatch.rm_eo = regoff_t(opts.thiscmd!.count)
-            if regexec(&rgx, opts.thiscmd, 0, &pmatch, REG_STARTEND) == 0 {
-              matched = true
-            }
-            regfree(&rgx)
-          } else {
-            if opts.thiscmd == j {
-              matched = true
-            }
+          } else if thiscmd == j {
+            matched = true
           }
           if matched {
             break
           }
         }
-        if matched && opts.Iflag != 0 {
-#if os(macOS) || targetEnvironment(macCatalyst)
-          print("Send signal \(sig) to \(opts.thiscmd!) (pid \(thispid))? ", terminator: "")
-#else
-          printf("Send signal %d to %s (pid %d uid %d)? ", sig, thiscmd, thispid, thisuid)
-#endif
-          fflush(stdout)
-          var ch = getchar()
-          let first = CChar(ch)
-          while ch != 10 && ch != EOF {
-            ch = getchar()
-          }
-          if first != Character("y").asciiValue! && first != Character("Y").asciiValue! {
-            matched = false
-          }
+      }
+
+      if matched && opts.Iflag {
+        print("Send signal \(sig) to \(thiscmd) (pid \(thispid))? ", terminator: "")
+        fflush(stdout)
+        var ch = getchar()
+        let first = ch
+        while ch != 10 && ch != EOF {
+          ch = getchar()
         }
-        if matched == false {
-          continue
-        }
-        if opts.dflag != 0 {
-#if os(macOS) || targetEnvironment(macCatalyst)
-          print("sig:\(sig), cmd:\(opts.thiscmd!), pid:\(thispid), dev:0x\("%0x".cFormat(thistdev.rawValue))")
-#else
-          printf("sig:%d, cmd:%s, pid:%d, dev:0x%jx uid:%d\n", sig, thiscmd, thispid, thistdev, thisuid)
-#endif
-        }
-        
-        if opts.vflag != 0 || opts.sflag != 0 {
-          print("kill -\(signames[Int(sig)]) \(thispid)")
-        }
-        
-        killed += 1
-        if opts.dflag == 0 && opts.sflag == 0 {
-          if kill(thispid, sig) < 0 {
-            warn("warning: kill -\(signames[Int(sig)]) \(thispid)")
-            errors = 1
-          }
+        if first != Int32(UInt8(ascii: "y")) && first != Int32(UInt8(ascii: "Y")) {
+          matched = false
         }
       }
-      if killed == 0 {
-        if opts.qflag == 0 {
-          var se = FileDescriptor.standardError
-          let j = userId != 0 ? "belonging to you " : ""
-          print("No matching processes \(j)were found", to: &se )
-        }
-        errors = 1
+      if !matched {
+        continue
       }
-      if errors != 0 { throw CmdErr(errors) }
+
+      if opts.dflag {
+        print("sig:\(sig), cmd:\(thiscmd), pid:\(thispid), dev:0x" + String(UInt64(bitPattern: Int64(thistdev)), radix: 16))
+      }
+      if opts.vflag || opts.sflag {
+        print("kill -\(signames[Int(sig)]) \(thispid)")
+      }
+
+      killed += 1
+      if !opts.dflag && !opts.sflag {
+        if kill(thispid, sig) < 0 {
+          warn("warning: kill -\(signames[Int(sig)]) \(thispid)")
+          errors = 1
+        }
+      }
+    }
+
+    if killed == 0 {
+      if !opts.qflag {
+        var se = FileDescriptor.standardError
+        print("No matching processes \(userId != 0 ? "belonging to you " : "")were found", to: &se)
+      }
+      errors = 1
+    }
+    if errors != 0 { throw CmdErr(Int(errors)) }
+  }
+
+  /// strncmp(a, b, MAXCOMLEN) == 0
+  func sameFirst16(_ a: String, _ b: String) -> Bool {
+    var x = a.utf8.prefix(Int(MAXCOMLEN)).makeIterator()
+    var y = b.utf8.prefix(Int(MAXCOMLEN)).makeIterator()
+    while true {
+      let p = x.next(), q = y.next()
+      if p != q { return false }
+      if p == nil { return true }
     }
   }
+}
