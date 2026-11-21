@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 /*
 struct prOptions : OptionSet {
   let rawValue: UInt8
@@ -77,7 +79,7 @@ class PR {
     var fmt: String!
   var nospace: Bool = false
     var mbleft: Int = 0
-//    var mbstate: mbstate_t?
+  var mbstate = mbstate_t()
 }
 
 struct fuOptions : OptionSet {
@@ -145,7 +147,7 @@ final class hexdump : ShellCommand {
 // ==================
     
     
-//  var exitval: Int32 = 0        /* final exit value */
+  var exitval: Int = 0        /* final exit value */
 
   // options
   var skip : Int64 = 0
@@ -174,6 +176,8 @@ final class hexdump : ShellCommand {
   var ateof = true
   var curp: UnsafeMutableRawPointer?
   var savp: UnsafeMutableRawPointer?
+  // for multibyte characters that are split across blocks (see peek)
+  let peekbuf = UnsafeMutableRawPointer.allocate(byteCount: 16, alignment: 1)
   
 
   
@@ -224,6 +228,9 @@ final class hexdump : ShellCommand {
 #endif
     
     try display(&opts)
+    if exitval != 0 {
+      throw CmdErr(exitval)
+    }
     /*
 #if os(macOS)
     if ferror(stdout) != 0 || fflush(stdout) != 0 {
@@ -235,14 +242,14 @@ final class hexdump : ShellCommand {
   
   var newUsage = """
 usage: hexdump [-bcCdovx] [-e fmt] [-f fmt_file] [-n length]
-              [-s skip] [file ...]
-      hd      [-bcdovx]  [-e fmt] [-f fmt_file] [-n length]
-              [-s skip] [file ...]
+               [-s skip] [file ...]
+       hd      [-bcdovx]  [-e fmt] [-f fmt_file] [-n length]
+               [-s skip] [file ...]
 """
 
   var odusage = """
 usage: od [-aBbcDdeFfHhIiLlOosvXx] [-A base] [-j skip] [-N length] [-t type]
-          [[+]offset[.][Bb]] [file ...]"
+          [[+]offset[.][Bb]] [file ...]
 """
 
   var usage : String { get { isNewSyntax ? newUsage : odusage }}

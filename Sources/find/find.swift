@@ -280,7 +280,6 @@ extension find {
     
     guard let tree = try? FTSWalker(path: myPaths, options: ftsoptions, sort: options.issort != 0 ? find_compare : nil) else {
       err(1, "ftsopen")
-      fatalError()
     }
     
     exitstatus = nonSearchableDirFound

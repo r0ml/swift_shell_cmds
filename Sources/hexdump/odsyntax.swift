@@ -53,28 +53,19 @@ extension hexdump {
     var padding = PADDING
 #endif
     
-    odadd("\"%07.7_Ao\n\"")
-    odadd("\"%07.7_ao  \"")
+    // the initial (default) address formats; -A may change them later
+    add("\"%07.7_Ao\n\"")
+    add("\"%07.7_ao  \"")
     odmode = true
     
-      let go = BSDGetopt("A:aBbcDdeFfHhIij:LlN:Oost:vXx")
-      while let (ch, optarg) = try go.getopt() {
-
-//          let chx = getopt(argc, argv, "A:aBbcDdeFfHhIij:LlN:Oost:vXx")
-//      if chx == -1 { break }
-//      let ch = Character.from(UInt8(chx))
+    let go = BSDGetopt("A:aBbcDdeFfHhIij:LlN:Oost:vXx")
+    while let (ch, optarg) = try go.getopt() {
       switch ch {
       case "A":
         let of = optarg.first
         switch of {
         case "d", "o", "x":
-          var z = Array(fsArray[0].fuArray[0].fmt)
-          z[TYPE_OFFSET] = of!
-          fsArray[0].fuArray[0].fmt = String(z)
-          
-          z = Array(fsArray[1].fuArray[0].fmt)
-          z[TYPE_OFFSET] = of!
-          fsArray[1].fuArray[0].fmt = String(z)
+          setOffsetBase(of!)
         case "n":
 #if os(macOS)
           fsArray[0].fuArray[0].fmt = _n
@@ -83,7 +74,7 @@ extension hexdump {
 #endif
           fsArray[1].fuArray[0].fmt = padding
         default:
-          fatalError("\(optarg): invalid address base")
+          errx(1, "\(optarg): invalid address base")
         }
       case "a":
         odformat("a")
@@ -110,28 +101,33 @@ extension hexdump {
       case "i":
         odformat("dI")
       case "j":
-        var end : UnsafeMutablePointer<CChar>?
-        skip = strtoll(optarg, &end, 0)
-        let cfe = Character.from(end!.pointee)
-        switch(cfe) {
-        case "b":
-          skip *= 512
-        case "k":
-          skip *= 1024
-        case "m":
-          skip *= 1048576
-        case "g":
-          skip *= 1073741824
-        default:
-          break
+        // the suffix is whatever follows the number, so it has to be read while the C string is alive
+        errno = 0
+        var suffix = ""
+        skip = optarg.withCString { cs in
+          var end: UnsafeMutablePointer<CChar>? = nil
+          let v = strtoll(cs, &end, 0)
+          if let end {
+            suffix = String(cString: end)
+          }
+          return v
         }
-        if errno != 0 || skip < 0 || strlen(end!) > 1 {
-          fatalError("\(optarg): invalid skip amount")
+        if suffix.hasPrefix("b") {
+          skip *= 512
+        } else if suffix.hasPrefix("k") {
+          skip *= 1024
+        } else if suffix.hasPrefix("m") {
+          skip *= 1048576
+        } else if suffix.hasPrefix("g") {
+          skip *= 1073741824
+        }
+        if errno != 0 || skip < 0 || suffix.utf8.count > 1 {
+          errx(1, "\(optarg): invalid skip amount")
         }
       case "N":
-        let arg = optarg
-        if let length = Int(arg), length <= 0 {
-          fatalError("\(arg): invalid length")
+        length = Int(atoi(optarg))
+        if length <= 0 {
+          errx(1, "\(optarg): invalid length")
         }
       case "O":
         odformat("o4")
@@ -152,15 +148,23 @@ extension hexdump {
       odformat("oS")
     }
     
-      opts.args = Array.SubSequence( go.remaining )
+    opts.args = Array.SubSequence( go.remaining )
 
-  if opts.args.count != 0 {
+    if opts.args.count != 0 {
       odoffset(&opts)
     }
   }
   
+  /// Sets the base ('d', 'o' or 'x') in which the address (and the final address) are printed.
+  func setOffsetBase(_ base: Character) {
+    for i in 0...1 {
+      var z = Array(fsArray[i].fuArray[0].fmt)
+      z[TYPE_OFFSET] = base
+      fsArray[i].fuArray[0].fmt = String(z)
+    }
+  }
+  
   func odoffset( _ opts : inout CommandOptions) {
-//    var p: [UInt8]?, q: [UInt8]?, num: [UInt8]?, end: [UInt8]?
     var base: Int
     var num : Substring
     
@@ -177,8 +181,11 @@ extension hexdump {
      * We assume it's a file if the offset is bad.
      */
     var p = Substring(opts.args.count == 1 ? opts.args[0] : opts.args[1])
-    
-    if p.first != "+" && (opts.args.count < 2 || !(p.first!.isNumber )  && (p.first! != "x") || !p.dropFirst().first!.isHexDigit) {
+    let isOffsetLike = p.first == "+" ||
+      (opts.args.count >= 2 &&
+        ((p.first?.isASCII == true && p.first!.isNumber) ||
+         (p.first == "x" && p.dropFirst().first?.isHexDigit == true)))
+    if !isOffsetLike {
       return
     }
     
@@ -190,8 +197,7 @@ extension hexdump {
     if p.hasPrefix("+") {
       p = p.dropFirst()
     }
-    if p.hasPrefix("x") &&
-        p.dropFirst().first!.isHexDigit {
+    if p.hasPrefix("x") && p.dropFirst().first?.isHexDigit == true {
       p = p.dropFirst()
       base = 16
     } else if p.hasPrefix("0x") {
@@ -203,7 +209,7 @@ extension hexdump {
     if base == 16 {
       num = p.prefix(while: { $0.isHexDigit })
     } else {
-      num = p.prefix(while: { $0.isNumber })
+      num = p.prefix(while: { $0.isASCII && $0.isNumber })
     }
     p = p.dropFirst(num.count)
 
@@ -235,13 +241,8 @@ extension hexdump {
       } else if p.hasPrefix("b") {
         skip *= 512
         p = p.dropFirst()
-        
-      } else {
-#if __APPLE__
-        if p.hasPrefix(".") {
-          p = p.dropFirst()
-        }
-#endif
+      } else if p.hasPrefix(".") {
+        p = p.dropFirst()
       }
     }
     
@@ -250,30 +251,11 @@ extension hexdump {
       return
     }
     
-    if base == 16 {
-      var z = Array(fsArray[0].fuArray[0].fmt)
-      z[TYPE_OFFSET] = "x"
-      fsArray[0].fuArray[0].fmt = String(z)
-      
-      z = Array(fsArray[1].fuArray[0].fmt)
-      z[TYPE_OFFSET] = "x"
-      fsArray[1].fuArray[0].fmt = String(z)
-    } else if base == 10 {
-      var z = Array(fsArray[0].fuArray[0].fmt)
-      z[TYPE_OFFSET] = "d"
-      fsArray[0].fuArray[0].fmt = String(z)
-      
-      z = Array(fsArray[1].fuArray[0].fmt)
-      z[TYPE_OFFSET] = "d"
-      fsArray[1].fuArray[0].fmt = String(z)
-    }
+    setOffsetBase(base == 16 ? "x" : base == 10 ? "d" : "o")
     
-    opts.args = opts.args.prefix(1)
+    // the offset is not a file: with two arguments the first one is the file, with one there is none
+    opts.args = opts.args.count == 1 ? [] : opts.args.prefix(1)
   }
-  
-  
-  
-  
   
   func odformat(_ fmt: String) {
     var fchar: Character
@@ -291,9 +273,19 @@ extension hexdump {
       case "f":
         fmt = odformatfp(fchar: fchar, fmt: fmt)
       default:
-        fatalError("\(fchar): unrecognised format character")
+        errx(1, "\(fchar): unrecognised format character")
       }
     }
+  }
+  
+  /// Removes and returns the number at the start of `fmt`, for a size such as the 4 in "x4".
+  func odsize(_ fmt: inout String) -> Int {
+    let digits = fmt.prefix { $0.isASCII && $0.isNumber }
+    guard let n = Int(digits), n != 0 else {
+      errx(1, "\(fmt): invalid size")
+    }
+    fmt.removeFirst(digits.count)
+    return n
   }
   
   func odformatfp(fchar: Character, fmt: String) -> String {
@@ -314,16 +306,12 @@ extension hexdump {
       isize = MemoryLayout<CLongDouble>.size
       fmt.removeFirst()
     default:
-      if let firstChar = fmt.first, firstChar.isNumber {
-        isize = Int(fmt) ?? 0
-        if isize == 0 {
-          fatalError("\(fmt): invalid size")
-        }
-        fmt.removeFirst()
+      if let firstChar = fmt.first, firstChar.isASCII, firstChar.isNumber {
+        isize = odsize(&fmt)
       }
     }
 
-    // FIXME: this is a hack
+    // FLT_DIG, DBL_DIG and LDBL_DIG
     let FLT_DIG = 6
     let DBL_DIG = 15
     let LDBL_DIG = 16
@@ -337,7 +325,7 @@ extension hexdump {
       if isize == MemoryLayout<CLongDouble>.size {
         digits = Int(LDBL_DIG)
       } else {
-        fatalError("unsupported floating point size \(isize)")
+        errx(1, "unsupported floating point size \(isize)")
       }
     }
     
@@ -354,31 +342,34 @@ extension hexdump {
     var fmt = fmt
     var hdfmt: String
     
-    isize = MemoryLayout<Int>.size
+    isize = MemoryLayout<CInt>.size
     switch fmt.first {
     case "C":
-      isize = MemoryLayout<Int8>.size
+      isize = MemoryLayout<CChar>.size
       fmt.removeFirst()
     case "I":
-      isize = MemoryLayout<Int>.size
+      isize = MemoryLayout<CInt>.size
       fmt.removeFirst()
     case "L":
-      isize = MemoryLayout<Int64>.size
+      isize = MemoryLayout<CLong>.size
       fmt.removeFirst()
     case "S":
-      isize = MemoryLayout<Int16>.size
+      isize = MemoryLayout<CShort>.size
       fmt.removeFirst()
     default:
-      if let firstChar = fmt.first, firstChar.isNumber {
-        isize = Int(fmt) ?? 0
-        if isize == 0 {
-          fatalError("\(fmt): invalid size")
-        }
-        fmt.removeFirst()
+      if let firstChar = fmt.first, firstChar.isASCII, firstChar.isNumber {
+        isize = odsize(&fmt)
       }
     }
     
-    n = (1 << (8 * isize)) - 1
+    switch isize {
+    case 1, 2, 4, 8:
+      break
+    default:
+      errx(1, "unsupported int size \(isize)")
+    }
+    
+    n = isize == 8 ? UInt64.max : (UInt64(1) << UInt64(8 * isize)) - 1
     digits = 0
     while n != 0 {
       digits += 1

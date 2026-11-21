@@ -44,7 +44,10 @@ extension hexdump {
     //   var fp: UnsafeMutablePointer<FILE>?
     // var ch: Int32
     
-    let buf = try FilePath(name).readAsString().split(separator: "\n")
+    guard let contents = try? FilePath(name).readAsString() else {
+      err(1, name)
+    }
+    let buf = contents.split(separator: "\n")
     for ln in buf {
       let k = ln.trimming([" "])
       if k.isEmpty || k.first == "#" { continue }
@@ -267,11 +270,9 @@ extension hexdump {
           default:
             badcnt( String(p1.first!) )
           }
-        case "d", "i":
-          pr.flags = prOptions.F_INT
-          fallthrough
-        case "o", "u", "x", "X":
-          pr.flags = prOptions.F_UINT
+        case "d", "i", "o", "u", "x", "X":
+          // %d and %i are signed; the rest are unsigned
+          pr.flags = (cs.first == "d" || cs.first == "i") ? prOptions.F_INT : prOptions.F_UINT
           cs = "q" + String(cs.first!)
           switch fu.bcnt {
           case 0, 4:
@@ -356,11 +357,15 @@ extension hexdump {
               badcnt(String(p1.prefix(2)))
             }
           case "n":
+            // prints a newline (only the end-of-data format is used, so this is what is left at the end)
             endfu = fu
             fu.flags = .F_IGNORE
             pr.flags = prOptions.F_TEXT
-            fmtp = "\n"
-            cs = ""
+            pr.fmt = "\n"
+            pr.cchar = pr.fmt.startIndex
+            fmtp = Substring("")
+            fu.prArray.last!.bcnt = 0
+            continue
           default:
             badconv(String(p1.prefix(2)))
           }
@@ -447,7 +452,7 @@ extension hexdump {
   }
   
   func badsfmt() {
-    errx(1, "%%s: requires a precision or a byte count")
+    errx(1, "%s: requires a precision or a byte count")
   }
   
   func badfmt(_ fmt: String) {
@@ -455,7 +460,7 @@ extension hexdump {
   }
   
   func badconv(_ ch: String) {
-    errx(1, "%%\(ch): bad conversion character")
+    errx(1, "%\(ch): bad conversion character")
   }
   
   func badnoconv() {

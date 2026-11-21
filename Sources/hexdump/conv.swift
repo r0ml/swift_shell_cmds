@@ -37,7 +37,9 @@ import CMigration
 
 import Darwin
 
-let MB_CUR_MAX = 1
+/// MB_CUR_MAX: the longest multibyte character in the current locale
+var MB_CUR_MAX: Int { Int(___mb_cur_max()) }
+
 
 extension hexdump {
   func conv_c(pr: inout PR, p: UnsafeRawPointer, bufsize: Int) {
@@ -58,10 +60,9 @@ extension hexdump {
     }
   }
   
-  func sub_conv_c(_ pr: inout PR, _ p: UnsafeRawPointer, _ bufsizex: Int, _ str: inout String?) -> Bool {
-    
-//    var buf = [Character](repeating: "\0", count: 10)
-    var bufsize = bufsizex
+  func sub_conv_c(_ pr: inout PR, _ pIn: UnsafeRawPointer, _ bufsizeIn: Int, _ str: inout String?) -> Bool {
+    var p = pIn
+    var bufsize = bufsizeIn
     
     if pr.mbleft > 0 {
       str = "**"
@@ -69,7 +70,7 @@ extension hexdump {
       return true
     }
     
-    let pp = p.assumingMemoryBound(to: Int8.self).pointee
+    let pp = p.load(as: UInt8.self)
     switch pp {
     case 0:
       str = "\\0"
@@ -100,45 +101,41 @@ extension hexdump {
     }
     
     var converr = false
-    
     var wc: wchar_t = 0
-    //  var clen: Int = 0, oclen: Int = 0
-    //  var pad: Int = 0, width: Int = 0
     var clen = 0
-//    var op: UnsafeMutablePointer<UInt8>? = nil
     
-    
-    converr = false
-    // FIXME: zapped this -- only for wide chars (which is not supported?)
-    
-    if false && odmode && MB_CUR_MAX > 1 {
-      /*
+    if odmode && Int(MB_CUR_MAX) > 1 {
       var oclen = 0
+      var op = p
+      let pk = UnsafeRawPointer(peekbuf)
       
       retry: while true {
-        clen = mbrtowc(&wc, p, bufsize, &pr.mbstate)
+        clen = mbrtowc(&wc, p.assumingMemoryBound(to: CChar.self), bufsize, &pr.mbstate)
         if clen == 0 {
           clen = 1
           break
-        } else if clen == -1 || (clen == -2 && p == peekbuf) {
-          memset(&pr.mbstate, 0, MemoryLayout.size(ofValue: pr.mbstate))
-          if p == peekbuf {
+        } else if clen == -1 || (clen == -2 && p == pk) {
+          // invalid sequence, or incomplete even after looking ahead: treat the byte as itself
+          pr.mbstate = mbstate_t()
+          if p == pk {
             oclen = 0
             p = op
           }
-          wc = wchar_t(p.pointee)
+          wc = wchar_t(p.load(as: UInt8.self))
           clen = 1
           converr = true
           break
         } else if clen == -2 {
+          // incomplete character: look ahead to see if it can be completed
           oclen = bufsize
           op = p
-          bufsize = peek(p: &peekbuf, MB_CUR_MAX)
+          bufsize = peek(peekbuf, Int(MB_CUR_MAX))
+          p = pk
           continue retry
         }
+        break
       }
       clen += oclen
-       */
     } else {
       wc = wchar_t(pp)
       clen = 1
@@ -147,14 +144,14 @@ extension hexdump {
     if !converr && iswprint(wc) != 0 {
       if !odmode {
         pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "c")
-        Swift.print(pr.fmt.cFormat(UInt8(wc) ), terminator: "")
+        _ = withVaList([Int32(wc)]) { vprintf(pr.fmt, $0) }
       } else {
         pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "C")
-        assert(pr.fmt == "%3C")
         let width = Int(wcwidth(wc))
-        assert(width >= 0)
         let pad = max(3 - width, 0)
-        Swift.print("".withCString { "%*s%C".cFormat(pad, $0, wc) } , terminator: "")
+        _ = "".withCString { empty in
+          withVaList([Int32(pad), empty, Int32(bitPattern: UInt32(wc))]) { vprintf("%*s%C", $0) }
+        }
         pr.mbleft = clen - 1
       }
       return false
@@ -170,25 +167,28 @@ extension hexdump {
                 "dle", "dc1", "dc2", "dc3", "dc4", "nak", "syn", "etb",
                 "can",  "em", "sub", "esc",  "fs",  "gs",  "rs",  "us"]
     
+    // printed through stdio so that a byte that is printable in the locale goes out as itself
+    func emit(_ s: String) {
+      s.withCString { cs in
+        _ = withVaList([cs]) { vprintf(pr.fmt, $0) }
+      }
+    }
+    
     if p <= 0x1f {
       pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "s")
-      if odmode && p == 0x0a {
-        Swift.print(pr.fmt.cFormat("nl"), terminator: "")
-      } else {
-        Swift.print(pr.fmt.cFormat(list[Int(p)]), terminator: "")
-      }
+      emit(odmode && p == 0x0a ? "nl" : list[Int(p)])
     } else if p == 0x7f {
       pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "s")
-      Swift.print(pr.fmt.cFormat("del"), terminator: "")
+      emit("del")
     } else if odmode && p == 0x20 {
       pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "s")
-      Swift.print(pr.fmt.cFormat(" sp"), terminator: "")
+      emit(" sp")
     } else if isprint(Int32(p)) != 0 {
       pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "c")
-      Swift.print(pr.fmt.cFormat(p), terminator: "")
+      _ = withVaList([Int32(p)]) { vprintf(pr.fmt, $0) }
     } else {
       pr.fmt.replaceSubrange(pr.cchar...pr.cchar, with: "x")
-      Swift.print(pr.fmt.cFormat(Int(p)), terminator: "")
+      _ = withVaList([Int32(p)]) { vprintf(pr.fmt, $0) }
     }
   }
 }

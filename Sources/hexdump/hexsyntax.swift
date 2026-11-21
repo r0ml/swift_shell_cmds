@@ -76,37 +76,40 @@ extension hexdump {
         try addfile(optarg)
       case "n":
         let oa = optarg
-        if let length = Int(oa) {
-          if length < 0 {
-            errx(1, "\(oa): bad length value")
-          } else {
-            self.length = length
-          }
+        // atoi(3): anything that isn't a leading number counts as 0
+        let length = Int(atoi(oa))
+        if length < 0 {
+          errx(1, "\(oa): bad length value")
         }
+        self.length = length
       case "o":
         add("\"%07.7_Ax\n\"")
         add("\"%07.7_ax \" 8/2 \" %06o \" \"\\n\"")
       case "s":
-        var p : UnsafeMutablePointer<CChar>?
         let oa = optarg
-        var lskip = strtoll(optarg, &p, 0)
+        // the suffix is whatever follows the number, so it has to be read while the C string is alive
+        var (lskip, suffix) : (Int64, Character?) = oa.withCString { cs in
+          var end: UnsafeMutablePointer<CChar>? = nil
+          let v = strtoll(cs, &end, 0)
+          if let end, end.pointee != 0 {
+            return (v, Character(UnicodeScalar(UInt8(bitPattern: end.pointee))))
+          }
+          return (v, nil)
+        }
         if lskip < 0 {
           errx(1, "\(oa): bad skip value")
         }
-        if let p {
-          let pp = Character.from(p.pointee)
-          switch(pp) {
-          case "b":
-            lskip *= 512
-          case "k":
-            lskip *= 1024
-          case "m":
-            lskip *= 1048576
-          case "g":
-            lskip *= 1073741824
-          default:
-            break
-          }
+        switch suffix {
+        case "b":
+          lskip *= 512
+        case "k":
+          lskip *= 1024
+        case "m":
+          lskip *= 1048576
+        case "g":
+          lskip *= 1073741824
+        default:
+          break
         }
         skip = lskip
       case "v":

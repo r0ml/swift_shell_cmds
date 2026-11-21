@@ -78,13 +78,13 @@ let D_TAPE = 1
                                 if (cnt == 1 && pr.nospace) {
                                     fmt = String( pr.fmt.dropLast() )
                                 }
-                                print(fmt: fmt, pr: &pr, bp: bp)
+                                print(fmt: fmt, pr: &pr, bp: UnsafeRawPointer(bp))
                                 //              if (cnt == 1 && pr.nospace != nil) {
                                 //                pr.nospace = savech
                                 //              }
                                 
                                 address += Int64(pr.bcnt)
-                                bp = String(bp.dropFirst(pr.bcnt))
+                                bp = bp.advanced(by: pr.bcnt)
                             }
                         }
                     }
@@ -232,7 +232,7 @@ let D_TAPE = 1
             pr.fmt = String(p3)
         }
         
-      func get(_ opts : inout CommandOptions) throws(CmdErr) -> String? {
+      func get(_ opts : inout CommandOptions) throws(CmdErr) -> UnsafeMutableRawPointer? {
             var n: Int
             //    var need: Int, nread: Int
             var valid_save = false
@@ -240,8 +240,9 @@ let D_TAPE = 1
             
             
             if curp == nil {
-                curp = calloc(1, blocksize)
-                savp = calloc(1, blocksize)
+                // one extra zero byte, so that a %s conversion always finds the end of its string
+                curp = calloc(1, blocksize + 1)
+                savp = calloc(1, blocksize + 1)
             } else {
                 swap(&curp, &savp)
                 //      tmpp = curp
@@ -253,7 +254,11 @@ let D_TAPE = 1
             var need = blocksize
             var nread = 0
             while true {
-              let nn = try next(&opts)
+              // only move to the next file when the current one is exhausted (and never once -n is used up)
+              var nn = false
+              if length != 0 && ateof {
+                nn = try next(&opts)
+              }
                 if (length == 0) || (ateof && !nn) {
                     if odmode && address < skip {
                         errx(1, "cannot skip past end of input")
@@ -269,15 +274,13 @@ let D_TAPE = 1
                     }
                     bzero(curp!.advanced(by: nread), need)
                     eaddress = address + Int64(nread)
-                  let k = curp!.bindMemory(to: UInt8.self, capacity: nread)
-                  let j = UnsafeBufferPointer(start:k, count: nread)
-                  return String(decoding: j, as: Unicode.ASCII.self)
+                    return curp
                 }
                 n = fread(curp!.advanced(by: nread), 1 /* was sizeof(u_char) */,
                           length == -1 ? need : min(length, need), stdin)
                 if n == 0 {
                     if (ferror(stdin) != 0) {
-                        warn(lastFile ?? "(none)")
+                        warn(lastFile ?? "stdin")
                     }
                     ateof = true
                     continue
@@ -292,9 +295,7 @@ let D_TAPE = 1
                     if opts.vflag == .DUP || opts.vflag == .FIRST {
                       opts.vflag = .WAIT
                         }
-                    let k = curp!.bindMemory(to: UInt8.self, capacity: blocksize)
-                    let j = UnsafeBufferPointer(start:k, count: blocksize)
-                    return String(decoding: j, as: Unicode.ASCII.self)
+                    return curp
                     }
                   if opts.vflag == .WAIT {
                         Swift.print("*")
@@ -310,28 +311,30 @@ let D_TAPE = 1
         }
         
         
-        // FIXME: Only used for multibyte mode
-        /*
-         func peek(buf: inout UnsafePointer<u_char>, nbytes: size_t) -> size_t {
-         var n: size_t, nread: size_t
-         var c: Int
-         
-         if length != -1 && nbytes > (unsigned int)length {
-         nbytes = length
-         }
-         nread = 0
-         while nread < nbytes && (c = getchar()) != EOF {
-         buf++ = c
-         nread++
-         }
-         n = nread
-         while n-- > 0 {
-         c = *--buf
-         ungetc(c, stdin)
-         }
-         return nread
-         }
-         */
+        // Only used for multibyte mode: reads up to nbytes ahead from the input and pushes them back,
+        // returning how many there were.
+        func peek(_ buf: UnsafeMutableRawPointer, _ nbytes: Int) -> Int {
+          var nbytes = nbytes
+          let b = buf.assumingMemoryBound(to: UInt8.self)
+          if length != -1 && nbytes > length {
+            nbytes = length
+          }
+          var nread = 0
+          while nread < nbytes {
+            let c = getchar()
+            if c == EOF {
+              break
+            }
+            b[nread] = UInt8(truncatingIfNeeded: c)
+            nread += 1
+          }
+          var n = nread
+          while n > 0 {
+            n -= 1
+            ungetc(Int32(b[n]), stdin)
+          }
+          return nread
+        }
         
         // start reading the next file (argument)
         // if no arguments, read from stdin
@@ -343,17 +346,20 @@ let D_TAPE = 1
               if let aa = opts.args.first {
                     didStdin = true
                     if ((freopen(aa, "r", stdin)) == nil) {
-                        throw CmdErr(1, aa)
-                      opts.args = opts.args.dropFirst()
+                        warn(aa)
+                        exitval = 1
+                        opts.args = opts.args.dropFirst()
                         continue
                     }
                     statok = true
+                    lastFile = aa
                 } else {
                     if didStdin {
                         return false
                     }
                     didStdin = true
                     statok = false
+                    lastFile = "stdin"
                 }
                 
                 if (skip != 0) {
@@ -412,15 +418,16 @@ let D_TAPE = 1
         }
         
         func noseek() {
-            var nc : off_t = 0
-            for count in 0..<skip {
+            // read and discard `skip` bytes (or as many as there are)
+            var count : off_t = 0
+            while count < skip {
                 if getchar() == EOF {
-                    nc = count
                     break
                 }
+                count += 1
             }
-            address += nc
-            skip -= nc
+            address += count
+            skip -= count
         }
         
     }
