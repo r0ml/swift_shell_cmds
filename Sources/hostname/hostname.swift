@@ -77,7 +77,8 @@ import Darwin
   
   func runCommand() throws(CmdErr) {
     if let arg = options.args.first {
-      if sethostname(arg, Int32(arg.count)) != 0 {
+      // the length is in bytes, not characters
+      if sethostname(arg, Int32(arg.utf8.count)) != 0 {
         err(1, "sethostname")
       }
     } else {

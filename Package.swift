@@ -22,7 +22,6 @@
 import PackageDescription
 import Foundation
 
-
 let package = Package(
   name: "shell_cmds",
   platforms: [.macOS(.v15), .iOS(.v18), .macCatalyst(.v18)],
