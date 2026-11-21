@@ -53,33 +53,25 @@ import Darwin
   }
   
   func main() -> Int32 {
-    var args = ArraySlice(CommandLine.arguments).dropFirst()
-    guard args.count >= 1 else {
-      usage()
-      return 1
-    }
-    
+    var args = Array(CommandLine.arguments.dropFirst())
+    guard !args.isEmpty else { usage() }
+
     var numsig = SIGTERM
-    
-    if args.first == "-l" {
+
+    if args[0] == "-l" {
       args.removeFirst()
-      guard args.count < 2 else {
-        usage()
-        return 1
-      }
-      
-      if args.count == 1 {
-        if let x = Int32(args[0]) {
-          numsig = x
-        } else {
-          errx(2, "illegal signal number: \(args[0])")
-        }
-        
+      if args.count > 1 { usage() }
+
+      if let arg = args.first {
+        // only a string that starts with a digit is a signal number (or exit status)
+        guard let c = arg.utf8.first, isASCIIDigit(c) else { usage() }
+        guard let x = parseDecimal(arg) else { errx(2, "illegal signal number: \(arg)") }
+        numsig = Int32(truncatingIfNeeded: x)
         if numsig >= 128 {
           numsig -= 128
         }
-        if (numsig <= 0 || numsig >= sys_nsig) {
-          nosig(args[0])
+        if numsig <= 0 || numsig >= sys_nsig {
+          nosig(arg)
         }
         print_signum(numsig)
         return 0
@@ -87,18 +79,17 @@ import Darwin
       printsignals(FileDescriptor.standardOutput)
       return 0
     }
-    
+
     if args[0] == "-s" {
       args.removeFirst()
-      guard args.isEmpty else {
+      guard let name = args.first else {
         warnx("option requires an argument -- s")
         usage()
-        return 2
       }
-      if args[0] != "0" {
-        numsig = signame_to_signum(args[0])
+      if name != "0" {
+        numsig = signame_to_signum(name)
         if numsig < 0 {
-          nosig(args[0])
+          nosig(name)
         }
       } else {
         numsig = 0
@@ -106,69 +97,79 @@ import Darwin
       args.removeFirst()
     } else if args[0].hasPrefix("-") && !args[0].dropFirst().hasPrefix("-") {
       let jj = String(args[0].dropFirst())
-      let k = jj.first
-      if let k, k.isLetter {
+      if let c = jj.utf8.first, isASCIIAlpha(c) {
         numsig = signame_to_signum(jj)
         if numsig < 0 {
           nosig(jj)
         }
-      } else if let k, k.isNumber {
-        if let x = Int32(jj) {
-          numsig = x
-        } else {
-          errx(2, "illegal signal number: \(jj)")
-          return 2
-        }
+      } else if let c = jj.utf8.first, isASCIIDigit(c) {
+        guard let x = parseDecimal(jj) else { errx(2, "illegal signal number: \(jj)") }
+        // the system truncates the long to an int
+        numsig = Int32(truncatingIfNeeded: x)
         if numsig < 0 {
           nosig(jj)
-          return 2
         }
       } else {
         nosig(jj)
-        return 2
       }
+      args.removeFirst()
     }
-    
+
     if args.first == "--" {
       args.removeFirst()
     }
-    
-    if args.count == 0 {
+
+    if args.isEmpty {
       usage()
-      return 2
     }
-    
+
     var errors : Int32 = 0
-    var ret : Int32 = 0
-    
+
     for arg in args {
       #if SHELL
+      var ret : Int32
       if arg == "%" {
         ret = killjob(arg, numsig)
       } else {
-        if let pidl = pid_t(arg) {
-          ret = kill(pidl, numsig)
-        } else {
-          errx(2, "illegal process id: \(arg)")
-        }
+        guard let pidl = parsePid(arg) else { errx(2, "illegal process id: \(arg)") }
+        ret = kill(pidl, numsig)
       }
       #else
-      if let pidl = pid_t(arg) {
-        ret = kill(pidl, numsig)
-      } else {
-        errx(2, "illegal process id: \(arg)")
-      }
-#endif
+      guard let pidl = parsePid(arg) else { errx(2, "illegal process id: \(arg)") }
+      let ret = kill(pidl, numsig)
+      #endif
 
       if ret == -1 {
         warn(arg)
         errors = 1
       }
     }
-    
+
     return errors
   }
-    
+
+  func isASCIIDigit(_ c: UInt8) -> Bool { c >= 0x30 && c <= 0x39 }
+  func isASCIIAlpha(_ c: UInt8) -> Bool { (c | 0x20) >= 0x61 && (c | 0x20) <= 0x7a }
+
+  /// A non-negative decimal integer that uses every character of `s`, or nil.  Values too large for Int saturate.
+  func parseDecimal(_ s: String) -> Int? {
+    guard !s.isEmpty, s.utf8.allSatisfy(isASCIIDigit) else { return nil }
+    return Int(s) ?? Int.max
+  }
+
+  /// Accepts what strtol(3) does for base 10 (leading white space, a sign, digits) and that the value fits in a pid_t.
+  func parsePid(_ s: String) -> pid_t? {
+    var u = Substring(s).utf8.drop { $0 == 0x20 || ($0 >= 0x09 && $0 <= 0x0d) }
+    var negative = false
+    if let c = u.first, c == 0x2b || c == 0x2d {
+      negative = c == 0x2d
+      u = u.dropFirst()
+    }
+    guard !u.isEmpty, u.allSatisfy(isASCIIDigit) else { return nil }
+    guard let magnitude = Int(String(Substring(u))) else { return nil }
+    return pid_t(exactly: negative ? -magnitude : magnitude)
+  }
+
   func swiftify_signames() -> [String] {
     return withUnsafePointer(to: sys_signame) { p in
       let j = MemoryLayout.size(ofValue: sys_signame)
@@ -183,43 +184,56 @@ import Darwin
       return ss
     }
   }
-  
+
   func print_signum(_ numsig: Int32) {
-    
-    var signame = signames[Int(numsig)]
-    signame = signame.uppercased()
-    print("\(signame)")
+    print(signames[Int(numsig)].uppercased())
   }
-  
-  
+
   func signame_to_signum(_ s : String) -> Int32 {
-    var sig = Substring(s)
-    if s.uppercased().hasPrefix("SIG") { sig = s.dropFirst(3) }
-    let k = 1 + (signames.dropFirst().firstIndex(of: String(sig) ) ?? -2)
-    return Int32(k)
+    var sig = s.uppercased()
+    if sig.hasPrefix("SIG") { sig = String(sig.dropFirst(3)) }
+    for n in 1..<Int(sys_nsig) where signames[n].uppercased() == sig {
+      return Int32(n)
+    }
+    return -1
   }
-  
-  func nosig(_ s : String) {
+
+  func nosig(_ s : String) -> Never {
     warnx("unknown signal \(s); valid signals:")
     printsignals(FileDescriptor.standardError)
+    exit(2)
   }
-  
+
+  /// Writes the signal names, starting a new line once the current one is longer than 70 characters.
   func printsignals(_ fpx : FileDescriptor) {
     var fp = fpx
-    print(signames.dropFirst().joined(separator: " ").uppercased(), to: &fp)
+    var line = ""
+    var width = 0
+    for n in 1..<Int(sys_nsig) {
+      let name = signames[n].uppercased()
+      line += name
+      width += name.count
+      if n == Int(sys_nsig) - 1 {
+        break
+      } else if width > 70 {
+        line += "\n"
+        width = 0
+      } else {
+        line += " "
+        width += 1
+      }
+    }
+    print(line, to: &fp)
   }
-  
-  func usage() {
+
+  func usage() -> Never {
+    var fp = FileDescriptor.standardError
     print("""
     usage: kill [-s signal_name] pid ...
            kill -l [exit_status]
            kill -signal_name pid ...
            kill -signal_number pid ...
-    """)
-    #if SHELL
-    error(NULL)
-    #else
+    """, to: &fp)
     exit(2)
-    #endif
   }
 }
