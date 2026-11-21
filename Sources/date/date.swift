@@ -455,7 +455,7 @@ import Darwin
       Darwin.gettimeofday(&utx.ut_tv, nil)
       Darwin.pututxline(&utx)
 
-      var ll = userName
+      let ll = userName
 
       // FIXME: is this right?
       ll.withCString {  withVaList([$0]) { Darwin.vsyslog(LOG_NOTICE, "date set by %s", $0 )  } }

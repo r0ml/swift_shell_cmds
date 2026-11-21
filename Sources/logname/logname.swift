@@ -48,7 +48,7 @@ import CMigration
   }
 
   func runCommand() async throws(CmdErr) {
-    var p = userName
+    let p = userName
     print(p)
   }
   

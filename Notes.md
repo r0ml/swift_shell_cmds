@@ -1,5 +1,6 @@
 env needs a fix to DarwinProcess to pass all tests (related to character encoding)
 
+jot no longer uses random -- so specifying a seed does nothing; but seed specification is still allowed and checked.
 
 1 - mktempTest creates directories in the project directory.  This should be modernized to the /tmp support in `ShellTest`
 

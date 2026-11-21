@@ -59,7 +59,7 @@ import CMigration
       out.append(0x0A)
     }
 
-    try? FileDescriptor.standardOutput.writeAll(out)
+    let _ = try? FileDescriptor.standardOutput.writeAll(out)
   }
 
   /// Appends the bytes for one operand.  Returns false if `\c` was encountered.

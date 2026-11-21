@@ -37,6 +37,9 @@ import CMigration
 
 import Darwin
 
+/// The size of the buffer that holds the format word (BUFSIZ), terminator included
+let FORMAT_SIZE = 1024
+
 /* Defaults */
 let BEGIN_DEF : Double = 1
 let ENDER_DEF : Double = 100
@@ -107,6 +110,10 @@ let HAVE_REPS = 8
           opts.boring = true
         fallthrough
       case "w":
+          // the format lives in a buffer of BUFSIZ (1024) bytes
+          if optarg.utf8.count >= FORMAT_SIZE {
+            errx(1, "-\(ch) word too long")
+          }
           opts.format = optarg
           opts.haveFormat = true
       case "c":
@@ -114,10 +121,12 @@ let HAVE_REPS = 8
       case "n":
           opts.nofinalnl = true
       case "p":
-          guard let op = UInt(optarg) else {
-          errx(1, "bad precision value")
-        }
-          opts.prec = Int(op)
+          // atoi(3): a leading number, and anything else counts as 0
+          let p = Int(atoi(optarg))
+          if p < 0 {
+            errx(1, "bad precision value")
+          }
+          opts.prec = p
           opts.haveFormat = true
       case "r":
           opts.randomize = true
@@ -157,7 +166,7 @@ let HAVE_REPS = 8
           return r
         }
         if z == 0 {
-          ender = Double(String(opts.args[2].last!.asciiValue!))!
+          ender = lastByte(opts.args[2])
         }
           opts.mask |= HAVE_ENDER
         if opts.prec < 0 {
@@ -174,7 +183,7 @@ let HAVE_REPS = 8
           return r
         }
         if z == 0 {
-          begin = Double(String(opts.args[1].last!.asciiValue!))!
+          begin = lastByte(opts.args[1])
         }
           opts.mask |= HAVE_BEGIN
         if opts.prec < 0 {
@@ -228,7 +237,7 @@ let HAVE_REPS = 8
         } else if s == 0.0 {
           reps = 0
         } else {
-          reps = Int((ender - begin + s) / s)
+          reps = cLong((ender - begin + s) / s)
         }
         if reps <= 0 {
           errx(1, "impossible stepsize")
@@ -271,7 +280,7 @@ let HAVE_REPS = 8
           opts.mask = 0
       case HAVE_REPS | HAVE_BEGIN | HAVE_ENDER | HAVE_STEP:
           if !opts.randomize && s != 0.0 {
-          let t = Int((ender - begin + s) / s)
+          let t = cLong((ender - begin + s) / s)
           if t <= 0 {
             errx(1, "impossible stepsize")
           }
@@ -288,12 +297,9 @@ let HAVE_REPS = 8
       opts.infinity = true
     }
     if opts.randomize {
-      if opts.useRandom {
-        srandom(UInt32(s))
-        divisor = Double(Int32.max) + 1
-      } else {
-        divisor = Double(UInt32.max) + 1
-      }
+      // The random numbers come from arc4random, which can't be seeded, so a seed (the last argument)
+      // is accepted but has no effect.
+      divisor = Double(UInt32.max) + 1
       
       if !opts.haveFormat && opts.prec == 0 && begin >= 0 && begin < divisor && ender >= 0 && ender < divisor {
         if begin <= ender {
@@ -307,176 +313,242 @@ let HAVE_REPS = 8
       }
       options = opts
       x = ender - begin
-      for i in 1...reps {
-        if opts.useRandom {
-          // FIXME: can i get random in swift?
-          //         y = Double(random()) / divisor
-          y = Double(arc4random()) / divisor
-        } else {
-          y = Double(arc4random()) / divisor
-        }
-        if (putdata(y * x + begin, ((reps - i) == 0)) != 0) {
+      var i = 1
+      while i <= reps || opts.infinity {
+        y = Double(arc4random()) / divisor
+        if (putdata(y * x + begin, (reps - i == 0) && !opts.infinity) != 0) {
           errx(1, "range error in conversion")
         }
+        i += 1
       }
     } else {
       x = begin
-      for i in 1...reps {
-        if (putdata(x, ((reps - i) == 0)) != 0) {
+      var i = 1
+      while i <= reps || opts.infinity {
+        if (putdata(x, (reps - i == 0) && !opts.infinity) != 0) {
           errx(1, "range error in conversion")
         }
         x += s
+        i += 1
       }
     }
     if !opts.nofinalnl {
       print("")
     }
   }
+  
+  // The conversions below are those of a C cast from double: they saturate instead of trapping, and a
+  // NaN becomes 0.
+  func cLong(_ d: Double) -> Int {
+    if d.isNaN { return 0 }
+    if d >= 9.223372036854775807e18 { return Int.max }
+    if d <= -9.223372036854775808e18 { return Int.min }
+    return Int(d)
+  }
+  
+  func cULong(_ d: Double) -> UInt {
+    if d.isNaN || d <= 0 { return 0 }
+    if d >= 1.8446744073709552e19 { return UInt.max }
+    return UInt(d)
+  }
+  
+  func cInt(_ d: Double) -> Int32 {
+    if d.isNaN { return 0 }
+    return d >= Double(Int32.max) ? Int32.max : d <= Double(Int32.min) ? Int32.min : Int32(d)
+  }
+  
+  func cUInt(_ d: Double) -> UInt32 {
+    if d.isNaN || d <= 0 { return 0 }
+    return d >= Double(UInt32.max) ? UInt32.max : UInt32(d)
+  }
+  
+  /// The value of the last byte of an argument, as a signed char (used when a limit is a character)
+  func lastByte(_ s: String) -> Double {
+    Double(Int8(bitPattern: s.utf8.last ?? 0))
+  }
     
   func putdata(_ x: Double, _ last: Bool) -> Int {
+    let fmt = options.format
     if options.boring {
-        print(options.format, terminator: "")
-      } else if options.longdata && options.nosign {
-        if x <= Double(UInt.max) && x >= 0 {
-          print(options.format.cFormat(UInt(x)), terminator: "")
-        } else {
-          return 1
-        }
-      } else if options.longdata {
-        if x <= Double(Int.max) && x >= Double(Int.min) {
-          let _ = withVaList([Int(x)]) {
-            vprintf(options.format, $0)
-          }
-//          print(String(format: format, Int(x)), terminator: "")
-        } else {
-          return 1
-        }
-      } else if options.chardata || (options.intdata && !options.nosign) {
-        if x <= Double(Int32.max) && x >= Double(Int32.min) {
-            let _ = withVaList([Int(x)]) {
-              vprintf(options.format, $0)
-            }
-//          } else {
-//            print(String(format: format, Int(x)), terminator: "")
-//          }
-        } else {
-          return 1
-        }
-      } else if options.intdata {
-        if x <= Double(UInt32.max) && x >= 0 {
-          print(options.format.cFormat(UInt(x)), terminator: "")
-        } else {
-          return 1
-        }
+      _ = withVaList([]) { vprintf(fmt.replacing("%", with: "%%"), $0) }
+    } else if options.longdata && options.nosign {
+      if x <= Double(UInt.max) && x >= 0 {
+        _ = withVaList([cULong(x)]) { vprintf(fmt, $0) }
       } else {
-        print(options.format.cFormat(x), terminator: "")
+        return 1
       }
-      if !last {
-        print(options.sepstring, terminator: "")
+    } else if options.longdata {
+      if x <= Double(Int.max) && x >= Double(Int.min) {
+        _ = withVaList([cLong(x)]) { vprintf(fmt, $0) }
+      } else {
+        return 1
       }
-      
-      return 0
+    } else if options.chardata || (options.intdata && !options.nosign) {
+      if x <= Double(Int32.max) && x >= Double(Int32.min) {
+        _ = withVaList([cInt(x)]) { vprintf(fmt, $0) }
+      } else {
+        return 1
+      }
+    } else if options.intdata {
+      if x <= Double(UInt32.max) && x >= 0 {
+        _ = withVaList([cUInt(x)]) { vprintf(fmt, $0) }
+      } else {
+        return 1
+      }
+    } else {
+      _ = withVaList([x]) { vprintf(fmt, $0) }
     }
+    if !last {
+      fputs(options.sepstring, stdout)
+    }
+    
+    return 0
+  }
   
   var usage = "usage: jot [-cnr] [-b word] [-w word] [-s string] [-p precision] [reps [begin [end [s]]]]"
   
   func getprec(_ str: String) -> Int {
-    guard let decimalPointIndex = str.firstIndex(of: ".") else {
+    guard let dot = str.firstIndex(of: ".") else {
       return 0
     }
-    let decimalPart = str[decimalPointIndex...]
-    return decimalPart.count-1
+    // only the digits that follow the point count
+    return str[str.index(after: dot)...].prefix { $0.isASCII && $0.isNumber }.count
   }
   
   func getformat(_ opts : inout CommandOptions) {
-//    var xformat = Substring(format)
-    var dot = 0, hash = 0, space = 0, sign = 0, numbers = 0
-//    let sz = MemoryLayout.size(ofValue: format) - strlen(format) - 1
-    
     if opts.boring { return }
     
-    let j = /(^(?:[^%]|%%)*)%(.*$)/
-    let pp = try! j.firstMatch(in: opts.format)
+    let f = Array(opts.format)
     
-      if pp == nil {
-        if !opts.chardata {
-          opts.format.append("%.\(opts.prec)f")
+    // look for a '%' that is not part of '%%'
+    var p = 0
+    while p < f.count {
+      if f[p] == "%" {
+        if p + 1 < f.count && f[p + 1] == "%" {
+          p += 1                      // leave %% alone
         } else {
-          opts.format.append("%c")
-          opts.intdata = true
-        }
-      } else if pp!.2.isEmpty {
-        opts.format.append("%") // cannot end in single %
-      } else {
-        let p2 = pp!.output.2 // the only reason for p2 is for error reporting
-        var p = p2
-        while let pf = p.first, let pfa = pf.asciiValue, (isalpha(Int32(pfa)) == 0) {
-          if (isdigit(Int32(pfa)) != 0) {
-            numbers += 1
-            p.removeFirst()
-          } else if (pf == "#" && ((numbers | dot | sign | space | hash) == 0)) ||
-                      (pf == " " && ((numbers | dot | space) == 0)) ||
-                      ((pf == "+" || pf == "-") && ((numbers | dot | sign) == 0)) ||
-                      (pf == "." && ((dot) == 0)) {
-            p.removeFirst()
-          } else {
-            break
-          }
-        }
-        if p.first == "l" {
-          opts.longdata = true
-          if p.dropFirst().first == "l" {
-            if p.count != 2 {
-              p.removeFirst()
-            }
-            errx(1, "illegal or unsupported format '%\(p2.dropLast(p.count))'")
-          }
-        }
-        switch p.first {
-        case "o", "u", "x", "X":
-            opts.intdata = true
-            opts.nosign = true
-        case "d", "i":
-            opts.intdata = true
-        case "D":
-            if !opts.longdata {
-            opts.intdata = true
-            break
-          }
-        case "O", "U":
-            if !opts.longdata {
-              opts.intdata = true
-              opts.nosign = true
-            break
-          }
-        case "c":
-            if !(opts.intdata || opts.longdata) {
-              opts.chardata = true
-            break
-          }
-        case "h", "n", "p", "q", "s", "L", "$", "*":
           break
-        case "f", "e", "g", "E", "G":
-            if !opts.longdata {
-            break
-          }
-        default:
-          p.removeFirst()
-          errx(1, "illegal or unsupported format '$\(p2.dropLast(p.count))'")
-        }
-        
-        p.removeFirst()
-        while let np = p.first {
-          p.removeFirst()
-          if np == "%" && !p.isEmpty && p.first != "%" {
-            errx(1, "too many conversions")
-          } else if np == "%" && p.first == "%" {
-            p.removeFirst()
-          } else if np == "%" && p.first == nil {
-            opts.format.append("%")
-            break
-          }
         }
       }
+      p += 1
     }
+    
+    // room left in the format buffer after the format word and its terminator
+    let room = FORMAT_SIZE - opts.format.utf8.count - 1
+    
+    if p >= f.count && !opts.chardata {
+      let conversion = "%.\(opts.prec)f"
+      if conversion.utf8.count >= room {
+        errx(1, "-w word too long")
+      }
+      opts.format.append(conversion)
+    } else if p >= f.count && opts.chardata {
+      if 2 >= room {
+        errx(1, "-w word too long")
+      }
+      opts.format.append("%c")
+      opts.intdata = true
+    } else if p + 1 >= f.count {
+      if room <= 0 {
+        errx(1, "-w word too long")
+      }
+      opts.format.append("%")         // cannot end in single %
+    } else {
+      /*
+       * Allow conversion format specifiers of the form
+       * %[#][ ][{+,-}][0-9]*[.[0-9]*]? where ? must be one of
+       * [l]{d,i,o,u,x} or {f,e,g,E,G,d,o,x,D,O,U,X,c,u}
+       */
+      func broken(_ at: Int) -> Never {
+        let last = min(at, f.count - 1)
+        errx(1, "illegal or unsupported format '\(String(f[p...last]))'")
+      }
+      
+      var q = p + 1
+      var dot = 0, hash = 0, space = 0, sign = 0, numbers = 0
+      while q >= f.count || !(f[q].isASCII && f[q].isLetter) {
+        if q >= f.count {
+          broken(q)
+        }
+        let c = f[q]
+        if c.isASCII && c.isNumber {
+          numbers += 1
+          q += 1
+        } else if c == "#" && (numbers | dot | sign | space | hash) == 0 {
+          hash += 1
+          q += 1
+        } else if c == " " && (numbers | dot | space) == 0 {
+          space += 1
+          q += 1
+        } else if (c == "+" || c == "-") && (numbers | dot | sign) == 0 {
+          sign += 1
+          q += 1
+        } else if c == "." && dot == 0 {
+          dot += 1
+          q += 1
+        } else {
+          broken(q)
+        }
+      }
+      
+      if f[q] == "l" {
+        opts.longdata = true
+        q += 1
+        if q < f.count && f[q] == "l" {
+          broken(q)
+        }
+      }
+      
+      let conversion: Character? = q < f.count ? f[q] : nil
+      switch conversion {
+      case "o", "u", "x", "X":
+        opts.intdata = true
+        opts.nosign = true
+      case "d", "i":
+        opts.intdata = true
+      case "D":
+        if !opts.longdata {
+          opts.intdata = true
+        } else {
+          broken(q)
+        }
+      case "O", "U":
+        if !opts.longdata {
+          opts.intdata = true
+          opts.nosign = true
+        } else {
+          broken(q)
+        }
+      case "c":
+        if !(opts.intdata || opts.longdata) {
+          opts.chardata = true
+        } else {
+          broken(q)
+        }
+      case "f", "e", "g", "E", "G":
+        if opts.longdata {
+          broken(q)
+        }
+      default:
+        // includes h n p q s L $ *
+        broken(q)
+      }
+      
+      q += 1
+      while q < f.count {
+        if f[q] == "%" && q + 1 < f.count && f[q + 1] != "%" {
+          errx(1, "too many conversions")
+        } else if f[q] == "%" && q + 1 < f.count && f[q + 1] == "%" {
+          q += 1
+        } else if f[q] == "%" && q + 1 >= f.count {
+          if opts.format.utf8.count + 1 >= FORMAT_SIZE {
+            errx(1, "-w word too long")
+          }
+          opts.format.append("%")
+          break
+        }
+        q += 1
+      }
+    }
+  }
 }
