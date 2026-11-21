@@ -75,15 +75,16 @@ import Darwin
     if let mm = myname.lastIndex(of: "/") {
       myname = String(myname.suffix(from: mm).dropFirst())
     }
+    // run under the names groups and whoami, this is the equivalent of "id -Gn" and "id -un"
     if myname == "groups" {
       isgroups = true
-      opts.Gflag = false
-      opts.nflag = false
+      opts.Gflag = true
+      opts.nflag = true
     }
     else if myname == "whoami" {
       iswhoami = true
-      opts.uflag = false
-      opts.nflag = false
+      opts.uflag = true
+      opts.nflag = true
     }
     
     let go = BSDGetopt((isgroups || iswhoami) ? "" : optstring )
@@ -301,21 +302,7 @@ import Darwin
 
     var groups : [Int]?
     if (ugg && pw != nil) {
-
-      // FIXME: was getgrouplist_2
-      // 5235093
-      //        ngroups = getgrouplist_2(pw.pw_name, gid, &groups);
-      groups = withUnsafeTemporaryAllocation(of: gid_t.self, capacity: ngroups_max) { p in
-        
-        var ngroups = Int32(ngroups_max)
-        getgrouplist(pw!.name, Int32(bitPattern: UInt32(pw!.groupId) ), p.baseAddress!, &ngroups)
-
-        var res = Array(repeating: 0, count: Int(ngroups))
-        for i in 0..<res.count {
-          res[i]=Int(p[i])
-        }
-        return res
-      }
+      groups = groupList(name: pw!.name, gid: pw!.groupId)
     }
     else {
       // ngroups = getgroups(Int32(ngroups_max), groups);
@@ -447,21 +434,7 @@ termid_addr.addr[3]=0x%08x
 
     if let pw {
 
-      // 5235093
-      let ngroups_max = Sysconf.scNgroupsMax + 1
-
-      groups = withUnsafeTemporaryAllocation(of: gid_t.self, capacity: ngroups_max) { p in
-        // FIXME: was getgrouplist_2
-        //          let ngroups = getgrouplist_2(pw.pw_name, pw.pw_gid, p)
-        var ngroups = Int32(ngroups_max)
-        getgrouplist(pw.name, Int32(pw.groupId), p.baseAddress!, &ngroups)
-
-        var res = Array(repeating: 0, count: Int(ngroups))
-        for i in 0..<res.count {
-          res[i]=Int(p[i])
-        }
-        return res
-      }
+      groups = groupList(name: pw.name, gid: pw.groupId)
     } else {
       let ngroups_max = Sysconf.scNgroupsMax + 1
       //        if ((groups = malloc(sizeof(gid_t) * (ngroups_max))) == NULL)
@@ -485,7 +458,7 @@ termid_addr.addr[3]=0x%08x
       }
       if nflag {
         if let gr = getGroupEntry(of: id) {
-          print("\(first ? "" : " ")\(gr.name))", terminator: "");
+          print("\(first ? "" : " ")\(gr.name)", terminator: "");
         }
         else {
           print("\(first ? "" : " ")\(id)", terminator: "")
@@ -510,10 +483,14 @@ termid_addr.addr[3]=0x%08x
     if let pw = getPasswd(for: u) {
       return pw
     }
-    if let id = Int(u) {
-      if let pw = getPasswd(of: Int(id) ) {
-        return pw
-      }
+    // like strtoul(3): a leading space or sign is allowed, and the number is cut down to the size of a uid_t
+    let number: UInt? = u.isEmpty ? nil : u.withCString { cs in
+      var end: UnsafeMutablePointer<CChar>? = nil
+      let v = strtoul(cs, &end, 10)
+      return (end?.pointee == 0) ? v : nil
+    }
+    if let number, let pw = getPasswd(of: Int(UInt32(truncatingIfNeeded: number))) {
+      return pw
     }
     throw CmdErr(1, "\(u): no such user")
   }
@@ -523,12 +500,32 @@ termid_addr.addr[3]=0x%08x
     if pw == nil {
       pw = getPasswd(of: userId)
     }
-    if let pw {
-      print("\(pw.name):pw_passwd:\(pw.userId):\(pw.groupId):class:change:expire:gecos:\(pw.home):\(pw.shell)")
-    } else {
-      throw CmdErr(1, "getpwuid");
+    guard let pw, let e = getpwnam(pw.name) else {
+      throw CmdErr(1, "getpwuid")
     }
-
+    // the ids are printed as signed numbers, so an id such as "nobody" (-2) shows up as -2
+    func field(_ p: UnsafeMutablePointer<CChar>?) -> String {
+      p.map { String(cString: $0) } ?? ""
+    }
+    let p = e.pointee
+    print("\(field(p.pw_name)):\(field(p.pw_passwd)):\(Int32(bitPattern: p.pw_uid)):\(Int32(bitPattern: p.pw_gid)):\(field(p.pw_class)):\(p.pw_change):\(p.pw_expire):\(field(p.pw_gecos)):\(field(p.pw_dir)):\(field(p.pw_shell))")
+  }
+  
+  /// The group ids of `name` (whose own group is `gid`), however many there are: the buffer grows until the
+  /// list fits.
+  func groupList(name: String, gid: Int) -> [Int] {
+    var capacity = 64
+    while true {
+      var buf = [Int32](repeating: 0, count: capacity)
+      var n = Int32(capacity)
+      if getgrouplist(name, Int32(truncatingIfNeeded: gid), &buf, &n) >= 0 {
+        return buf.prefix(Int(n)).map { Int(UInt32(bitPattern: $0)) }
+      }
+      if capacity >= 1 << 20 {
+        return []
+      }
+      capacity *= 2
+    }
   }
   
   var usage : String { get {
@@ -538,27 +535,19 @@ termid_addr.addr[3]=0x%08x
     else if (iswhoami) {
       return "usage: whoami"
     } else {
-      //        print("%s\n%s%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-      var a = "usage: id [user]"
+      // the blank line is where the original lists an option that this system doesn't have
+      return """
+usage: id [user]
+       id -A
+       id -F [user]
+       id -G [-n] [user]
 
-      a.append("       id -A")
-
-      a.append("       id -F [user]")
-      a.append("       id -G [-n] [user]")
-      
-      a.append("       id -M")
-      a.append("       id -P [user]")
-      
-      a.append("       id -c")
-      a.append("""
-id -g [-nr] [user]
-id -p [user]
+       id -P [user]
+       id -g [-nr] [user]
+       id -p [user]
        id -u [-nr] [user]
 """
-      )
-      return a
     }
   }
-    
   }
 }
