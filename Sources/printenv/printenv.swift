@@ -32,14 +32,66 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
 import CMigration
 
-@main class printenv {
-  static func main() {
-    let env = Environment.getenv().sorted(by:  { $0.0 < $1.0 })
-    for (key, value) in env {
-      print("\(key)=\(value)")
+import Darwin
+
+@main struct printenv : ShellCommand {
+  var options: CommandOptions!
+  
+  /// The entries of the environment the process was started with.  (The runtime adds some of its own, such as
+  /// __CF_USER_TEXT_ENCODING, if they aren't there; those live in malloc'd memory, but what the process was
+  /// given is on the stack, above the first argument.)
+
+  struct CommandOptions {
+    var args : [String] = []
+  }
+
+  func originalEntries() -> [UnsafeMutablePointer<CChar>] {
+    var found = [UnsafeMutablePointer<CChar>]()
+    let firstArgument = CommandLine.unsafeArgv[0].map { UnsafeRawPointer($0) }
+    var entry = environ
+    while let e = entry.pointee {
+      if firstArgument == nil || UnsafeRawPointer(e) >= firstArgument! {
+        found.append(e)
+      }
+      entry += 1
+    }
+    return found
+  }
+
+  func parseOptions() async throws(CmdErr) -> CommandOptions {
+    // there are no options
+    var opts = CommandOptions()
+    let go = BSDGetopt("")
+    if (try go.getopt()) != nil {
+        throw CmdErr(1)
+    }
+    opts.args = go.remaining
+    return opts
+  }
+  
+  func runCommand() async throws(CmdErr) {
+    let entries = originalEntries()
+    if let name = options.args.first {
+      // only the value is printed, and the first entry with that name is the one
+      let wanted = Array(name.utf8)
+      for e in entries {
+        let length = strlen(e)
+        let bytes = UnsafeBufferPointer(start: UnsafeRawPointer(e).assumingMemoryBound(to: UInt8.self), count: length)
+        if length > wanted.count && bytes[wanted.count] == UInt8(ascii: "=") && bytes.starts(with: wanted) {
+          puts(e + wanted.count + 1)
+          return
+        }
+      }
+      exit(1)
+    }
+
+    // every entry as it is in the environment (which isn't sorted, and needn't be text)
+    for e in entries {
+      puts(e)
     }
   }
+
+  let usage = "usage: printenv [name]"
 }
