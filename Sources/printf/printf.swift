@@ -36,458 +36,604 @@
  * SUCH DAMAGE.
  */
 
+
 import CMigration
 
-import ICU
+import Darwin
 
-
-@main class printf : ShellCommand {
+/// A port of the printf utility: the format is processed as bytes (arguments needn't be valid UTF-8), and each
+/// conversion is handed to the C library's formatting, which is what makes the results match the system's.
+@main final class printf : ShellCommand {
 
   struct CommandOptions {
-    var args : ArraySlice<String> = []
+    /// the format followed by its arguments, as the raw bytes that were passed
+    var args : [[UInt8]] = []
   }
 
   var options : CommandOptions!
 
-  var mapping : [Character : Int] = [:]
+  let usage = "usage: printf format [arguments ...]"
 
-  required init() {
-    mapping = buildISOLatin1Mapping()
-  }
+  required init() {}
+
+  // MARK: state of a run
+
+  /// The format and then its arguments.
+  var argv : [[UInt8]] = []
+  /// The argument that the next conversion takes (an index past the end means "none left").
+  var gargv = 1
+  /// Where the arguments for this use of the format start: n$ counts from here.
+  var base = 1
+  /// How far into the arguments this use of the format has got.
+  var maxargv = 1
+  /// Becomes 1 when an argument couldn't be converted: the exit status.
+  var rval = 0
+  var output : [UInt8] = []
 
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
 
     let go = BSDGetopt("")
-    while let (ch, _) = try go.getopt() {
-      switch ch {
-      case "?":
-        fallthrough
-      default:
+    if (try go.getopt()) != nil {
+      throw CmdErr(1)
+    }
+
+    // the arguments as they were passed, which need not be text: they are the last ones on the command line
+    let count = go.remaining.count
+    if count < 1 {
+      throw CmdErr(1)
+    }
+    let all = CommandLine.argc
+    for i in (Int(all) - count)..<Int(all) {
+      if let p = CommandLine.unsafeArgv[i] {
+        opts.args.append(Array(UnsafeBufferPointer(start: UnsafeRawPointer(p).assumingMemoryBound(to: UInt8.self), count: strlen(p))))
+      }
+    }
+    return opts
+  }
+
+  func runCommand() throws(CmdErr) {
+    argv = options.args
+    var format = argv[0]
+    gargv = 1
+
+    _ = escape(&format, percent: true)   // backslash interpretation
+
+    var ended = false
+    while true {
+      base = gargv
+      maxargv = gargv
+      var conversions = false
+
+      var i = 0
+      while i < format.count {
+        if format[i] == UInt8(ascii: "%") {
+          if i + 1 < format.count && format[i + 1] == UInt8(ascii: "%") {
+            // %% prints a %
+            output.append(UInt8(ascii: "%"))
+            i += 2
+          } else {
+            guard let next = doformat(format, at: i) else {
+              flush()
+              throw CmdErr(1)
+            }
+            if next == endFormat {
+              ended = true
+              break
+            }
+            conversions = true
+            i = next
+          }
+        } else {
+          output.append(format[i])
+          i += 1
+        }
+      }
+      if ended {
+        break
+      }
+      gargv = maxargv
+      // the format is used again as long as there are arguments left
+      if gargv >= argv.count {
+        break
+      }
+      if !conversions {
+        // (the system utility gets as far as the last %% of the format before it notices that nothing uses the arguments)
+        if let last = lastDoublePercent(format) {
+          output += prefixOutput(format, upTo: last + 2)
+        }
+        warn("missing format character")
+        flush()
         throw CmdErr(1)
       }
     }
 
-    opts.args = ArraySlice(go.remaining)
-    
-    if opts.args.count < 1 {
-      throw CmdErr(1)
-    }
-    
-    return opts
-  }
-  
-  func runCommand() throws(CmdErr) {
-    var opts = options!
-    
-    let (_, format) = escape(opts.args.removeFirst(), 1) // backslash interpretation
-
-    while true {
-      var maxargv = opts.args
-
-      // Restart at the beginning of the format string.
-      var fmt = Substring(format)
-      var end = false
-      var start = String(fmt)
-
-      while !fmt.isEmpty {
-        
-        if fmt.first == "%" {
-          print(start.prefix(start.count-fmt.count), terminator: "")
-          if fmt.dropFirst().first == "%" {
-            // %% prints a %
-            print("%", terminator: "")
-            fmt = fmt.dropFirst(2)
-          } else {
-            let fmtx = try printf_doformat(String(fmt), &opts)
-            if let fmtx, fmtx != end_fmt {
-              fmt = Substring(fmtx)
-            }
-            end = false
-          }
-          start = String(fmt)
-        } else {
-          fmt.removeFirst()
-        }
-        if opts.args.count < maxargv.count {
-          maxargv = opts.args
-        }
-      }
-      opts.args = maxargv
-      
-      if end {
-        throw CmdErr(1, "missing format character")
-      }
-      print(start, terminator: "")
-      if opts.args.isEmpty { return }
-      end = true
+    flush()
+    if rval != 0 {
+      throw CmdErr(rval)
     }
   }
-    
-  let end_fmt = "end"
 
-  /// implement the formatting following a %
-  func printf_doformat(_ fmt: String /* , _ rval: inout Int */, _ opts : inout CommandOptions) throws(CmdErr) -> String? {
-
-    let skip1 = "#'-+ 0"
-    var fieldwidth: Int = 0
-    var haveprec: Bool = false
-    var havewidth: Bool = false
-    var precision: Int = 0
-    var fargv: ArraySlice<String>?
-    
-    func PF(_ f : String, _ _func: CVarArg) {
-      if havewidth {
-        if haveprec {
-          print(f.cFormat(fieldwidth, precision, _func), terminator: "")
-        } else {
-          print(f.cFormat(fieldwidth, _func), terminator: "")
-        }
-      } else if haveprec {
-        print(f.cFormat(precision, _func), terminator: "")
+  /// Where the last `%%` of the format is.
+  func lastDoublePercent(_ format: [UInt8]) -> Int? {
+    var found: Int? = nil
+    var i = 0
+    while i < format.count {
+      if format[i] == UInt8(ascii: "%") && i + 1 < format.count && format[i + 1] == UInt8(ascii: "%") {
+        found = i
+        i += 2
       } else {
-        print(f.cFormat(_func), terminator: "")
+        i += 1
       }
     }
+    return found
+  }
 
-    var start = "%"
-    
-    // drop the leading %
-    var fmt = fmt.dropFirst()
-    
-    let l = fmt.prefix(while: { "0123456789".contains($0) }).count
-    if l > 0 && fmt.dropFirst(l).first == "$" {
-      let idx = Int(String(fmt.prefix(l)))!
-      opts.args = opts.args.dropFirst(idx - 1)
-
-      fmt = fmt.dropFirst(l + 1)
-      fargv = opts.args
-      
-    } else {
-      fargv = nil
-    }
-    
-    while !fmt.isEmpty && skip1.contains(fmt.first!) {
-      let c = fmt.removeFirst()
-      start.append(c)
-    }
-    
-    if fmt.hasPrefix("*") {
-      fmt = fmt.dropFirst()
-      let l = fmt.prefix(while: { "0123456789".contains($0) }).count
-      if l > 0 && fmt.dropFirst(l).first == "$" {
-        let idx = Int(String(fmt.prefix(l)))!
-        if fargv == nil {
-          throw CmdErr(1, "incomplete use of n$")
-        }
-
-        opts.args = opts.args.dropFirst(idx - 1)
-
-        fmt = fmt.dropFirst(l + 1)
-      } else if fargv != nil {
-        throw CmdErr(1,"incomplete use of n$")
-      }
-      
-      fieldwidth = try getint(&opts)
-      
-      havewidth = true
-      
-      start.append("*")
-    } else {
-      havewidth = false
-      
-      while let c = fmt.first, "0123456789".contains(c) {
-        start.append(c)
-        fmt = fmt.dropFirst()
-      }
-    }
-    
-    if fmt.first == "." {
-      fmt = fmt.dropFirst()
-      start.append(".")
-      
-      if fmt.first == "*" {
-        fmt = fmt.dropFirst()
-        let l = fmt.prefix(while: { "0123456789".contains($0) }).count
-        if l > 0 && fmt.dropFirst(l).first == "$" {
-          let idx = Int(String(fmt.prefix(l)))!
-          if fargv == nil {
-            throw CmdErr(1, "incomplete use of n$")
-          }
-          
-          opts.args = opts.args.dropFirst(idx - 1)
-
-          fmt = fmt.dropFirst(l + 1)
-        } else if fargv != nil {
-          throw CmdErr(1, "incomplete use of n$")
-        }
-        
-        precision = try getint(&opts)
-        
-        haveprec = true
-        start.append("*")
+  /// What a format with only literal text and %% writes up to (but not including) `end`.
+  func prefixOutput(_ format: [UInt8], upTo end: Int) -> [UInt8] {
+    var out = [UInt8]()
+    var i = 0
+    while i < end {
+      if format[i] == UInt8(ascii: "%") {
+        out.append(UInt8(ascii: "%"))
+        i += 2
       } else {
-        haveprec = false
-        
-        while let c = fmt.first, "0123456789".contains(c) {
-          start.append(c)
-          fmt = fmt.dropFirst()
-        }
+        out.append(format[i])
+        i += 1
       }
-    } else {
-      haveprec = false
     }
-    if fmt.isEmpty {
-      warnx("missing format character")
+    return out
+  }
+
+  func flush() {
+    output.withUnsafeBufferPointer { _ = fwrite($0.baseAddress, 1, $0.count, stdout) }
+    output.removeAll(keepingCapacity: true)
+  }
+
+  // MARK: arguments
+
+  func nextArgument() -> [UInt8]? {
+    if gargv >= argv.count {
       return nil
     }
-    if let c = fmt.first { start.append(c) }
-    
-    if fmt.first == "L" {
-      fmt = fmt.dropFirst()
-      if let c = fmt.first, !"aAeEfFgG".contains(c) {
-        warnx("bad modifier L for \(c)")
+    defer {
+      gargv += 1
+      if gargv > maxargv { maxargv = gargv }
+    }
+    return argv[gargv]
+  }
+
+  func getstr() -> [UInt8] {
+    nextArgument() ?? []
+  }
+
+  func getchr() -> Int32 {
+    guard let a = nextArgument(), let first = a.first else { return 0 }
+    return Int32(first)
+  }
+
+  func warn(_ message: String) {
+    warn(Array(message.utf8))
+  }
+
+  /// Writes "printf: message" to standard error.  The message is bytes (it may hold an argument that isn't text),
+  /// and it is the C library that shows the characters that can't be seen, as the system utility does.
+  func warn(_ message: [UInt8]) {
+    flush()
+    fflush(stdout)
+    let text = UnsafeMutablePointer<CChar>.allocate(capacity: message.count + 1)
+    defer { text.deallocate() }
+    for (i, b) in message.enumerated() { text[i] = CChar(bitPattern: b) }
+    text[message.count] = 0
+    withVaList([text]) { vwarnx("%s", $0) }
+  }
+
+  /// Reports what is wrong with a conversion that left something over, or was out of range.  Returns false if
+  /// there was something wrong.
+  @discardableResult
+  func checkConversion(_ text: [UInt8], _ consumed: Int, _ erange: Bool) -> Bool {
+    if consumed == 0 {
+      warn(text + Array(": expected numeric value".utf8))
+    } else if consumed < text.count {
+      warn(text + Array(": not completely converted".utf8))
+    } else if erange {
+      warn(text + Array(": \(String(cString: strerror(ERANGE)))".utf8))
+    } else {
+      return true
+    }
+    rval = 1
+    return false
+  }
+
+  /// The character after the quote in `'x` or `"x`, as a number (decoded according to the locale).
+  func asciicode(_ a: [UInt8]) -> Int {
+    var wch: wchar_t = 0
+    var state = mbstate_t()
+    let rest = Array(a.dropFirst()) + [0]
+    let n = rest.withUnsafeBufferPointer { p in
+      p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) { mbrtowc(&wch, $0, Int(MB_LEN_MAX), &state) }
+    }
+    switch n {
+    case -1, -2:       // (size_t)-1 and (size_t)-2: not a character
+      return Int(a.count > 1 ? a[1] : 0)
+    case 0:
+      return 0
+    default:
+      return Int(wch)
+    }
+  }
+
+  func quoted(_ a: [UInt8]) -> Bool {
+    a.first == UInt8(ascii: "\"") || a.first == UInt8(ascii: "'")
+  }
+
+  func getintmax() -> Int {
+    guard let a = nextArgument() else { return 0 }
+    if quoted(a) { return asciicode(a) }
+    var value = 0
+    var consumed = 0
+    var erange = false
+    (a + [0]).withUnsafeBufferPointer { p in
+      p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) { s in
+        var end: UnsafeMutablePointer<CChar>? = nil
+        errno = 0
+        value = Int(strtoimax(s, &end, 0))
+        erange = errno == ERANGE
+        consumed = end.map { $0 - UnsafeMutablePointer(mutating: s) } ?? 0
+      }
+    }
+    checkConversion(a, consumed, erange)
+    return value
+  }
+
+  func getuintmax() -> UInt {
+    guard let a = nextArgument() else { return 0 }
+    if quoted(a) { return UInt(asciicode(a)) }
+    var value: UInt = 0
+    var consumed = 0
+    var erange = false
+    (a + [0]).withUnsafeBufferPointer { p in
+      p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) { s in
+        var end: UnsafeMutablePointer<CChar>? = nil
+        errno = 0
+        value = UInt(strtoumax(s, &end, 0))
+        erange = errno == ERANGE
+        consumed = end.map { $0 - UnsafeMutablePointer(mutating: s) } ?? 0
+      }
+    }
+    checkConversion(a, consumed, erange)
+    return value
+  }
+
+  func getfloating() -> Double {
+    guard let a = nextArgument() else { return 0 }
+    if quoted(a) { return Double(asciicode(a)) }
+    var value = 0.0
+    var consumed = 0
+    var erange = false
+    (a + [0]).withUnsafeBufferPointer { p in
+      p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) { s in
+        var end: UnsafeMutablePointer<CChar>? = nil
+        errno = 0
+        value = strtod(s, &end)
+        erange = errno == ERANGE
+        consumed = end.map { $0 - UnsafeMutablePointer(mutating: s) } ?? 0
+      }
+    }
+    checkConversion(a, consumed, erange)
+    return value
+  }
+
+  /// A width or precision from an argument; nil if it can't be used (which ends the whole run).
+  func getint() -> Int32? {
+    guard let a = nextArgument() else { return 0 }
+    var value = 0
+    if quoted(a) {
+      value = asciicode(a)
+    } else {
+      var consumed = 0
+      var erange = false
+      (a + [0]).withUnsafeBufferPointer { p in
+        p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) { s in
+          var end: UnsafeMutablePointer<CChar>? = nil
+          errno = 0
+          value = Int(strtoimax(s, &end, 0))
+          erange = errno == ERANGE
+          consumed = end.map { $0 - UnsafeMutablePointer(mutating: s) } ?? 0
+        }
+      }
+      if !checkConversion(a, consumed, erange) {
+        return nil
+      }
+    }
+    if value < Int(Int32.min) || value > Int(Int32.max) {
+      // (the system utility names the argument after this one)
+      let named = gargv < argv.count ? argv[gargv] : Array("(null)".utf8)
+      warn(named + Array(": \(String(cString: strerror(ERANGE)))".utf8))
+      rval = 1
+      return nil
+    }
+    return Int32(value)
+  }
+
+  // MARK: conversions
+
+  /// Marks the end of the output (a `\c` in a %b argument).
+  let endFormat = -1
+
+  static let digits = Array("0123456789".utf8)
+
+  func isDigit(_ b: UInt8) -> Bool { b >= 0x30 && b <= 0x39 }
+
+  /// The number of digits at the start of `s[i...]`.
+  func digitCount(_ s: [UInt8], _ i: Int) -> Int {
+    var n = 0
+    while i + n < s.count && isDigit(s[i + n]) { n += 1 }
+    return n
+  }
+
+  /// Writes one conversion with the C library's formatting.  `spec` is a complete conversion specification.
+  func emit(_ spec: [UInt8], _ values: [CVarArg]) {
+    let specification = spec + [0]
+    var text = [UInt8]()
+    specification.withUnsafeBufferPointer { p in
+      p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) { f in
+        // the size first, then the text
+        let needed = withVaList(values) { vsnprintf(nil, 0, f, $0) }
+        if needed < 0 { return }
+        var buffer = [UInt8](repeating: 0, count: Int(needed) + 1)
+        buffer.withUnsafeMutableBytes { raw in
+          raw.baseAddress!.withMemoryRebound(to: CChar.self, capacity: raw.count) { b in
+            _ = withVaList(values) { vsnprintf(b, raw.count, f, $0) }
+          }
+        }
+        text = Array(buffer.prefix(Int(needed)))
+      }
+    }
+    output += text
+  }
+
+  /// Implements the conversion that starts at `format[at]` (a %).  Returns where the format goes on, nil for
+  /// an error, or `endFormat` when there is to be no more output.
+  func doformat(_ format: [UInt8], at start: Int) -> Int? {
+    var i = start + 1
+    var spec: [UInt8] = [UInt8(ascii: "%")]
+    var fieldwidth: Int32 = 0
+    var precision: Int32 = 0
+    var haveprec = false
+    var havewidth = false
+    var fargv: Int? = nil
+    let nargv = argv.count - base
+
+    /// The argument that n$ names: counted from the start of this use of the format; past the end if there is none.
+    func position(_ idx: Int) -> Int {
+      let p = idx <= nargv ? base + idx - 1 : argv.count
+      if p > maxargv { maxargv = p }
+      return p
+    }
+
+    let skip1 = Array("#'-+ 0".utf8)
+
+    // look for "n$" field index specifier
+    var l = digitCount(format, i)
+    if l > 0 && i + l < format.count && format[i + l] == UInt8(ascii: "$") {
+      let idx = Int(String(decoding: format[i..<(i + l)], as: UTF8.self)) ?? Int.max
+      fargv = position(idx)
+      i += l + 1
+    }
+
+    // flags
+    while i < format.count && skip1.contains(format[i]) {
+      spec.append(format[i])
+      i += 1
+    }
+
+    /// An n$ after a * picks the argument that the width or precision comes from.
+    func starIndex() -> Bool {
+      l = digitCount(format, i)
+      if l > 0 && i + l < format.count && format[i + l] == UInt8(ascii: "$") {
+        let idx = Int(String(decoding: format[i..<(i + l)], as: UTF8.self)) ?? Int.max
+        if fargv == nil {
+          warn("incomplete use of n$")
+          return false
+        }
+        gargv = position(idx)
+        i += l + 1
+      } else if fargv != nil {
+        warn("incomplete use of n$")
+        return false
+      }
+      return true
+    }
+
+    if i < format.count && format[i] == UInt8(ascii: "*") {
+      i += 1
+      if !starIndex() { return nil }
+      guard let width = getint() else { return nil }
+      fieldwidth = width
+      spec.append(UInt8(ascii: "*"))
+      havewidth = true
+    } else {
+      while i < format.count && isDigit(format[i]) {
+        spec.append(format[i])
+        i += 1
+      }
+    }
+
+    if i < format.count && format[i] == UInt8(ascii: ".") {
+      i += 1
+      spec.append(UInt8(ascii: "."))
+      if i < format.count && format[i] == UInt8(ascii: "*") {
+        i += 1
+        if !starIndex() { return nil }
+        guard let prec = getint() else { return nil }
+        precision = prec
+        haveprec = true
+        spec.append(UInt8(ascii: "*"))
+      } else {
+        while i < format.count && isDigit(format[i]) {
+          spec.append(format[i])
+          i += 1
+        }
+      }
+    }
+
+    // (a NUL, from a \0 in the format, ends the conversion the way it ends a C string)
+    if i >= format.count || format[i] == 0 {
+      warn("missing format character")
+      return nil
+    }
+
+    var longDouble = false
+    if format[i] == UInt8(ascii: "L") {
+      longDouble = true
+      i += 1
+      if i >= format.count || !Array("aAeEfFgG".utf8).contains(format[i]) {
+        warn(Array("bad modifier L for %".utf8) + (i < format.count ? [format[i]] : []))
         return nil
       }
     }
 
-    if fargv != nil {
-      opts.args = fargv ?? []
+    // take the arguments from the position that was asked for
+    if let f = fargv {
+      gargv = f
     }
-    
-    let convch = fmt.removeFirst()
+
+    let convch = format[i]
+    i += 1
+    // (the format as far as this conversion is what an argument "before the first one" reads as)
+    argv[0] = Array(format[..<i])
+
+    /// The widths and the value, in the order printf takes them.
+    func values(_ value: CVarArg) -> [CVarArg] {
+      var all = [CVarArg]()
+      if havewidth { all.append(fieldwidth) }
+      if haveprec { all.append(precision) }
+      all.append(value)
+      return all
+    }
 
     switch convch {
-    case "b":
-      
-      start = String(start.dropLast())
-      start.append("s")
-      let (getout, p) = escape(getstr(&opts), 0)
-      // FIXME: does this mean isEmpty?
-      if p.count == 1 && p.first == "\0" {
-        print(p.first!, terminator: "")
+    case UInt8(ascii: "b"):
+      var p = getstr()
+      let getout = escape(&p, percent: false)
+      spec.append(UInt8(ascii: "s"))
+      if p == [0] {
+        // a lone NUL is written as it is, without any formatting
+        output.append(0)
       } else {
-        p.withCString { PF(String(start), $0 ) }
+        emit(spec, values(cString(p)))
       }
-      
-      if getout != 0 {
-        return end_fmt
+      if getout {
+        return endFormat
       }
-    case "c":
-      let p = getchr(&opts)
+    case UInt8(ascii: "c"):
+      let p = getchr()
+      // (nothing is written when there is no character, not even the padding)
       if p != 0 {
-        PF(String(start), p )
+        spec.append(convch)
+        emit(spec, values(p))
       }
-    case "s":
-      let p = getstr(&opts)
-        p.withCString { PF(String(start), $0) }
-    case "d", "i", "o", "u", "x", "X":
-      var f: String?
-      let signedconv: Bool
-      
-      signedconv = (convch == "d" || convch == "i")
-      f = mknum(String(start), convch)
-      if f == nil {
-        return nil
+    case UInt8(ascii: "s"):
+      let p = getstr()
+      spec.append(convch)
+      emit(spec, values(cString(p)))
+    case UInt8(ascii: "d"), UInt8(ascii: "i"):
+      let p = getintmax()
+      spec.append(UInt8(ascii: "j"))
+      spec.append(convch)
+      emit(spec, values(p))
+    case UInt8(ascii: "o"), UInt8(ascii: "u"), UInt8(ascii: "x"), UInt8(ascii: "X"):
+      let p = getuintmax()
+      spec.append(UInt8(ascii: "j"))
+      spec.append(convch)
+      emit(spec, values(p))
+    case UInt8(ascii: "a"), UInt8(ascii: "A"), UInt8(ascii: "e"), UInt8(ascii: "E"), UInt8(ascii: "f"), UInt8(ascii: "F"),
+         UInt8(ascii: "g"), UInt8(ascii: "G"):
+      let p = getfloating()
+      spec.append(convch)
+      // with the L modifier the system utility takes the argument but writes nothing
+      if !longDouble {
+        emit(spec, values(p))
       }
-      if signedconv {
-        let v = try getnum(&opts)
-        PF(f!, v)
-      } else {
-        let v = try getunum(&opts)
-        PF(f!, v)
-      }
-    case "e", "E", "f", "F", "g", "G", "a", "A":
-        let p = try getfloating(&opts)
-        PF(String(start), p)
-
     default:
-      throw CmdErr(1, "illegal format character \(convch)")
+      warn(Array("illegal format character ".utf8) + [convch])
+      return nil
     }
-    
-    return String(fmt)
+
+    return i
   }
 
-  func mknum(_ str: String, _ ch: Character) -> String? {
-    var copy: String = ""
-    var copySize: Int = 0
-    var newCopy: String
-    var len: Int, newLen: Int
-    
-    len = str.count + 2
-    if len > copySize {
-      newLen = ((len + 1023) >> 10) << 10
-      newCopy = String(repeating: " ", count: newLen)
-      if newCopy.isEmpty {
-        warnx(POSIXErrno(ENOMEM).description)
-        return nil
-      }
-      copy = newCopy
-      copySize = newLen
-    }
-    
-    let index = str.index(str.startIndex, offsetBy: len - 3)
-    copy = String(str[..<index])
-    copy.append("j")
-    copy.append(ch)
-    return copy
+  /// The bytes of `p` as a NUL-terminated C string that stays valid for the call it is used in.
+  func cString(_ p: [UInt8]) -> CVarArg {
+    let storage = UnsafeMutablePointer<CChar>.allocate(capacity: p.count + 1)
+    for (i, b) in p.enumerated() { storage[i] = CChar(bitPattern: b) }
+    storage[p.count] = 0
+    strings.append(storage)
+    return storage
   }
-  
-  func escape(_ fmtx: String, _ percent: Int) -> (Int, String) {
+  var strings = [UnsafeMutablePointer<CChar>]()
 
-    var store = ""
-    var fmt = Substring(fmtx)
-    
-    while !fmt.isEmpty {
-      let c = fmt.removeFirst()
-      if c != "\\" {
+  // MARK: escapes
+
+  /// Processes the backslash sequences in `fmt`.  Returns true if a `\c` ended it (only when not in a format).
+  func escape(_ fmt: inout [UInt8], percent: Bool) -> Bool {
+    var store = [UInt8]()
+    var i = 0
+    func octal(_ b: UInt8) -> Bool { b >= 0x30 && b <= 0x37 }
+    while i < fmt.count {
+      let c = fmt[i]
+      if c != UInt8(ascii: "\\") {
         store.append(c)
+        i += 1
         continue
       }
-      
-      if fmt.isEmpty {
-        store.append("\\")
-        return (0, store)
+      i += 1
+      if i >= fmt.count {          // a lone backslash at the end
+        store.append(UInt8(ascii: "\\"))
+        fmt = store
+        return false
       }
-      
-      let cc = fmt.removeFirst()
-      switch cc {
-
-      case "\\":
-        store.append("\\")
-      case "'":
-        store.append("'")
-      case "a": // bell/alert
-        store.append("\u{07}")
-        break
-      case "b": // backspace
-        store.append("\u{08}")
-      case "c":
-        if percent == 0 {
-          return (1, store)
+      let e = fmt[i]
+      switch e {
+      case UInt8(ascii: "\\"), UInt8(ascii: "'"):
+        store.append(e)
+      case UInt8(ascii: "a"): store.append(0x07)
+      case UInt8(ascii: "b"): store.append(0x08)
+      case UInt8(ascii: "c"):
+        if !percent {
+          fmt = store
+          return true
         }
-        store.append("c")
-      case "f":
-        store.append("\u{0C}") // form-feed
-      case "n":
-        store.append("\n") // newline
-      case "r":
-        store.append("\r") // carriage return
-      case "t":
-        store.append("\t") // horizontal tab
-      case "v":
-        store.append("\u{0B}") // vertical tab
-      default:
-        if "01234567".contains(cc) {
-          var c = (percent == 0 && cc == "0") ? 4 : 3
-          var value = Int(String(cc))!
-          while !fmt.isEmpty && "01234567".contains(fmt.first!)
-                  && c > 0 {
-            value <<= 3;
-            let dd = Int(String(fmt.removeFirst()))!
-            value += dd
-            c -= 1
-          }
-          
-          // FIXME: do I need this?
-          if ((percent != 0) && value == "%".first!.asciiValue!) {
-            store.append("%%")
-          } else {
-            store.append(String(UnicodeScalar(value)!))
-          }
+        store.append(UInt8(ascii: "c"))
+      case UInt8(ascii: "f"): store.append(0x0C)
+      case UInt8(ascii: "n"): store.append(0x0A)
+      case UInt8(ascii: "r"): store.append(0x0D)
+      case UInt8(ascii: "t"): store.append(0x09)
+      case UInt8(ascii: "v"): store.append(0x0B)
+      case UInt8(ascii: "0")...UInt8(ascii: "7"):
+        // an octal number of up to three digits (four if it starts with 0 and isn't in a format)
+        var count = (!percent && e == UInt8(ascii: "0")) ? 4 : 3
+        var value = 0
+        while count > 0 && i < fmt.count && octal(fmt[i]) {
+          value = (value << 3) + Int(fmt[i] - 0x30)
+          i += 1
+          count -= 1
+        }
+        i -= 1
+        if percent && value == Int(UInt8(ascii: "%")) {
+          store.append(UInt8(ascii: "%"))
+          store.append(UInt8(ascii: "%"))
         } else {
-          store.append(cc)
+          store.append(UInt8(truncatingIfNeeded: value))
         }
+      default:
+        // not an escape: the backslash is dropped
+        store.append(e)
       }
+      i += 1
     }
-    return (0, store)
+    fmt = store
+    return false
   }
-  
-  func getchr(_ opts : inout CommandOptions) -> Int {
-    if opts.args.isEmpty {
-      return 0
-    }
-    let char = opts.args.removeFirst()
-    return Int(char.unicodeScalars.first!.value)
-  }
-  
-  func getstr(_ opts : inout CommandOptions) -> String {
-    if opts.args.isEmpty {
-      return ""
-    }
-    return opts.args.removeFirst()
-  }
-  
-  func getint(_ opts : inout CommandOptions) throws(CmdErr) -> Int {
-    let val = try getnum(&opts)
-    if val < Int.min || val > Int.max {
-      throw CmdErr(1, "\(val): \(POSIXErrno(ERANGE).description)")
-    }
-    return val
-  }
-  
-  func getunum(_ opts : inout CommandOptions) throws(CmdErr) -> UInt {
-    if opts.args.isEmpty { return 0 }
-    let ss = opts.args.removeFirst()
-      if ss.first == "\"" || ss.first == "\'" {
-        return UInt(asciicode(ss.dropFirst().first))
-      }
-    if let x = UInt(ss) {
-        return x
-      }
-    throw CmdErr(1, "\(ss): expected numeric value")
-  }
-  
-  func getnum(_ opts : inout CommandOptions) throws(CmdErr) -> Int {
-    if opts.args.isEmpty { return 0 }
-    let ss = opts.args.removeFirst()
-      if ss.first == "\"" || ss.first == "\'" {
-        return Int(asciicode(ss.dropFirst().first))
-      }
-    if let x = Int(ss) {
-      return x
-    }
-      throw CmdErr(1, "\(ss): expected numeric value")
-  }
-  
-  func getfloating(_ opts : inout CommandOptions) throws(CmdErr) -> Double {
-    if opts.args.isEmpty { return 0 }
-    let ss = opts.args.removeFirst()
-    if ss.first == "\"" || ss.first == "\'" {
-      return Double(asciicode(ss.dropFirst().first))
-    }
-        if let x = Double(ss) {
-          return x
-        }
-          throw CmdErr(1, "\(ss): expected numeric value")
-  }
-
-
-  func asciicode(_ s : Character?) -> Int {
-    guard let s else { return 0 }
-
-    // This deals with the ISOLatin1 problem
-    if let sa = mapping[s] {
-      return sa
-    }
-
-    // FIXME: if this character is a composite of multiple unicode scalars, it is not clear
-    // what the value should be
-    let ch = Int(s.unicodeScalars.first?.value ?? 0)
-    return ch
-  }
-  
-  var usage = "usage: printf format [arguments ...]"
-
-
-  func buildISOLatin1Mapping() -> [Character : Int] {
-    var mapping : [Character : Int] = [:]
-    for i in 128..<256 {
-      let k = Character(UnicodeScalar(i)!)
-      mapping[k]=i
-    }
-    return mapping
-  }
-
-
 }

@@ -42,22 +42,17 @@ import ShellTesting
   }
 
   // REGRESSION_TEST(`l1', `LC_ALL=en_US.ISO8859-1 env printf "%d\n" $(env printf \"\\344)')
-  // The implementation will use ISOLatin1 (ISO8859-1) for characters in the 0-255 range -- but will use
-  // the first unicode scalar of the composite for all others.
-  // This passes this test, but it is unclear that this behavior is correct for all characters
-  @Test(  // .disabled("arguments get interpreted with utf8 -- the \\344 character gets translated to two scalars")
-  ) func test_l1() async throws {
-    try? Environment.setenv("LC_ALL","en.US.ISO8859-1")
-    try await run(args: "\"\\344") { po1 in
-      //    let po1 = try await ShellProcess(cmd, "\"\\344").run()
-      let s = try po1.string(encoded: .utf8)
-      try await run(args: "%d\n", s) { po2 in
-        //      let po2 = try await ShellProcess(cmd, "%d\n", po1.string).run()
-        let out = try fileContents("regress.l1.out")
-        let k = try po2.string(encoded: .utf8)
-        #expect(k == out)
-      }
-    }
+  // The format "\344 writes the byte 0xE4 itself, which is not text in UTF-8: the regression test passes that byte
+  // on as an argument, which can't be done from here (arguments are strings), so the two halves are checked apart.
+  @Test func test_l1() async throws {
+    try await run(output: [UInt8]([0x22, 0xE4]), args: "\"\\344")
+  }
+
+  /// A character in an argument is read by the locale: in ISO8859-1 every byte is a character, so the first byte
+  /// of the UTF-8 for ä (0xC3) is what the argument is the value of; in UTF-8 it is U+00E4.
+  @Test func test_l1_locale() async throws {
+    try await run(output: "195\n", args: "%d\n", "'ä", env: ["LC_ALL": "en_US.ISO8859-1"])
+    try await run(output: "228\n", args: "%d\n", "'ä", env: ["LC_ALL": "en_US.UTF-8"])
   }
 
   // REGRESSION_TEST(`l2', `LC_ALL=en_US.UTF-8 env printf "%d\n" $(env printf \"\\303\\244)')
