@@ -29,16 +29,26 @@
  * SUCH DAMAGE.
  */
 
-// FIXME: apparently does not get built for APPLE platforms
 import CMigration
 
-// import signal_h
 import Darwin
 
 nonisolated(unsafe) var keep = false
 nonisolated(unsafe) var lockfd : Int32 = -1
-nonisolated(unsafe) var lockname : String!
+/// The name of the lock file, as a C string because the signal handlers use it.  Nil when locking a descriptor.
+nonisolated(unsafe) var lockname : UnsafeMutablePointer<CChar>? = nil
 
+/// Set once the time allowed for getting the lock has run out.
+nonisolated(unsafe) var timedOut = false
+/// True while the lock is being waited for; the timer thread runs for as long as it is.
+nonisolated(unsafe) var acquiring = false
+nonisolated(unsafe) var timeoutTarget = pthread_self()
+nonisolated(unsafe) var timeoutSeconds = 0
+nonisolated(unsafe) var timerThread : pthread_t? = nil
+nonisolated(unsafe) var savedMask = sigset_t()
+nonisolated(unsafe) var workerBody : (() -> Void)? = nil
+
+/// SIGTERM: let go of the lock, then die of the signal.  The command is left running.
 func killed(_ sig: Int32) {
   cleanup()
   signal(sig, SIG_DFL)
@@ -48,10 +58,11 @@ func killed(_ sig: Int32) {
 }
 
 func cleanup() {
+  guard let name = lockname else { return }
   if keep {
     flock(lockfd, LOCK_UN)
   } else {
-    unlink(lockname)
+    unlink(name)
   }
 }
 
@@ -60,21 +71,17 @@ func cleanup() {
     var flags: Int32 = O_CREAT | O_RDONLY
     var waitsec: Int = -1
     var silent = false
-    //  var lockname : String!
-    //  var lockfd : Int32 = -1
-    
+
     var args : [String] = []
   }
 
   var options : CommandOptions!
 
-  var timed_out = false
-
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
-    
-    let go = BSDGetopt("sknt:w")
-    while let (ch, optarg) = try go.getopt() {
+
+    let go = BSDGetopt("knst:w")
+    while let (ch, optarg) = try usageError(go.getopt) {
       switch ch {
       case "k":
           keep = true
@@ -83,74 +90,196 @@ func cleanup() {
       case "s":
           opts.silent = true
       case "t":
-        var endptr: UnsafeMutablePointer<Int8>?
-        let oa = optarg
-          opts.waitsec = strtol(oa, &endptr, 0)
-          if oa.isEmpty || endptr?.pointee != 0 || opts.waitsec < 0 {
-          errx(Int(EX_USAGE), "invalid timeout \"\(oa)\"")
+        // a whole decimal number that isn't negative
+        var endptr: UnsafeMutablePointer<CChar>?
+        opts.waitsec = optarg.withCString { Int(strtol($0, &endptr, 10)) }
+        if optarg.isEmpty || endptr?.pointee != 0 || opts.waitsec < 0 {
+          errx(Int(EX_USAGE), "invalid timeout \"\(optarg)\"")
         }
       case "w":
           opts.flags = (opts.flags & ~O_RDONLY) | O_WRONLY
       default:
-        throw CmdErr(1)
+        throw CmdErr(Int(EX_USAGE))
       }
     }
-    
+
     opts.args = go.remaining
-    
-    if opts.args.count < 2 {
-      throw CmdErr(1)
+
+    if opts.args.isEmpty {
+      throw CmdErr(Int(EX_USAGE))
+    }
+    if opts.args.count == 1 && parseDescriptor(opts.args[0]) == nil {
+      throw CmdErr(Int(EX_USAGE), "Expected fd, got '\(opts.args[0])'")
     }
     return opts
   }
-  
-  
+
+  /// A bad option is a usage error, which has its own exit status.
+  func usageError<T>(_ f: () throws(CmdErr) -> T) throws(CmdErr) -> T {
+    do {
+      return try f()
+    } catch {
+      throw CmdErr(Int(EX_USAGE), error.message)
+    }
+  }
+
+  /// The number in a whole decimal string (strtol accepts leading white space and a sign).
+  func parseDescriptor(_ arg: String) -> Int? {
+    var endptr: UnsafeMutablePointer<CChar>?
+    let fd = arg.withCString { Int(strtol($0, &endptr, 10)) }
+    return arg.isEmpty || endptr?.pointee != 0 ? nil : fd
+  }
+
+  var usage = """
+    usage: lockf [-knsw] [-t seconds] file command [arguments]
+           lockf [-s] [-t seconds] fd
+    """
+
   func runCommand() async throws(CmdErr) {
     var opts = options!
-    lockname = opts.args.removeFirst()
-    
-    if opts.waitsec > 0 {
-      var act = sigaction()
-      act.__sigaction_u = unsafeBitCast(timeout, to: __sigaction_u.self)
-      sigemptyset(&act.sa_mask)
-      act.sa_flags = 0
-      sigaction(SIGALRM, &act, nil)
-      alarm(UInt32(opts.waitsec))
+
+    if opts.args.count == 1 {
+      lockDescriptor(opts)
+      return
     }
-    
-    lockfd = acquire_lock(lockname, opts.flags | O_NONBLOCK)
-    while lockfd == -1 && !timed_out && opts.waitsec != 0 {
-      if keep {
-        lockfd = acquire_lock(lockname, opts.flags)
-      } else {
-        wait_for_lock(lockname)
-        lockfd = acquire_lock(lockname, opts.flags | O_NONBLOCK)
+
+    let name = opts.args.removeFirst()
+    lockname = strdup(name)
+
+    onWorkerThread {
+      self.startTimer(opts.waitsec)
+      lockfd = self.acquire_lock(name, opts.flags | O_NONBLOCK)
+      while lockfd == -1 && !timedOut && opts.waitsec != 0 {
+        if keep {
+          lockfd = self.acquire_lock(name, opts.flags)
+        } else {
+          self.wait_for_lock(name)
+          lockfd = self.acquire_lock(name, opts.flags | O_NONBLOCK)
+        }
       }
+      self.stopTimer()
     }
-    
-    if opts.waitsec > 0 {
-      alarm(0)
-    }
-    
+
     if lockfd == -1 {
       if opts.silent {
         exit(EX_TEMPFAIL)
       }
-      errx(Int(EX_TEMPFAIL), "\(String(describing: lockname)): already locked")
+      errx(Int(EX_TEMPFAIL), "\(name): already locked")
     }
-    
+
     if atexit( { cleanup() } ) == -1 {
       err(Int(EX_OSERR), "atexit failed")
     }
-    
-    let status = await insteadOfFork(opts.args[0], opts.args)
-    
+
+    // SIGINT and SIGQUIT are left to the command; a handler (rather than SIG_IGN) keeps it from inheriting that
+    signal(SIGINT, { _ in })
+    signal(SIGQUIT, { _ in })
+    signal(SIGTERM, { killed($0) })
+
+    let status = await runCommandUnderLock(opts.args)
     let r = WIFEXITED(status) ? WEXITSTATUS(status) : EX_SOFTWARE
     if r != 0 { throw CmdErr(Int(r) ) }
   }
-  
+
+  // MARK: locking
+
+  /// With a single operand, lock the file descriptor of that number and leave it locked: the lock belongs to the
+  /// open file, so whoever else has the descriptor open keeps it after lockf exits.
+  func lockDescriptor(_ opts: CommandOptions) {
+    let arg = opts.args[0]
+    let fd = parseDescriptor(arg) ?? -1
+
+    var locked = false
+    onWorkerThread {
+      self.startTimer(opts.waitsec)
+      while !locked && !timedOut {
+        let how = opts.waitsec == 0 ? LOCK_EX | LOCK_NB : LOCK_EX
+        if flock(Int32(truncatingIfNeeded: fd), how) == 0 {
+          locked = true
+        } else if errno == EWOULDBLOCK {
+          break
+        } else if errno != EINTR {
+          let e = errno
+          self.stopTimer()
+          errno = e
+          err(Int(EX_CANTCREAT), "cannot lock fd \(fd)")
+        }
+      }
+      self.stopTimer()
+    }
+
+    if !locked {
+      if opts.silent {
+        exit(EX_TEMPFAIL)
+      }
+      errx(Int(EX_TEMPFAIL), "\(arg): already locked")
+    }
+  }
+
+  /// Runs `body` on a thread of its own and waits for it.  A wait for a lock is cut short by a signal sent to the
+  /// thread that is waiting, and (unlike the threads that run async code) such a thread can be sent one.
+  func onWorkerThread(_ body: @escaping () -> Void) {
+    workerBody = body
+    var thread: pthread_t? = nil
+    pthread_create(&thread, nil, { _ in
+      workerBody?()
+      return nil
+    }, nil)
+    if let thread {
+      pthread_join(thread, nil)
+    }
+  }
+
+  /// Allow `seconds` for the lock to be acquired (none if it isn't positive).  The signal that interrupts the wait is
+  /// sent to this thread by a helper thread, because a signal for the process could land on any thread.
+  func startTimer(_ seconds: Int) {
+    timedOut = false
+    guard seconds > 0 else { return }
+    var act = sigaction()
+    act.__sigaction_u.__sa_handler = { _ in }
+    sigemptyset(&act.sa_mask)
+    act.sa_flags = 0     // no SA_RESTART: the wait has to fail with EINTR
+    sigaction(SIGALRM, &act, nil)
+
+    // a thread made by the thread that runs async code starts with SIGALRM blocked
+    var alarm = sigset_t()
+    sigemptyset(&alarm)
+    sigaddset(&alarm, SIGALRM)
+    pthread_sigmask(SIG_UNBLOCK, &alarm, &savedMask)
+
+    timeoutTarget = pthread_self()
+    timeoutSeconds = seconds
+    acquiring = true
+    var thread = pthread_t(bitPattern: 0)
+    pthread_create(&thread, nil, { _ in
+      var start = timespec()
+      clock_gettime(CLOCK_MONOTONIC, &start)
+      while acquiring {
+        usleep(10_000)
+        var now = timespec()
+        clock_gettime(CLOCK_MONOTONIC, &now)
+        let elapsed = now.tv_sec - start.tv_sec
+        if elapsed >= timeoutSeconds {
+          timedOut = true
+          // keep trying: the first one may arrive just before the wait begins
+          pthread_kill(timeoutTarget, SIGALRM)
+        }
+      }
+      return nil
+    }, nil)
+    timerThread = thread
+  }
+
+  func stopTimer() {
+    guard acquiring, let t = timerThread else { return }
+    acquiring = false
+    pthread_join(t, nil)
+    timerThread = nil
+    pthread_sigmask(SIG_SETMASK, &savedMask, nil)
+  }
+
   func acquire_lock(_ name: String, _ flags: Int32) -> Int32 {
-    let fd = open(name, O_EXLOCK|flags, 0666)
+    let fd = open(name, O_EXLOCK|flags, 0o666)
     if fd == -1 {
       if errno == EAGAIN || errno == EINTR {
         return -1
@@ -161,17 +290,10 @@ func cleanup() {
     }
     return fd
   }
-  
-  
-  func timeout(_ sig: Int32) {
-    timed_out = true
-  }
-  
-  var usage = "usage: lockf [-kns] [-t seconds] file command [arguments]"
-  
+
+  /// Waits until the lock is free, without taking it.
   func wait_for_lock(_ name: String) {
-    var fd: Int32
-    fd = open(name, O_RDONLY|O_EXLOCK, 0666)
+    let fd = open(name, O_RDONLY|O_EXLOCK, 0o666)
     if fd == -1 {
       if errno == ENOENT || errno == EINTR {
         return
@@ -180,36 +302,28 @@ func cleanup() {
     }
     close(fd)
   }
-  
 
-  func insteadOfFork(_ cmd : String, _ args : [String]) async -> Int32 {
-    //   let process = Process()
+  // MARK: running the command
 
-    guard let execu = searchPath(for: cmd) else { print("command not found"); return -1 } // d.appending(component: "..").appending(component: executable).path(percentEncoded:false)
-    
-    
-    do {
-      try await DarwinProcess().run(execu, args: args)
-    } catch(let e as Errno) {
-      return e.rawValue
-    } catch {
-      return -1
+  /// Runs the command with the standard streams passed along, and returns its wait status.
+  func runCommandUnderLock(_ args : [String]) async -> Int32 {
+    let cmd = args[0]
+    guard let path = searchPath(for: cmd) else {
+      failToRun(cmd, ENOENT)
     }
-    
-//    process.launchPath = execu
-//    process.arguments = args
-//    process.launch()
-    
-    signal(SIGINT, SIG_IGN)
-    signal(SIGQUIT, SIG_IGN)
-    signal(SIGTERM, { y in killed(y) } )
+    do {
+      let result = try await DarwinProcess().run(path, withStdin: FileDescriptor.standardInput, args: Array(args.dropFirst()),
+                                                 output: (.standardOutput, .standardError))
+      return result.rawStatus
+    } catch let e as POSIXErrno {
+      failToRun(cmd, e.code)
+    } catch {
+      failToRun(cmd, EINVAL)
+    }
+  }
 
-    
-//    process.waitUntilExit()
-
-//    return process.terminationStatus
-
-    return 0
-
+  /// The command could not be started.
+  func failToRun(_ cmd: String, _ code: Int32) -> Never {
+    errx(1, "\(cmd): \(String(cString: strerror(code)))")
   }
 }
