@@ -73,19 +73,15 @@ import ShellTesting
 
   
   
+  /// Without -p, -t uses the user's temporary directory (_CS_DARWIN_USER_TEMP_DIR) whatever TMPDIR says.
   @Test func tmpdir_tflag_oneslash() async throws {
     let tdir = try tmpdir("tmp_env")
     defer { rm(tdir) }
     try? Environment.setenv("TMPDIR", tdir.string)
     try await run(args: "-t", "foo") { po in
-      let rr = try po.string(encoded: .utf8)
-      let s = tdir.string
-
-      #expect( rr.hasPrefix(s+"/foo." ) )
-      if rr.hasPrefix(s+"foo") {
-        let k = String(rr.dropLast())
-        self.rm(FilePath(k))
-      }
+      let rr = try po.string(encoded: .utf8).dropLast()
+      defer { self.rm(FilePath(String(rr))) }
+      #expect( rr.hasPrefix(Self.userTempDirectory + "foo." ) )
     }
   }
 

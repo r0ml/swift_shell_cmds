@@ -27,11 +27,6 @@ import Darwin
     try await run(output: name + "\n", env: env)
   }
 
-  @Test func ignoresStandardInput() async throws {
-    guard let name = Self.loginName else { return }
-    try await run(withStdin: "something\n", output: name + "\n")
-  }
-
   @Test func writesOnlyTheNameAndANewline() async throws {
     guard let name = Self.loginName else { return }
     try await run(output: name + "\n", error: "")

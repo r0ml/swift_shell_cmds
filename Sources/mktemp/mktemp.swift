@@ -40,9 +40,9 @@ import Darwin
 @main final class mktemp : ShellCommand {
   let long_opts: [LongOption] = [
     .init("directory", .no_argument),
-    .init("tmpdir", .required_argument),
+    .init("tmpdir", .optional_argument),
     .init("quiet", .no_argument),
-    .init("dry-run", .required_argument),
+    .init("dry-run", .no_argument),
   ]
   
   
@@ -80,9 +80,10 @@ import Darwin
           opts.dflag = true
       case "p", "tmpdir":
           opts.tmpdir = optarg
-          if opts.tmpdir == nil || opts.tmpdir!.isEmpty {
-            opts.tmpdir = Environment["TMPDIR"]
-        }
+          if optarg.isEmpty {
+            // an empty or omitted directory means the environment's, or else the user's own temporary directory
+            opts.tmpdir = Environment["TMPDIR"] ?? userTempDirectory()
+          }
           opts.prefer_tmpdir = false
       case "q", "quiet":
           opts.qflag = true
@@ -113,9 +114,9 @@ import Darwin
     }
     
     if opts.tflag {
-      let envtmp = Environment["TMPDIR"]
+      // without -p, the user's temporary directory is used in preference to TMPDIR
       if opts.prefer_tmpdir || opts.tmpdir == nil {
-        opts.tmpdir = envtmp
+        opts.tmpdir = userTempDirectory() ?? Environment["TMPDIR"]
       }
       if opts.tmpdir == nil {
         opts.tmpdir = "/tmp"
@@ -183,8 +184,17 @@ import Darwin
     }
   }
   
+  /// The per-user temporary directory (_CS_DARWIN_USER_TEMP_DIR), which ends with a slash.
+  func userTempDirectory() -> String? {
+    var buf = [CChar](repeating: 0, count: Int(PATH_MAX))
+    if confstr(_CS_DARWIN_USER_TEMP_DIR, &buf, buf.count) == 0 {
+      return nil
+    }
+    return String(cString: buf)
+  }
+
   var usage = """
-usage: mktemp [-d] [-p tmpdir] [-q] [-t prefix] [-u] template ..."
-       mktemp [-d] [-p tmpdir] [-q] [-u] -t prefix")
+usage: mktemp [-d] [-p tmpdir] [-q] [-t prefix] [-u] template ...
+       mktemp [-d] [-p tmpdir] [-q] [-u] -t prefix 
 """
 }

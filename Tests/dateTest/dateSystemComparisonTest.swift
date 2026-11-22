@@ -2,6 +2,7 @@
 // Written by Robert M. Lefkowitz <r0ml@liberal.software> in 2026
 
 import ShellTesting
+import Darwin
 
 /// Cases whose expected results were recorded from the system date, in a fixed time zone.
 /// Every case that supplies a new date also passes -j, so none of them can change the clock.
@@ -416,8 +417,6 @@ extension dateTest {
     (["-u", "-j", "-r", "1000000000", "05", "+%F", "%T"], "UTC", "2001-09-09\n", 0),
     (["-u", "-j", "-r", "1000000000", "+%F"], "UTC", "2001-09-09\n", 0),
     (["-u", "-j", "-r", "1000000000", "2001", "+%F", "%T"], "UTC", "2001-09-09\n", 0),
-    (["-u", "-j", "-f", "%Y", "2020", "+%F"], "UTC", "2020-11-19\n", 0),
-    (["-u", "-j", "-f", "%Y-%m", "2020-03", "+%F"], "UTC", "2020-03-19\n", 0),
     (["-u", "-j", "-f", "%H:%M:%S", "12:34:56", "+%T"], "UTC", "12:34:56\n", 0),
     (["-u", "-j", "-f", "%s", "1000000000", "+%F", "%T"], "UTC", "2001-09-09\n", 0),
     (["-u", "-j", "-f", "%s", "-1", "+%F", "%T"], "UTC", "", 1),
@@ -465,10 +464,6 @@ extension dateTest {
     (["-u", "-j", "-f", "%c", "Wed Mar  4 05:06:07 2020", "+%s"], "UTC", "1583298367\n", 0),
     (["-u", "-j", "-f", "%x", "03/04/20", "+%F"], "UTC", "", 1),
     (["-u", "-j", "-f", "%X", "05:06:07", "+%T"], "UTC", "05:06:07\n", 0),
-    (["-u", "-j", "-f", "%a", "Wed", "+%a"], "UTC", "Thu\n", 0),
-    (["-u", "-j", "-f", "%u", "3", "+%u"], "UTC", "4\n", 0),
-    (["-u", "-j", "-f", "%w", "3", "+%w"], "UTC", "4\n", 0),
-    (["-u", "-j", "-f", "%U", "10", "+%U"], "UTC", "46\n", 0),
     (["-u", "-j", "-f", "%W", "10", "+%W"], "UTC", "46\n", 0),
     (["-u", "-j", "-f", "%G", "2020", "+%G"], "UTC", "", 1),
     (["-u", "-j", "-f", "%g", "20", "+%g"], "UTC", "", 1),
@@ -496,7 +491,6 @@ extension dateTest {
     (["-u", "-j", "-f", "%Y", "+%Y"], "UTC", "", 1),
     (["-u", "-j", "-f", "%Y", "--", "2020", "+%Y"], "UTC", "2020\n", 0),
     (["-u", "-j", "-f", "%Y", "-v+1y", "2020", "+%Y"], "UTC", "2021\n", 0),
-    (["-u", "-j", "-f", "%Y", "-Idate", "2020"], "UTC", "2020-11-19\n", 0),
     (["-u", "-j", "-f", "%Y", "-f", "%m", "2020"], "UTC", "", 1),
     (["-u", "-j", "-f", "%Y", "-f", "%m", "2020", "03"], "UTC", "", 1),
     (["-ujf", "%Y", "2020", "+%Y"], "UTC", "2020\n", 0),
@@ -554,9 +548,6 @@ extension dateTest {
     (["-u", "-j", "-r", "0", "-v+1d", "0101", "+%F"], "UTC", "1970-01-02\n", 0),
     (["-u", "-j", "-r", "0", "-v+1d", "+%F", "0101"], "UTC", "1970-01-02\n", 0),
     (["-u", "-j", "-r", "0", "0101", "+%F", "-v+1d"], "UTC", "1970-01-01\n", 0),
-    (["-u", "-j", "0101", "-r", "0", "+%F"], "UTC", "Thu Nov 19 01:01:00 UTC 2026\n", 0),
-    (["-u", "-j", "0101", "+%F", "-r", "0"], "UTC", "2026-11-19\n", 0),
-    (["-u", "-j", "0101", "-r", "0"], "UTC", "Thu Nov 19 01:01:00 UTC 2026\n", 0),
     (["-z", "UTC", "-r", "1000000000"], "UTC", "Sun Sep  9 01:46:40 UTC 2001\n", 0),
     (["-z", "America/New_York", "-r", "1000000000"], "UTC", "Sat Sep  8 21:46:40 EDT 2001\n", 0),
     (["-z", "Asia/Kolkata", "-r", "1000000000"], "UTC", "Sun Sep  9 07:16:40 IST 2001\n", 0),
@@ -757,6 +748,34 @@ extension dateTest {
     (["-u", "-r", "0", "-vdec", "-v+dec"], "UTC", "Tue Dec  1 00:00:00 UTC 1970\n", 0),
     (["-u", "-r", "0", "-vdec", "-v-dec"], "UTC", "Tue Dec  1 00:00:00 UTC 1970\n", 0)
   ]
+
+  /// Today's date (in UTC) formatted with `format`: what date fills in for the parts of a date that weren't given.
+  static func today(_ format: String) -> String {
+    var now = time(nil)
+    var parts = tm()
+    gmtime_r(&now, &parts)
+    var buf = [CChar](repeating: 0, count: 128)
+    strftime(&buf, buf.count, format, &parts)
+    return String(cString: buf)
+  }
+
+  /// A format that doesn't give a whole date takes the rest from the current date, so what is expected depends on
+  /// the day the test runs.  (These were recorded from the system date; they hold on any day.)
+  @Test("the parts of a date that aren't given come from today", arguments: [
+    (["-u", "-j", "-f", "%Y", "2020", "+%F"], "2020-%m-%d\n"),
+    (["-u", "-j", "-f", "%Y-%m", "2020-03", "+%F"], "2020-03-%d\n"),
+    (["-u", "-j", "-f", "%Y", "-Idate", "2020"], "2020-%m-%d\n"),
+    (["-u", "-j", "-f", "%a", "Wed", "+%a"], "%a\n"),
+    (["-u", "-j", "-f", "%u", "3", "+%u"], "%u\n"),
+    (["-u", "-j", "-f", "%w", "3", "+%w"], "%w\n"),
+    (["-u", "-j", "-f", "%U", "10", "+%U"], "%U\n"),
+    (["-u", "-j", "0101", "-r", "0", "+%F"], "%a %b %e 01:01:00 UTC %Y\n"),
+    (["-u", "-j", "0101", "+%F", "-r", "0"], "%F\n"),
+    (["-u", "-j", "0101", "-r", "0"], "%a %b %e 01:01:00 UTC %Y\n"),
+  ])
+  func takesTheRestFromToday(_ args: [String], _ format: String) async throws {
+    try await run(output: Self.today(format), args: args, env: ["TZ": "UTC", "LC_ALL": "en_US.UTF-8"])
+  }
 
   @Test("date output matches the system date", arguments: systemCases)
   func matchesSystemDate(_ args: [String], _ tz: String, _ expected: String, _ status: Int) async throws {
