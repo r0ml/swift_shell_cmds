@@ -171,7 +171,7 @@ final class NohupDirectories {
   @Test func nothingIsRedirectedWhenNotOnATerminal() async throws {
     let d = NohupDirectories()
     defer { d.remove() }
-    try await run(output: "out\n", error: "err\n", args: "sh", "-c", "echo out; echo err >&2", cd: Fi lePath(d.work))
+    try await run(output: "out\n", error: "err\n", args: "sh", "-c", "echo out; echo err >&2", cd: FilePath(d.work))
     #expect(!d.exists(d.work + "/nohup.out"))
   }
 

@@ -26,15 +26,17 @@
 
 import CMigration
 
+import Darwin
+
 @main final class path_helper : ShellCommand {
   enum Style {
     case csh
     case sh
   }
-  
+
   struct CommandOptions {
     var style: Style = .sh
-    
+
     var args = [String]()
   }
 
@@ -42,68 +44,65 @@ import CMigration
 
   var usage = "usage: path_helper [-c | -s]"
 
-  func append_path_segment(path: inout String?, segment: String?) {
-    guard path != nil, let segment else {
-      return
-    }
-    
-    let pathlen = path!.count
-    let seglen = segment.count
-    
-    if seglen == 0 {
-      return
-    }
-    
-    var match = path!.firstRange(of: segment)
-    while let range = match {
-      if (path!.startIndex == range.lowerBound || path![path!.index(before: range.lowerBound)] == ":") &&
-          ( path!.index(range.lowerBound, offsetBy: seglen) == path!.endIndex ||
-            (path![path!.index(range.lowerBound, offsetBy: seglen)] == ":" )
-)
-      {
-        return
-      }
-      
-      // FIXME: this is a Kludge to find multiple segments
-      match = (path![path!.startIndex..<range.lowerBound]
-      + String(repeating: " ", count: path![range.lowerBound..<range.upperBound].count)
-      +         path![range.upperBound...])
-      .firstRange(of: segment)
-    }
-    
-    //    let size = pathlen + seglen + 2
-    
-    if pathlen > 0 {
-      path!.append(":")
-    }
-    path!.append(segment)
-    return
+  static let colon = UInt8(ascii: ":")
+
+  /// The bytes of an environment variable (a path need not be valid UTF-8).
+  func environmentBytes(_ name: String) -> [UInt8]? {
+    guard let value = getenv(name) else { return nil }
+    return Array(UnsafeBufferPointer(start: UnsafeRawPointer(value).assumingMemoryBound(to: UInt8.self), count: strlen(value)))
   }
-  
-  func read_segment(line: String) -> String {
-    var segment = ""
-    
+
+  /// Adds `segment` to the end of the colon-separated `path`, unless it already has it as one of its elements.
+  func append_path_segment(path: inout [UInt8], segment: [UInt8]) {
+    if segment.isEmpty {
+      return
+    }
+    if path.split(separator: Self.colon, omittingEmptySubsequences: false).contains(where: { $0.elementsEqual(segment) }) {
+      return
+    }
+    if !path.isEmpty {
+      path.append(Self.colon)
+    }
+    path.append(contentsOf: segment)
+  }
+
+  /// A line of a paths file, made safe to put between double quotes in a shell command: a NUL ends it, and
+  /// quotes and dollar signs get a backslash.
+  func read_segment(line: ArraySlice<UInt8>) -> [UInt8] {
+    var segment = [UInt8]()
     for c in line {
-      if c == "\"" || c == "\'" || c == "$" {
-        segment.append("\\")
-        segment.append(c)
-      } else if c == "\n" {
+      if c == 0 {
         break
-      } else {
-        segment.append(c)
       }
+      if c == UInt8(ascii: "\"") || c == UInt8(ascii: "'") || c == UInt8(ascii: "$") {
+        segment.append(UInt8(ascii: "\\"))
+      }
+      segment.append(c)
     }
     return segment
   }
-  
+
+  /// All of what is in a file.
+  func contents(of path: String) throws -> [UInt8] {
+    let f = try FileDescriptor.open(path, .readOnly)
+    defer { try? f.close() }
+    var all = [UInt8]()
+    var buffer = [UInt8](repeating: 0, count: 65536)
+    while true {
+      let n = try buffer.withUnsafeMutableBytes { try f.read(into: $0) }
+      if n == 0 { break }
+      all.append(contentsOf: buffer[0..<n])
+    }
+    return all
+  }
+
   // Construct a path variable, starting with the contents
   // of the given environment variable, adding the contents
   // of the default file and files in the path directory.
-  func construct_path(_ env_var: String, _ defaults_path: String, _ dir_path: String) async throws(CmdErr) -> String? {
-
-    var result : String? = ""
+  func construct_path(_ env_var: String, _ defaults_path: String, _ dir_path: String) throws(CmdErr) -> [UInt8] {
+    var result = [UInt8]()
     var dirpathv: [String] = [defaults_path, dir_path]
-    
+
     if let root = Environment["PATH_HELPER_ROOT"] {
       dirpathv[0] = root + defaults_path
       dirpathv[1] = root + dir_path
@@ -112,7 +111,6 @@ import CMigration
     do {
       let fo = try FTSWalker(path: dirpathv, options: [.PHYSICAL, .XDEV], sort: find_compare)
       for var ent in fo {
-
         // only interested in regular files, one level deep
         if ent.info != FTSInfo.F {
           if ent.level >= 1 {
@@ -120,51 +118,46 @@ import CMigration
           }
         } else {
           do {
-          let f = try FileDescriptor.open(ent.accpath, .readOnly)
-            for try await line in f.bytes.lines {
-                let segment = read_segment(line: line )
-                append_path_segment(path: &result, segment: segment)
-              }
-            try? f.close()
-          } catch(let e) {
+            let bytes = try contents(of: ent.accpath)
+            // a last line needs no newline
+            var lines = bytes.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false)
+            if lines.last?.isEmpty == true {
+              lines.removeLast()
+            }
+            for line in lines {
+              append_path_segment(path: &result, segment: read_segment(line: line))
+            }
+          } catch {
             warn(ent.accpath)
             continue
           }
-
         }
       }
-
     } catch(let e) {
       throw CmdErr(1, "\(e)")
     }
 
-
-
     // merge in any existing custom PATH elements
-    if let str = Environment[env_var] {
-      let strx = str.split(separator: ":")
-      for ss in strx {
-        append_path_segment(path: &result, segment: String(ss) )
+    if let existing = environmentBytes(env_var) {
+      for element in existing.split(separator: Self.colon) {
+        append_path_segment(path: &result, segment: Array(element))
       }
     }
     return result
   }
 
-
-
   func parseOptions() throws(CmdErr) -> CommandOptions {
-    
     var opts = CommandOptions()
-    
+
     // default to csh style, if $SHELL ends with "csh".
     if let shell = Environment["SHELL"] {
       if shell.contains(/csh/) {
         opts.style = .csh
       }
     }
-    
+
     let go = BSDGetopt("cs")
-    
+
     while let (ch, _) = try go.getopt() {
       switch ch {
       case "c":
@@ -175,125 +168,73 @@ import CMigration
         throw CmdErr(1)
       }
     }
-    
+
     opts.args = go.remaining
     if opts.args.count > 0 {
       throw CmdErr(1)
     }
     return opts
   }
-  
-  func runCommand() async throws(CmdErr) {
 
-    let path = try await construct_path("PATH", "/etc/paths", "/etc/paths.d")
-    var manpath: String?
-    
+  func runCommand() throws(CmdErr) {
+    let path = try construct_path("PATH", "/etc/paths", "/etc/paths.d")
+    var manpath: [UInt8]?
+
     // only adjust manpath if already set
-    let doManpath = Environment["MANPATH"] != nil
-    if doManpath {
-      manpath = try await construct_path("MANPATH", "/etc/manpaths", "/etc/manpaths.d")
+    if getenv("MANPATH") != nil {
+      manpath = try construct_path("MANPATH", "/etc/manpaths", "/etc/manpaths.d")
     }
-    
+
+    func bytes(_ s: String) -> [UInt8] { Array(s.utf8) }
+    var out = [UInt8]()
     if options.style == .csh {
-      print("setenv PATH \"\(path!)\";")
-      if doManpath {
-        print("setenv MANPATH \"\(manpath ?? "")\";")
+      out += bytes("setenv PATH \"") + path + bytes("\";\n")
+      if let manpath {
+        // the trailing colon and then the stray one are what the system utility writes
+        out += bytes("setenv MANPATH \"") + manpath + bytes("\":;\n")
       }
     } else {
-      print("PATH=\"\(path!)\"; export PATH;")
-      if doManpath {
-        print("MANPATH=\"\(manpath ?? ""):\"; export MANPATH;")
+      out += bytes("PATH=\"") + path + bytes("\"; export PATH;\n")
+      if let manpath {
+        out += bytes("MANPATH=\"") + manpath + bytes(":\"; export MANPATH;\n")
       }
     }
+    out.withUnsafeBufferPointer { _ = fwrite($0.baseAddress, 1, $0.count, stdout) }
   }
 }
 
-/*
-// Sort FTS results in lexicographical order.
-// from `find`
-func find_compare(_ s1: UnsafeMutablePointer<UnsafePointer<FTSENT>?>?, _ s2: UnsafeMutablePointer<UnsafePointer<FTSENT>?>?) -> Int32 {
-  // fts_name is defined as a char[1] -- but this is a lie.  It is really a string
-  // to work around this, I need to get the pointer to fts_name as a (char *)
-
-  let offset = MemoryLayout.offset(of: \FTSENT.fts_name)!
-
-  let f1 = s1!.pointee!
-  let f2 = UnsafeRawPointer(f1).assumingMemoryBound(to: CChar.self).advanced(by: offset)
-  var ss1 = String(cString: f2)
-
-//  print(mm)
-  
-/*  let ss1 = withUnsafePointer(to: s1!.pointee!.pointee.fts_name) { p in
-    p.withMemoryRebound(to: CChar.self, capacity: Int(s1!.pointee!.pointee.fts_pathlen)) { pp in
-      String(cString: pp)
-    }
-  }
-  
-  let ss2 = withUnsafePointer(to: s2!.pointee!.pointee.fts_name) { p in
-    String(cString: p)
-  }
-*/
-  
-  let f3 = s2!.pointee!
-  let f4 = UnsafeRawPointer(f3).assumingMemoryBound(to: CChar.self).advanced(by: offset)
-  var ss2 = String(cString: f4)
-  
-  
-  if let n1 = ss1.prefixMatch(of: /\d+/),
-     let n2 = ss2.prefixMatch(of: /\d+/) {
-    let e1 = Int(n1.output)!
-    let e2 = Int(n2.output)!
-    if e1 > e2 { return 1 }
-    if e2 > e1 { return -1 }
-    ss1 = String(ss1.dropFirst(n1.output.count))
-    ss2 = String(ss2.dropFirst(n2.output.count))
-  }
-  
-  //  let ss1 = String(cString: s1?.pointee.fts_name)
-  //  let ss2 = String(cString: s2?.pointee.fts_name)
-  
-  if ss1 > ss2 { return 1 }
-  else if ss1 < ss2 { return -1 }
-  else { return 0 }
-//  switch cc {
-//  case .orderedSame: return 0
-//  case .orderedAscending: return -1
-//  case .orderedDescending: return 1
-//  }
-  
-}
-*/
-
-
+/// Sorts the files in a directory: names that start with a number by that number, the others (and ties) by name.
 @Sendable func find_compare(_ a : FTSEntry, _ b : FTSEntry) -> ComparisonResult {
   var ss1 = a.name!
   var ss2 = b.name!
 
   if let n1 = ss1.prefixMatch(of: /\d+/),
      let n2 = ss2.prefixMatch(of: /\d+/) {
-    let e1 = Int(n1.output)!
-    let e2 = Int(n2.output)!
-    if e1 > e2 {
-//      os_log("path_helper descending \(e1) > \(e2)")
-      return .orderedDescending }
-    if e2 > e1 {
-//      os_log("path_helper ascending \(e2) > \(e1)")
-      return .orderedAscending }
+    let order = compareNumbers(String(n1.output), String(n2.output))
+    if order != .orderedSame {
+      return order
+    }
     ss1 = String(ss1.dropFirst(n1.output.count))
     ss2 = String(ss2.dropFirst(n2.output.count))
   }
 
-  //  let ss1 = String(cString: s1?.pointee.fts_name)
-  //  let ss2 = String(cString: s2?.pointee.fts_name)
-
   if ss1 > ss2 {
-//    os_log("path_helper descending \(ss1) > \(ss2)")
-    return .orderedDescending }
-  else if ss1 < ss2 {
-//    os_log("path_helper ascending \(ss1) < \(ss2)")
-    return .orderedAscending }
-  else { return .orderedSame }
+    return .orderedDescending
+  } else if ss1 < ss2 {
+    return .orderedAscending
+  }
+  return .orderedSame
 }
 
-
-
+/// Compares two strings of digits as numbers, however many digits they have.
+func compareNumbers(_ a: String, _ b: String) -> ComparisonResult {
+  let x = a.drop { $0 == "0" }
+  let y = b.drop { $0 == "0" }
+  if x.count != y.count {
+    return x.count < y.count ? .orderedAscending : .orderedDescending
+  }
+  if x == y {
+    return .orderedSame
+  }
+  return x < y ? .orderedAscending : .orderedDescending
+}
