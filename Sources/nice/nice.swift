@@ -35,79 +35,91 @@
 
 import CMigration
 
-import sys_resource
+import Darwin
 
 @main final class Nice : ShellCommand {
-  let DEFNICE : Int32 = 10
-  var niceness: Int32 = 10
-  
+  let DEFNICE = 10
+
   struct CommandOptions {
+    var niceness = 10
     var args = [String]()
   }
 
   var options : CommandOptions!
 
+  /// The number in `text` if it is a whole decimal number (leading white space and a sign are allowed, as for
+  /// strtol) that fits in an int.
+  func parseIncrement(_ text: String) -> Int? {
+    var endptr: UnsafeMutablePointer<CChar>?
+    var failed = false
+    let value = text.withCString { p -> Int in
+      errno = 0
+      let v = strtol(p, &endptr, 10)
+      failed = endptr == UnsafeMutablePointer(mutating: p) || endptr?.pointee != 0 || errno == ERANGE
+      return v
+    }
+    if failed || value < Int(Int32.min) || value > Int(Int32.max) {
+      return nil
+    }
+    return value
+  }
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
-    
     var opts = CommandOptions()
-    var ep: UnsafeMutablePointer<CChar>?
-    
-    
-    var aa = CommandLine.arguments
-    // FIXME: this is broken
+    opts.niceness = DEFNICE
+    var args = Array(CommandLine.arguments.dropFirst())
+
     /* Obsolescent syntax: -number, --number */
-    if aa.count >= 2 {
-       let argx = aa[1]
-       if argx.first == "-",
-       let argy = argx.dropFirst().first,
-       argy == "-" || Int(String(argy)) != nil,
-      argx != "--" {
-        aa[1] = "-n\(String(argx.dropFirst()))"
+    if let first = args.first, first != "--", first.utf8.count >= 2, first.utf8.first == UInt8(ascii: "-") {
+      let second = first.utf8.dropFirst().first!
+      if second == UInt8(ascii: "-") || (second >= 0x30 && second <= 0x39) {
+        let number = String(first.dropFirst())
+        guard let n = parseIncrement(number) else {
+          errx(1, "\(number): invalid nice value")
+        }
+        opts.niceness = n
+        args.removeFirst()
       }
     }
-    
-    let go = BSDGetopt("n:", args: ArraySlice(aa))
+
+    let go = BSDGetopt("n:", args: ArraySlice(args))
     while let (ch, optarg) = try go.getopt() {
       switch ch {
       case "n":
-        errno = 0
-          if let opta = Int32(optarg) {
-            niceness = opta
-          } else {
-              throw CmdErr(1, "\(optarg): invalid nice value")
-          }
-
+        guard let n = parseIncrement(optarg) else {
+          errx(1, "\(optarg): invalid nice value")
+        }
+        opts.niceness = n
       default:
         throw CmdErr(1)
       }
     }
-    
+
     opts.args = go.remaining
-    
-    if opts.args.count == 0 {
+    if opts.args.isEmpty {
       throw CmdErr(1)
     }
     return opts
   }
-  
-  func runCommand() throws(CmdErr) {
-    
-    errno = 0
-    niceness += getpriority(PRIO_PROCESS, 0)
-    if errno != 0 {
-      print("getpriority warning")
-    } else if setpriority(PRIO_PROCESS, 0, niceness) != 0 {
-      print("setpriority warning")
-    }
-      
-    let evpa = options.args.dropFirst().map { strdup($0) }
-    execvp(options.args[0], evpa)
 
-    let n = "\(options.args[0])"
-    let e = POSIXErrno().description
-    var se = FileDescriptor.standardError
-    print("\(programName): \(n): \(e)", to: &se)
+  func runCommand() throws(CmdErr) {
+    errno = 0
+    let current = Int(getpriority(PRIO_PROCESS, 0))
+    if errno != 0 {
+      warn("getpriority")
+    } else {
+      // the new priority stays within the range the system allows
+      let priority = min(max(current + options.niceness, Int(PRIO_MIN)), Int(PRIO_MAX))
+      if setpriority(PRIO_PROCESS, 0, Int32(priority)) != 0 {
+        warn("setpriority")
+      }
+    }
+
+    let command = options.args[0]
+    let failure = execvp(command, options.args)
+    // like the other utilities that run a command: 127 if it isn't there, 126 if it can't be run
+    throw CmdErr(failure.code == ENOENT ? 127 : 126, "\(command): \(String(cString: strerror(failure.code)))")
   }
-  
+
   var usage = "usage: nice [-n increment] utility [argument ...]"
 }
