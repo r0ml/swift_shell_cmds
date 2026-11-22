@@ -39,27 +39,32 @@ import Darwin
 
 
 @main final class pwd : ShellCommand {
-  
+
   var usage = "usage: pwd [-L | -P]"
-  
-  func getcwd_logical() -> String? {
-    let pwdStr = Environment["PWD"]
-    
-    if let pwdStr, pwdStr.first == "/" {
-      guard let lg = try? FilePath(pwdStr).stat(followTargetSymlink: true ),
-            let phy = try? FilePath(".").stat(followTargetSymlink: true) else {
-        return nil
-      }
-      if lg.deviceID == phy.deviceID && lg.inode == phy.inode {
-        return pwdStr
+
+  /// The working directory as $PWD names it, if that is an absolute path with no "." or ".." in it that really
+  /// is the working directory.  Otherwise nil, with errno saying why.
+  func getcwd_logical() -> UnsafePointer<CChar>? {
+    if let pwd = getenv("PWD"), pwd.pointee == CChar(UInt8(ascii: "/")) {
+      // a path with . or .. components is not a logical path
+      let dotted = String(cString: pwd).split(separator: "/").contains { $0 == "." || $0 == ".." }
+      if !dotted {
+        var lg = stat()
+        var phy = stat()
+        if stat(pwd, &lg) == -1 || stat(".", &phy) == -1 {
+          // (whatever the reason, the physical path is tried next)
+          errno = ENOENT
+          return nil
+        }
+        if lg.st_dev == phy.st_dev && lg.st_ino == phy.st_ino {
+          return UnsafePointer(pwd)
+        }
       }
     }
-    
     errno = ENOENT
     return nil
   }
-  
-  
+
   struct CommandOptions {
     var physical = false
   }
@@ -70,42 +75,33 @@ import Darwin
     var opts = CommandOptions()
     let go = BSDGetopt("LP")
     while let (ch, _) = try go.getopt() {
-      
       switch ch {
       case "L":
           opts.physical = false
       case "P":
           opts.physical = true
-      case "?":
-        fallthrough
       default:
         throw CmdErr(1)
       }
     }
-    
+
     if go.remaining.count > 0 {
       throw CmdErr(1)
     }
     return opts
   }
-  
-  func runCommand() throws(CmdErr) {
-    var p : String?
-    if (!options.physical) {
-      p = getcwd_logical()
-    }
-    
-    if p == nil || (options.physical || errno == ENOENT ) {
-      p = String(cString: getcwd(nil, 0))
-    }
-    
-//    if (!physical && (p = getcwd_logical()) != nil) ||
-//        ((physical || errno == ENOENT) && (p = String(cString: getcwd(nil, 0))) != nil) {
-    if let p {
-      print(p)
-    } else {
-      throw CmdErr(1, ".")
-    }
 
+  func runCommand() throws(CmdErr) {
+    // the logical path unless that was asked not to be, or can't be had
+    if !options.physical, let logical = getcwd_logical() {
+      puts(logical)
+      return
+    }
+    if options.physical || errno == ENOENT, let physical = getcwd(nil, 0) {
+      puts(physical)
+      free(physical)
+      return
+    }
+    err(1, ".")
   }
 }
