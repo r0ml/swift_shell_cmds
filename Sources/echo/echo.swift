@@ -33,29 +33,43 @@
 
 import CMigration
 
-@main struct Echo {
-  static func main() {
-    var args = Array(CommandLine.arguments.dropFirst()) // drop the executable name
+@main struct Echo : ShellCommand {
+  struct CommandOptions {
+    var args = [String]()
     var nflag = false
-    let posix = Environment["POSIXLY_CORRECT"] != nil || Environment["POSIX_PEDANTIC"] != nil
+    var posix = false
+  }
 
-    if !posix && args.first == "-n" {
-      nflag = true
-      args.removeFirst()
+  var options : CommandOptions!
+
+  /// echo has no options to get wrong: whatever is given is something to print.
+  let usage = "usage: echo [-n] [string ...]"
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
+    opts.args = Array(CommandLine.arguments.dropFirst()) // drop the executable name
+    opts.posix = Environment["POSIXLY_CORRECT"] != nil || Environment["POSIX_PEDANTIC"] != nil
+
+    if !opts.posix && opts.args.first == "-n" {
+      opts.nflag = true
+      opts.args.removeFirst()
     }
+    return opts
+  }
 
+  func runCommand() throws(CmdErr) {
     var out: [UInt8] = []
     var stopped = false
-    for (i, arg) in args.enumerated() {
+    for (i, arg) in options.args.enumerated() {
       if i > 0 { out.append(0x20) }
-      if !appendOperand(arg, to: &out, posix: posix) {
+      if !Self.appendOperand(arg, to: &out, posix: options.posix) {
         stopped = true
         break
       }
     }
 
     // `\c` suppresses the trailing newline and discards all further output.
-    if !nflag && !stopped {
+    if !options.nflag && !stopped {
       out.append(0x0A)
     }
 

@@ -33,10 +33,21 @@
  * SUCH DAMAGE.
  */
 
-import stdlib_h
+import CMigration
 
-@main struct False {
-  static func main() {
-    stdlib_h.exit(1)
+@main struct False : ShellCommand {
+  struct CommandOptions {}
+
+  var options : CommandOptions!
+
+  let usage = "usage: false"
+
+  /// Whatever the arguments are, they are ignored.
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    CommandOptions()
+  }
+
+  func runCommand() throws(CmdErr) {
+    throw CmdErr(1)
   }
 }

@@ -43,46 +43,55 @@ let EXIT_NOEXEC : Int32 = 126
 let EXIT_NOTFOUND : Int32 = 127
 let EXIT_MISC : Int32 = 127
 
-@main struct nohup {
-  static func main() {
+@main struct nohup : ShellCommand {
+  struct CommandOptions {
+    var args = [String]()
+  }
+
+  var options : CommandOptions!
+
+  let usage = "usage: nohup [--] utility [arguments]"
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     let go = BSDGetopt("")
+    // there are no options
+    let first: (Character, String)?
     do {
-      // there are no options
-      if (try go.getopt()) != nil {
-        usage()
-      }
+      first = try go.getopt()
     } catch {
-      if !error.message.isEmpty {
-        writeError(error.message)
-      }
-      usage()
+      throw CmdErr(Int(EXIT_MISC), error.message)
     }
-    let args = go.remaining
-    if args.isEmpty {
-      usage()
+    if first != nil {
+      throw CmdErr(Int(EXIT_MISC))
     }
+    opts.args = go.remaining
+    if opts.args.isEmpty {
+      throw CmdErr(Int(EXIT_MISC))
+    }
+    return opts
+  }
+
+  func runCommand() throws(CmdErr) {
+    let args = options.args
 
     if isatty(STDOUT_FILENO) != 0 {
       dofile()
     }
     if isatty(STDERR_FILENO) != 0 && dup2(STDOUT_FILENO, STDERR_FILENO) == -1 {
       // may have just closed stderr
-      exit(EXIT_MISC)
+      throw CmdErr(Int(EXIT_MISC))
     }
 
     signal(SIGHUP, SIG_IGN)
 
     let failure = execvp(args[0], args)
-    err(failure.code == ENOENT ? Int(EXIT_NOTFOUND) : Int(EXIT_NOEXEC), args[0])
-  }
-
-  static func writeError(_ text: String) {
-    var se = FileDescriptor.standardError
-    print(text, to: &se)
+    let status = failure.code == ENOENT ? EXIT_NOTFOUND : EXIT_NOEXEC
+    throw CmdErr(Int(status), "\(args[0]): \(String(cString: strerror(failure.code)))")
   }
 
   /// Sends standard output to nohup.out in the current directory, or else in the home directory.
-  static func dofile() {
+  func dofile() {
     var path = FILENAME
     var fd = open(path, O_RDWR | O_CREAT, 0o600)
     if fd == -1 {
@@ -99,11 +108,7 @@ let EXIT_MISC : Int32 = 127
     if dup2(fd, STDOUT_FILENO) == -1 {
       err(Int(EXIT_MISC), "")
     }
-    writeError("appending output to \(path)")
-  }
-
-  static func usage() -> Never {
-    writeError("usage: nohup [--] utility [arguments]")
-    exit(EXIT_MISC)
+    var se = FileDescriptor.standardError
+    print("appending output to \(path)", to: &se)
   }
 }

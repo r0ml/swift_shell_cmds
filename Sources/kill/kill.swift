@@ -37,34 +37,53 @@ import CMigration
 
 import Darwin
 
-@main class killCommand {
+@main final class killCommand : ShellCommand {
   #if os(macOS) || os(iOS) || os(visionOS) || os(tvOS) || os(watchOS)
   let sys_nsig = NSIG
   #endif
 
   var signames : [String] = []
+
   required init() {
     signames = swiftify_signames()
   }
-  
-  static func main() {
-    let z = Self().main()
-    exit(z)
+
+  enum Action {
+    /// -l: the names of all the signals
+    case listAll
+    /// -l with an exit status: the name of the signal it stands for
+    case listOne(Int32)
+    /// send a signal to the processes
+    case send(Int32, [String])
   }
-  
-  func main() -> Int32 {
+
+  struct CommandOptions {
+    var action = Action.listAll
+  }
+
+  var options : CommandOptions!
+
+  let usage = """
+    usage: kill [-s signal_name] pid ...
+           kill -l [exit_status]
+           kill -signal_name pid ...
+           kill -signal_number pid ...
+    """
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
     var args = Array(CommandLine.arguments.dropFirst())
-    guard !args.isEmpty else { usage() }
+    guard !args.isEmpty else { throw CmdErr(2) }
 
     var numsig = SIGTERM
 
     if args[0] == "-l" {
       args.removeFirst()
-      if args.count > 1 { usage() }
+      if args.count > 1 { throw CmdErr(2) }
 
       if let arg = args.first {
         // only a string that starts with a digit is a signal number (or exit status)
-        guard let c = arg.utf8.first, isASCIIDigit(c) else { usage() }
+        guard let c = arg.utf8.first, isASCIIDigit(c) else { throw CmdErr(2) }
         guard let x = parseDecimal(arg) else { errx(2, "illegal signal number: \(arg)") }
         numsig = Int32(truncatingIfNeeded: x)
         if numsig >= 128 {
@@ -73,18 +92,17 @@ import Darwin
         if numsig <= 0 || numsig >= sys_nsig {
           nosig(arg)
         }
-        print_signum(numsig)
-        return 0
+        opts.action = .listOne(numsig)
+      } else {
+        opts.action = .listAll
       }
-      printsignals(FileDescriptor.standardOutput)
-      return 0
+      return opts
     }
 
     if args[0] == "-s" {
       args.removeFirst()
       guard let name = args.first else {
-        warnx("option requires an argument -- s")
-        usage()
+        throw CmdErr(2, "\(programName): option requires an argument -- s")
       }
       if name != "0" {
         numsig = signame_to_signum(name)
@@ -120,32 +138,33 @@ import Darwin
     }
 
     if args.isEmpty {
-      usage()
+      throw CmdErr(2)
     }
 
-    var errors : Int32 = 0
+    opts.action = .send(numsig, args)
+    return opts
+  }
 
-    for arg in args {
-      #if SHELL
-      var ret : Int32
-      if arg == "%" {
-        ret = killjob(arg, numsig)
-      } else {
-        guard let pidl = parsePid(arg) else { errx(2, "illegal process id: \(arg)") }
-        ret = kill(pidl, numsig)
+  func runCommand() throws(CmdErr) {
+    switch options.action {
+    case .listAll:
+      printsignals(FileDescriptor.standardOutput)
+    case .listOne(let numsig):
+      print_signum(numsig)
+    case .send(let numsig, let pids):
+      var errors = 0
+      for arg in pids {
+        // a bad operand ends the run at once, after the earlier ones were signalled
+        guard let pid = parsePid(arg) else { errx(2, "illegal process id: \(arg)") }
+        if kill(pid, numsig) == -1 {
+          warn(arg)
+          errors = 1
+        }
       }
-      #else
-      guard let pidl = parsePid(arg) else { errx(2, "illegal process id: \(arg)") }
-      let ret = kill(pidl, numsig)
-      #endif
-
-      if ret == -1 {
-        warn(arg)
-        errors = 1
+      if errors != 0 {
+        throw CmdErr(errors)
       }
     }
-
-    return errors
   }
 
   func isASCIIDigit(_ c: UInt8) -> Bool { c >= 0x30 && c <= 0x39 }
@@ -224,16 +243,5 @@ import Darwin
       }
     }
     print(line, to: &fp)
-  }
-
-  func usage() -> Never {
-    var fp = FileDescriptor.standardError
-    print("""
-    usage: kill [-s signal_name] pid ...
-           kill -l [exit_status]
-           kill -signal_name pid ...
-           kill -signal_number pid ...
-    """, to: &fp)
-    exit(2)
   }
 }
