@@ -36,76 +36,74 @@
 
 import CMigration
 
-import sys_resource
+import Darwin
 
 let FILENAME = "nohup.out"
 let EXIT_NOEXEC : Int32 = 126
 let EXIT_NOTFOUND : Int32 = 127
 let EXIT_MISC : Int32 = 127
 
-@main class nohup {
+@main struct nohup {
   static func main() {
-    Self().main()
-  }
-  
-  required init() {}
-  
-  func main() {
-    var exit_status: Int32
-    
-    let argv = CommandLine.arguments
-    if argv.count < 2 {
+    let go = BSDGetopt("")
+    do {
+      // there are no options
+      if (try go.getopt()) != nil {
+        usage()
+      }
+    } catch {
+      if !error.message.isEmpty {
+        writeError(error.message)
+      }
       usage()
     }
-    
+    let args = go.remaining
+    if args.isEmpty {
+      usage()
+    }
+
     if isatty(STDOUT_FILENO) != 0 {
       dofile()
     }
     if isatty(STDERR_FILENO) != 0 && dup2(STDOUT_FILENO, STDERR_FILENO) == -1 {
       // may have just closed stderr
-      fatalError("\(argv[0])")
+      exit(EXIT_MISC)
     }
-    
-    signal(SIGHUP, SIG_IGN)
-    
-    let argvv = argv.map { strdup($0) }
-    execvp(argv[1], argvv)
-    exit_status = (errno == ENOENT) ? EXIT_NOTFOUND : EXIT_NOEXEC
-    err( Int(exit_status), argv[1] )
-  }
-  
-  func dofile() {
-    var path = [CChar](repeating: 0, count: MAXPATHLEN)
-    var p: String
-    
-    p = FILENAME
-    do {
-      let fd = try FileDescriptor.open(p, .readWrite, options: [.create, .append], permissions: [.ownerReadWrite])
-      dupit(fd: fd, p: p)
-    } catch {
 
-      if let home = getenv("HOME") {
-        let pathString = "\(home)/\(FILENAME)"
-        do {
-          let fd = try FileDescriptor.open(pathString, .readWrite, options: [.create, .append], permissions: [.ownerReadWrite])
-          dupit(fd: fd, p: pathString)
-        } catch {
-          errx(Int(EXIT_MISC), "can't open a nohup.out file")
-        }
+    signal(SIGHUP, SIG_IGN)
+
+    let failure = execvp(args[0], args)
+    err(failure.code == ENOENT ? Int(EXIT_NOTFOUND) : Int(EXIT_NOEXEC), args[0])
+  }
+
+  static func writeError(_ text: String) {
+    var se = FileDescriptor.standardError
+    print(text, to: &se)
+  }
+
+  /// Sends standard output to nohup.out in the current directory, or else in the home directory.
+  static func dofile() {
+    var path = FILENAME
+    var fd = open(path, O_RDWR | O_CREAT, 0o600)
+    if fd == -1 {
+      guard let home = getenv("HOME"), home.pointee != 0 else {
+        errx(Int(EXIT_MISC), "can't open a nohup.out file")
+      }
+      path = "\(String(cString: home))/\(FILENAME)"
+      fd = open(path, O_RDWR | O_CREAT, 0o600)
+      if fd == -1 || path.utf8.count >= Int(PATH_MAX) {
+        errx(Int(EXIT_MISC), "can't open a nohup.out file")
       }
     }
-  }
-  
-  func dupit(fd: FileDescriptor, p: String) {
-    try? fd.seek(offset: 0, from: .end)
-    if dup2(fd.rawValue, STDOUT_FILENO) == -1 {
-      fatalError()
+    lseek(fd, 0, SEEK_END)
+    if dup2(fd, STDOUT_FILENO) == -1 {
+      err(Int(EXIT_MISC), "")
     }
-    print("appending output to \(p)")
+    writeError("appending output to \(path)")
   }
-  
-  func usage() {
-    print("usage: nohup [--] utility [arguments]")
+
+  static func usage() -> Never {
+    writeError("usage: nohup [--] utility [arguments]")
     exit(EXIT_MISC)
   }
 }
