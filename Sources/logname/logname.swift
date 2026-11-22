@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 @main struct logname : ShellCommand {
 
   typealias CommandOptions = Void
@@ -48,8 +50,11 @@ import CMigration
   }
 
   func runCommand() async throws(CmdErr) {
-    let p = userName
-    print(p)
+    // there is no login name when the process isn't part of a login session
+    guard let p = getlogin() else {
+      throw CmdErr(1, String(cString: strerror(errno)))
+    }
+    print(String(cString: p))
   }
   
   var usage: String = "usage: logname"
