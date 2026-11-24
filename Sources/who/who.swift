@@ -37,128 +37,97 @@ import Darwin
 
 @main final class Who : ShellCommand {
   struct CommandOptions {
-    var Hflag : Bool = false     // Write column headings
-    var aflag : Bool = false     // Print all entries
-    var bflag : Bool = false     // Show date of the last reboot
-    // #ifdef __APPLE__
-    var lflag : Bool = false      // waiting to login
-    // #endif
-    var mflag : Bool = false      // Show info about current terminal
-    // #ifdef __APPLE__
-    var pflag : Bool = false      // Processes active & spawned by init
-    // #endif
-    // #ifdef __APPLE__
-    var dflag : Bool = false      // dead processes
-    // #endif
-    var qflag : Bool = false      // "Quick" mode
-    // #ifdef __APPLE__
-    var rflag : Bool = false      // run-level of the init process
-    // #endif
-    var sflag : Bool = false      // Show name, line, time
-    // #ifdef __APPLE__
-    var tflag : Bool = false      // time of change to system clock
-    // #endif
-    var Tflag : Bool = false      // Show terminal state
-    var uflag : Bool = false      // Show idle time
-    // #ifdef __APPLE__
-  //  #include <get_compat.h>
-    var unix2003_std : Bool = false
-    var arg : String?
-    var args = ArraySlice<String>()
+    var Hflag = false     // Write column headings
+    var aflag = false     // Print all entries
+    var bflag = false     // Show date of the last reboot
+    var lflag = false     // waiting to login
+    var mflag = false     // Show info about current terminal
+    var pflag = false     // Processes active & spawned by init
+    var dflag = false     // dead processes
+    var qflag = false     // "Quick" mode
+    var rflag = false     // run-level of the init process
+    var sflag = false     // Show name, line, time
+    var tflag = false     // time of change to system clock
+    var Tflag = false     // Show terminal state
+    var uflag = false     // Show idle time
+    var file: String?
   }
 
   var options : CommandOptions!
 
+  /// The behavior is the one the standard says (Unix2003), which is the one that is in force unless asked for otherwise.
+  let unix2003_std = true
+
+  let usage = "usage: who [-abdHlmpqrstTu] [am I] [file]"
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
 
-    // #ifdef __APPLE__
-    // let unix2003_std = true //  COMPAT_MODE("bin/who", "unix2003")
-    
     let go = BSDGetopt("abdHlmpqrstTu")
     while let (ch, _) = try go.getopt() {
-      
       switch ch {
-      case "H":
+      case "H":    /* Write column headings */
         opts.Hflag = true
-      case "T":
+      case "T":    /* Show terminal state */
         opts.Tflag = true
-      case "a":
+      case "a":    /* Same as -bdlprtTu */
         opts.aflag = true
         opts.bflag = true
         opts.Tflag = true
         opts.uflag = true
-#if os(macOS)
         opts.dflag = true
         opts.lflag = true
         opts.pflag = true
         opts.rflag = true
         opts.sflag = true
         opts.tflag = true
-#endif
-      case "b":
+      case "b":    /* Show date of the last reboot */
         opts.bflag = true
-#if os(macOS)
-      case "d":
+      case "d":    /* dead processes */
         opts.dflag = true
-      case "l":
+      case "l":    /* waiting to login */
         opts.lflag = true
-#endif
-      case "m":
+      case "m":    /* Show info about current terminal */
         opts.mflag = true
-#if os(macOS)
-      case "p":
+      case "p":    /* Processes active & spawned by init */
         opts.pflag = true
-#endif
-      case "q":
+      case "q":    /* "Quick" mode */
         opts.qflag = true
-#if os(macOS)
-      case "r":
+      case "r":    /* run-level of the init process */
         opts.rflag = true
-      case "s":
+      case "s":    /* Show name, line, time */
         opts.sflag = true
-      case "t":
+      case "t":    /* time of change to system clock */
         opts.tflag = true
-#endif
-      case "u":
+      case "u":    /* Show idle time */
         opts.uflag = true
       default:
         throw CmdErr(1)
       }
     }
-    
-    opts.args = ArraySlice(go.remaining)
-    if opts.args.isEmpty {
-      return opts
-    }
-    
-    
-    if opts.args.count >= 2, opts.args[0] == "am", (opts.args[1] == "i" || opts.args[1] == "I") {
+
+    var args = go.remaining[...]
+    if args.count >= 2 && args[args.startIndex] == "am" && (args[args.startIndex + 1] == "i" || args[args.startIndex + 1] == "I") {
+      /* "who am i" or "who am I", equivalent to -m */
       opts.mflag = true
-      opts.args = opts.args.dropFirst(2)
+      args = args.dropFirst(2)
     }
-    if opts.args.count > 1 {
+    if args.count > 1 {
       throw CmdErr(1)
     }
-    
-    opts.arg = opts.args.first
+    opts.file = args.first
     return opts
   }
-  
-  
+
   func runCommand() throws(CmdErr) {
-    if let arg = options.arg {
-#if !(os(macOS) || targetEnvironment(macCatalyst))
-      if Darwin.setutxdb(UTXDB_ACTIVE, arg) != 0 {
-        throw .opterr(1, arg)
+    setlocale(LC_TIME, "")
+
+    if let file = options.file {
+      if utmpxname(file) == 0 || wtmpxname(file) == 0 {
+        throw CmdErr(1)
       }
-#else
-      if (utmpxname(arg) == 0) || (wtmpxname(arg) == 0) {
-        throw CmdErr(1, usage)
-      }
-#endif
     }
-    
+
     if options.qflag {
       quick()
     } else {
@@ -175,255 +144,234 @@ import Darwin
         process_utmp()
       }
     }
-    
-    Darwin.endutxent()
-    
-#if os(macOS)
-    if Darwin.ferror(Darwin.stdout) != 0 || fflush(Darwin.stdout) != 0 {
-      throw CmdErr(1, "stdout")
+
+    endutxent()
+
+    if ferror(stdout) != 0 || fflush(stdout) != 0 {
+      err(1, "stdout")
     }
-#endif
-  }
-  
-  var usage = "usage: who [-abdHlmpqrstTu] [am I] [file]"
-  
-  func leftPad(_ s : String, _ n : Int) -> String {
-    return String(repeating: " ", count: n - s.count) + s
   }
 
-  func rightPad(_ s : String, _ n : Int) -> String {
-    return s + String(repeating: " ", count: n - s.count)
+  // MARK: output
+
+  func put(_ bytes: [UInt8]) {
+    bytes.withUnsafeBufferPointer { _ = fwrite($0.baseAddress, 1, $0.count, stdout) }
   }
-  
+
+  func put(_ text: String) {
+    fputs(text, stdout)
+  }
+
+  /// "%-*s": the bytes, and spaces after them to make the width.
+  func left(_ bytes: [UInt8], _ width: Int) -> [UInt8] {
+    bytes + [UInt8](repeating: UInt8(ascii: " "), count: max(0, width - bytes.count))
+  }
+
+  func left(_ text: String, _ width: Int) -> [UInt8] {
+    left(Array(text.utf8), width)
+  }
+
+  /// A field of a record, as the bytes before the first NUL.
+  func bytes<T>(of field: T) -> [UInt8] {
+    withUnsafeBytes(of: field) { Array($0.prefix { $0 != 0 }) }
+  }
+
   func heading() {
-    
-    print(rightPad("NAME", 16), terminator: " ")
+    put(left("NAME", 16) + [32])
     if options.Tflag {
-      print("S ", terminator: "")
+      put("S ")
     }
-    print("\(rightPad("LINE", 12)) \(rightPad("TIME",12)) ", terminator: "")
+    put(left("LINE", 12) + [32] + left("TIME", 12) + [32])
     if options.uflag {
-      print("IDLE  ", terminator: "")
+      put("IDLE  ")
     }
-    if options.unix2003_std && options.uflag && !options.Tflag {
-      print("     PID ", terminator: "")
+    if unix2003_std && options.uflag && !options.Tflag {
+      put("     PID ")
     }
-    print(rightPad("FROM", 16), terminator: "\n")
+    put(left("FROM", 16) + [10])
   }
-  
-  let d_first = Darwin.nl_langinfo(Darwin.D_MD_ORDER).pointee == ("d" as UnicodeScalar).value
-  
-  func row(ut: inout Darwin.utmpx) {
-    var buf = [UInt8](repeating: 0, count: 80)
-    //  var tty = [CChar](repeating: 0, count: Int(_PATH_DEV.count) + Int(_UTX_LINESIZE))
-    var idle: Darwin.time_t = 0
-    var t: Darwin.time_t = 0
-    //    var d_first = -1
-    var login_pidstr : String = "???"
-    
-    var state = "?"
-    idle = 0
+
+  /// Whether the date is shown with the day first (in the locale).
+  lazy var d_first: Bool = nl_langinfo(D_MD_ORDER).pointee == CChar(UInt8(ascii: "d"))
+
+  func row(_ ut: utmpx) {
+    var state = UInt8(ascii: "?")
+    var idle: time_t = 0
+    var login_pidstr = [UInt8]()
+
     if options.Tflag || options.uflag {
-      withUnsafeBytes(of: ut.ut_line) { u in
-        let tty = "\(_PATH_DEV)\(String(decoding:u, as: UTF8.self))"
-        if let sb = try? FilePath(tty).stat(followTargetSymlink: true) {
-          state = sb.permissions.containsAny(of: [.otherWrite, .groupWrite]) ? "+" : "-"
-          idle = DateTime().secs - sb.st_mtim.tv_sec
-        }
+      let tty = Array(_PATH_DEV.utf8) + bytes(of: ut.ut_line)
+      var sb = stat()
+      if stat(String(decoding: tty, as: UTF8.self), &sb) == 0 {
+        state = (sb.st_mode & (S_IWOTH | S_IWGRP)) != 0 ? UInt8(ascii: "+") : UInt8(ascii: "-")
+        idle = time(nil) - sb.st_mtimespec.tv_sec
       }
-      if options.unix2003_std && !options.Tflag {
+      if unix2003_std && !options.Tflag {
         if ut.ut_pid != 0 {
-          login_pidstr = "%8d".cFormat(ut.ut_pid)
+          let number = String(ut.ut_pid)
+          login_pidstr = Array((String(repeating: " ", count: max(0, 8 - number.count)) + number).utf8)
         } else {
-          login_pidstr = "       ?"
+          login_pidstr = Array("       ?".utf8)
         }
       }
     }
-    
-    if ut.ut_type == BOOT_TIME {
-      print("                 ", terminator: "")
+
+    if Int32(ut.ut_type) == BOOT_TIME {
+      put("                 ")
     } else {
-      // FIXME: why is this ut_name instead of ut_user?
-      // FIXME: why is this ut_name in XCode, but ut_user in swift build?
-      //      withUnsafeBytes(of: ut.ut_name) { u in
-      withUnsafeBytes(of: ut) { u in
-        let j = Array(u.bindMemory(to: UInt8.self))
-        let  m = try! IEncoding.latin1.toString(j)
-        //     let m = String(bytes: u, encoding: .utf8) ?? "???"
-        print( rightPad(m, 16), terminator: " ")
-      }
+      put(left(bytes(of: ut.ut_user), 16) + [32])
     }
     if options.Tflag {
-      print("%c ".cFormat(state), terminator: "")
+      put([state, 32])
     }
-    if ut.ut_type == Darwin.BOOT_TIME {
-      print(rightPad("system boot", 12), terminator: " ")
-    } else if ut.ut_type == Darwin.LOGIN_PROCESS {
-      print(rightPad("LOGIN", 12), terminator: " ")
+    if Int32(ut.ut_type) == BOOT_TIME {
+      put(left("system boot", 12) + [32])
+    } else if Int32(ut.ut_type) == LOGIN_PROCESS {
+      put(left("LOGIN", 12) + [32])
     } else {
-      withUnsafeBytes(of: ut.ut_line) { u in
-        let j = Array(u.bindMemory(to: UInt8.self))
-        let m = try! IEncoding.latin1.toString(j)
-        print( rightPad(m, 12), terminator: " ")
-      }
+      put(left(bytes(of: ut.ut_line), 12) + [32])
     }
-    t = ut.ut_tv.tv_sec
-    let tm: UnsafeMutablePointer<Darwin.tm> = Darwin.localtime(&t)
-    Darwin.strftime(&buf, buf.count, d_first ? "%e %b %R" : "%b %e %R", tm)
-    buf.withUnsafeBufferPointer { bbuf in
-      let rp = try! IEncoding.latin1.toString(Array(bbuf))
-      print( rightPad(rp, 12), terminator: " ")
+    var t = ut.ut_tv.tv_sec
+    var buf = [CChar](repeating: 0, count: 80)
+    if let tm = localtime(&t) {
+      strftime(&buf, buf.count, d_first ? "%e %b %R" : "%b %e %R", tm)
     }
+    put(left(Array(buf.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }), 12) + [32])
     if options.uflag {
       if idle < 60 {
-        print("  .   ", terminator: "")
+        put("  .   ")
       } else if idle < 24 * 60 * 60 {
-        print("%02d:%02d ".cFormat(Int(idle / 60 / 60), Int(idle / 60 % 60)), terminator: "")
+        func two(_ n: Int) -> String { n < 10 ? "0\(n)" : "\(n)" }
+        put("\(two(Int(idle / 60 / 60))):\(two(Int(idle / 60 % 60))) ")
       } else {
-        print(" old  ", terminator: "")
+        put(" old  ")
       }
-      if options.unix2003_std && !options.Tflag {
-        print( "\(login_pidstr) ", terminator: "")
-      }
-    }
-    if ut.ut_host.0 != 0 {
-      withUnsafeBytes(of: ut.ut_host) { a in
-        print("(\(String(decoding:a, as: UTF8.self))", terminator: "")
+      if unix2003_std && !options.Tflag {
+        put(login_pidstr + [32])
       }
     }
-    if options.dflag && ut.ut_type == DEAD_PROCESS {
-      print("\tterm=\(0) exit=\(0)", terminator: "")
+    let host = bytes(of: ut.ut_host)
+    if !host.isEmpty {
+      put([UInt8(ascii: "(")] + host + [UInt8(ascii: ")")])
     }
-    print("\n", terminator: "")
+    if options.dflag && Int32(ut.ut_type) == DEAD_PROCESS {
+      put("\tterm=\(0) exit=\(0)")
+    }
+    put([10])
   }
-  
-  func ttystat(_ line: String) -> Bool {
-    let ttybuf = "\(_PATH_DEV)\(line)"
-    if let _ = try? FilePath(ttybuf).stat() {
-      return true
-    } else {
-      return false
-    }
+
+  func ttystat(_ line: [UInt8]) -> Bool {
+    var sb = stat()
+    return stat(String(decoding: Array(_PATH_DEV.utf8) + line, as: UTF8.self), &sb) == 0
   }
-  
+
   func process_utmp() {
-    //    var utx: UnsafeMutablePointer<utmpx>?
-    
-    while let utx = Darwin.getutxent() {
+    while let utx = getutxent() {
+      let type = Int32(utx.pointee.ut_type)
       if options.aflag {
-        row(ut: &utx.pointee)
-      } else if !options.bflag && utx.pointee.ut_type == USER_PROCESS {
-        withUnsafeBytes(of: utx.pointee.ut_line) { uu in
-          if ttystat(String(decoding: uu, as: UTF8.self)) {
-            if !options.rflag && !options.lflag && !options.dflag {
-              row(ut: &utx.pointee)
-            }
+        row(utx.pointee)
+      } else if !options.bflag && type == USER_PROCESS {
+        if ttystat(bytes(of: utx.pointee.ut_line)) {
+          if !options.rflag && !options.lflag && !options.dflag {
+            row(utx.pointee)
           }
         }
-      } else if options.bflag && utx.pointee.ut_type == BOOT_TIME {
-        row(ut: &utx.pointee)
-      } else if options.dflag && utx.pointee.ut_type == DEAD_PROCESS {
-        row(ut: &utx.pointee)
-      } else if options.lflag && utx.pointee.ut_type == LOGIN_PROCESS {
-        row(ut: &utx.pointee)
+      } else if options.bflag && type == BOOT_TIME {
+        row(utx.pointee)
+      } else if options.dflag && type == DEAD_PROCESS {
+        row(utx.pointee)
+      } else if options.lflag && type == LOGIN_PROCESS {
+        row(utx.pointee)
       }
     }
     if options.rflag {
-      print("   .       run-level 3")
+      put("   .       run-level 3\n")
     }
   }
-  
+
   func quick() {
-    //    var utx: UnsafeMutablePointer<utmpx>?
-    var col = 0
     let ncols = ttywidth()
-    var num = 0
-    
-    while let utx = Darwin.getutxent() {
-      // FIXME: it's ut_name in Xcode, but ut_user in SPM!
-      // but since it is the first element of the struct, just go with the struct
-      let utnx = UnsafeRawPointer(utx).assumingMemoryBound(to: CChar.self)
-      //      if utx.pointee.ut_name.0 == 0 || utx.pointee.ut_type != USER_PROCESS {
-      if utnx.pointee == 0 || utx.pointee.ut_type != USER_PROCESS {
+    var col = 0, num = 0
+
+    while let utx = getutxent() {
+      let user = bytes(of: utx.pointee.ut_user)
+      if user.isEmpty || Int32(utx.pointee.ut_type) != USER_PROCESS {
         continue
       }
-      //      withUnsafeBytes(of: utx.pointee.ut_name) { n in
-      withUnsafeBytes(of: utx.pointee) { n in
-        print(  rightPad(String(decoding: n, as: UTF8.self), 16) )
-      }
+      put(left(user, 16))
+      col += 1
       if col < ncols / (16 + 1) {
-        col += 1
-        print(" ")
+        put([32])
       } else {
         col = 0
-        print("\n")
+        put([10])
       }
       num += 1
     }
     if col != 0 {
-      print("\n")
+      put([10])
     }
-    print("# users = \(num)\n")
+
+    put("# users = \(num)\n")
   }
-  
+
   func whoami() {
     var ut = utmpx()
-    //    var utx: UnsafeMutablePointer<utmpx>?
-    //  var pwd: UnsafeMutablePointer<passwd>?
-    var name: String // UnsafePointer<Int8>?
-    var tty: String // UnsafePointer<Int8>?
-    
-    
-    if let ttyx = Darwin.ttyname(STDIN_FILENO) {
-      tty = String(cString: ttyx)
-      if tty.hasPrefix(_PATH_DEV) { //  strncmp(tty, _PATH_DEV, strlen(_PATH_DEV) - 1) == 0 {
-        tty = String(tty.dropFirst(_PATH_DEV.count)) //   += strlen(_PATH_DEV) - 1
+
+    var tty = "tty??"
+    if let name = ttyname(STDIN_FILENO) {
+      tty = String(cString: name)
+      if tty.hasPrefix(String(_PATH_DEV)) {
+        tty = String(tty.dropFirst(_PATH_DEV.count))
       }
-    } else {
-      tty = "tty??"
     }
-    
-    let _ = tty.withCString { ttyc in
-      Darwin.strlcpy(&ut.ut_line, ttyc, strlen(ttyc))
+    // strlcpy: what fits, with a NUL
+    withUnsafeMutableBytes(of: &ut.ut_line) { line in
+      let name = Array(tty.utf8)
+      let n = min(name.count, line.count - 1)
+      for i in 0..<n { line[i] = name[i] }
+      line[n] = 0
     }
-    
-    if let utx = getutxline(&ut), utx.pointee.ut_type == USER_PROCESS {
-      row(ut: &utx.pointee)
+
+    /* Search utmp for our tty, dump first matching record. */
+    if let utx = getutxline(&ut), Int32(utx.pointee.ut_type) == USER_PROCESS {
+      row(utx.pointee)
       return
     }
-    
-    memset(&ut, 0, MemoryLayout<utmpx>.size)
-    if let pwd = getPasswd(of: userId) {
-      name = pwd.name
-    } else {
-      name = "?"
+
+    /* Not found; fill the utmp structure with the information we have. */
+    ut = utmpx()
+    var name = Array("?".utf8)
+    if let pwd = getpwuid(getuid()) {
+      name = Array(String(cString: pwd.pointee.pw_name).utf8)
     }
-    let _ = name.withCString { n in
-      //    strlcpy(&ut.ut_name, n, strlen(n))
-      Darwin.strlcpy(&ut, n, strlen(n))
+    withUnsafeMutableBytes(of: &ut.ut_user) { user in
+      let n = min(name.count, user.count - 1)
+      for i in 0..<n { user[i] = name[i] }
+      user[n] = 0
     }
-    Darwin.gettimeofday(&ut.ut_tv, nil)
-    row(ut: &ut)
+    gettimeofday(&ut.ut_tv, nil)
+    row(ut)
   }
-  
+
   func ttywidth() -> Int {
-    var ws = winsize()
-    //    var width: Int64 = 0
-    //    var cols: UnsafeMutablePointer<Int8>?
-    var ep: UnsafeMutablePointer<Int8>?
-    
-    if let cols = Environment["COLUMNS"] {
-      if let width = Int(cols) {
-        return width
+    if let cols = Environment["COLUMNS"], !cols.isEmpty {
+      var ep: UnsafeMutablePointer<CChar>? = nil
+      errno = 0
+      let width = cols.withCString { c -> (Int, Bool) in
+        let w = strtol(c, &ep, 10)
+        return (w, errno != 0 || w <= 0 || w > Int(Int32.max) || UnsafePointer(ep) == c || ep?.pointee != 0)
+      }
+      if width.1 {
+        warnx("invalid COLUMNS environment variable ignored")
       } else {
-        var se = FileDescriptor.standardError
-        print("invalid COLUMNS environment variable ignored", to: &se)
+        return width.0
       }
     }
-    if Darwin.ioctl(FileDescriptor.standardOutput.rawValue, Darwin.TIOCGWINSZ, &ws) != -1 {
+    var ws = winsize()
+    if ioctl(STDOUT_FILENO, UInt(0x4008_7468), &ws) != -1 {
       return Int(ws.ws_col)
     }
-    
     return 80
   }
 }
