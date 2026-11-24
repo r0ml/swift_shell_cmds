@@ -35,122 +35,153 @@
 
 import CMigration
 
-import stdlib_h
+import Darwin
 
-@main class renice {
-  enum PriorityType: Int32 {
-    case process = 0
-    case pgrp
-    case user
+@main final class renice : ShellCommand {
+  struct CommandOptions {
+    /// -n: the priority is a change to the one the process has
+    var incr = false
+    var args = [String]()
   }
-  
-  required init() {}
-  
-  static func main() {
-    let z = Self().main()
-    stdlib_h.exit(z)
+
+  var options : CommandOptions!
+
+  let usage = """
+    usage: renice priority [[-p] pid ...] [[-g] pgrp ...] [[-u] user ...]
+           renice -n increment [[-p] pid ...] [[-g] pgrp ...] [[-u] user ...]
+    """
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
+    var args = Array(CommandLine.arguments.dropFirst())
+    if args.isEmpty {
+      throw CmdErr(1)
+    }
+    if args[0] == "-n" {
+      opts.incr = true
+      args.removeFirst()
+      if args.isEmpty {
+        throw CmdErr(1)
+      }
+    }
+    opts.args = args
+    return opts
   }
-  
-  func main() -> Int32 {
-//    let argc = CommandLine.argc
-//    let argv = CommandLine.unsafeArgv
-    
-    var havedelim = false, haveprio = false, incr = false
+
+  /// A whole decimal number (strtol takes white space and a sign first) as the longest integer it fits in, and
+  /// whether it was out of range.  Nil if there isn't a number in all of the string.
+  func parseNumber(_ text: String) -> (value: Int, erange: Bool)? {
+    var end: UnsafeMutablePointer<CChar>? = nil
+    var result: (Int, Bool)? = nil
+    text.withCString { p in
+      errno = 0
+      let v = strtol(p, &end, 10)
+      let erange = errno == ERANGE
+      if end != UnsafeMutablePointer(mutating: p) && end?.pointee == 0 {
+        result = (v, erange)
+      }
+    }
+    return result
+  }
+
+  func runCommand() throws(CmdErr) {
+    var which = PRIO_PROCESS
+    var havedelim = false
+    var haveprio = false
+    var prio: Int32 = 0
     var errs = 0
-    var prio : Int32 = 0
-    var who : id_t = 0
-    var which = PriorityType.process
-    
-    let pgrp = UInt32(getpgrp())
-    let priox = Int(getpriority(PRIO_PGRP, pgrp))
-    
-    for arg in CommandLine.arguments.dropFirst() {
-      if !havedelim {
-        if arg == "-g" {
-          which = .pgrp
-          continue
-        }
-        if arg == "-u" {
-          which = .user
-          continue
-        }
-        if arg == "-p" {
-          which = .process
-          continue
-        }
-        if arg == "--" {
-          havedelim = true
-          continue
-        }
-        if arg == "-n" {
-          // FIXME: I dont decrement argc -- so this needs another approach
-          if haveprio || incr || CommandLine.arguments.count < 2 {
-            usage()
+    var incr = options.incr
+    // the argument after a -n is the priority, whatever it looks like
+    var priorityNext = incr
+
+    for arg in options.args {
+      if !havedelim && !priorityNext {
+        switch arg {
+        case "-g": which = PRIO_PGRP; continue
+        case "-u": which = PRIO_USER; continue
+        case "-p": which = PRIO_PROCESS; continue
+        case "--": havedelim = true; continue
+        case "-n":
+          if haveprio {
+            // a second -n, or one after the priority
+            var se = FileDescriptor.standardError
+            print(usage, to: &se)
+            throw CmdErr(1)
           }
           incr = true
+          priorityNext = true
           continue
+        default:
+          break
         }
       }
+
       if !haveprio {
-        if let num = Int32(arg) {
-          prio = num
-          haveprio = true
-          continue
-        } else {
-          return 1
+        guard let n = parseNumber(arg) else {
+          errx(1, "priority argument \(arg) is invalid.")
         }
+        if n.erange || n.value > Int(Int32.max) || n.value < Int(Int32.min) {
+          errx(1, "priority argument \(arg) is out of range.")
+        }
+        prio = Int32(min(max(n.value, Int(PRIO_MIN)), Int(PRIO_MAX)))
+        haveprio = true
+        priorityNext = false
+        continue
       }
-      if which == .user {
-        if let p = getPasswd(for: arg) {
-          who = id_t(p.userId)
-        } else if let num = id_t(arg) {
-          who = num
-        } else {
-          errs += 1
-          continue
-        }
+
+      var who: id_t = 0
+      let kind = which == PRIO_USER ? "uid" : "pid"
+      if which == PRIO_USER, let pw = getpwnam(arg) {
+        who = pw.pointee.pw_uid
       } else {
-        if let num = id_t(arg) {
-          who = num
-        } else {
+        guard let n = parseNumber(arg) else {
+          warnx("\(kind) argument \(arg) is invalid.")
           errs += 1
           continue
         }
+        if n.erange || n.value > Int(Int32.max) || n.value < Int(Int32.min) {
+          warnx("\(kind) argument \(arg) is out of range.")
+          errs += 1
+          continue
+        }
+        if n.value < 0 {
+          warnx("\(arg): bad value")
+          errs += 1
+          continue
+        }
+        who = id_t(n.value)
       }
-      errs += donice(which: which, who: who, priox: prio, incr: incr)
+      errs += donice(which: which, who: who, prio: prio, incr: incr)
     }
+
     if !haveprio {
-      usage()
+      var se = FileDescriptor.standardError
+      print(usage, to: &se)
+      throw CmdErr(1)
     }
-    return errs != 0 ? 1 : 0
+    if errs != 0 {
+      throw CmdErr(1)
+    }
   }
-  
-  func donice(which: PriorityType, who: id_t, priox: Int32, incr: Bool) -> Int {
-    let oldprio = getpriority(which.rawValue, who)
-    var prio = priox
-    
+
+  func donice(which: Int32, who: id_t, prio priority: Int32, incr: Bool) -> Int {
+    var prio = priority
+    errno = 0
+    let oldprio = getpriority(which, who)
     if oldprio == -1 && errno != 0 {
+      let e = errno
+      errno = e
+      withVaList([Int32(truncatingIfNeeded: who)]) { vwarn("%d: getpriority", $0) }
       return 1
     }
     if incr {
       prio = oldprio + prio
     }
-    if prio > PRIO_MAX {
-      prio = PRIO_MAX
-    }
-    if prio < PRIO_MIN {
-      prio = PRIO_MIN
-    }
-    if setpriority(which.rawValue, who, prio) < 0 {
+    prio = min(max(prio, PRIO_MIN), PRIO_MAX)
+    if setpriority(which, who, prio) < 0 {
+      withVaList([Int32(truncatingIfNeeded: who)]) { vwarn("%d: setpriority", $0) }
       return 1
     }
     return 0
-  }
-  
-  func usage() {
-    var fh = FileDescriptor.standardError
-    print("usage: renice priority [[-p] pid ...] [[-g] pgrp ...] [[-u] user ...]", to: &fh)
-    print("       renice -n increment [[-p] pid ...] [[-g] pgrp ...] [[-u] user ...]", to: &fh)
-    exit(1)
   }
 }
