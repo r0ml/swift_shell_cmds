@@ -42,155 +42,108 @@ import CMigration
 
 import Darwin
 
+/// What is to be shown.
 struct Flags : OptionSet {
-
-  init(rawValue: UInt16) {
-    self.rawValue = rawValue
-    char = "?"
-  }
-  
-  init(rawValue: UInt16, char : String) {
-    self.char = char
-    self.rawValue = rawValue
-  }
-    
   let rawValue : UInt16
-  let char : String
-  
-  static let MFLAG = Flags(rawValue: 0x01, char: "m")
-  static let NFLAG = Flags(rawValue: 0x02, char: "n")
-  static let PFLAG = Flags(rawValue: 0x04, char: "p")
-  static let RFLAG = Flags(rawValue: 0x08, char: "r")
-  static let SFLAG = Flags(rawValue: 0x10, char: "s")
-  static let VFLAG = Flags(rawValue: 0x20, char: "v")
-  
-#if os(Windows) || os(Linux)
-  static let IFLAG = Flags(rawValue: 0x40)
-  static let UFLAG = Flags(rawValue: 0x80)
-  static let KFLAG = Flags(rawValue: 0x100)
-  static let BFLAG = Flags(rawValue: 0x200)
-  
-  static let all : Flags = [.MFLAG, .NFLAG, .PFLAG, .RFLAG, .SFLAG, .VFLAG, .IFLAG, .UFLAG, .KFLAG, .BFLAG]
-  #else
-  static let all : Flags = [.MFLAG, .NFLAG, .PFLAG, .RFLAG, .SFLAG, .VFLAG]
 
-#endif
-  
+  static let MFLAG = Flags(rawValue: 0x01)
+  static let NFLAG = Flags(rawValue: 0x02)
+  static let PFLAG = Flags(rawValue: 0x04)
+  static let RFLAG = Flags(rawValue: 0x08)
+  static let SFLAG = Flags(rawValue: 0x10)
+  static let VFLAG = Flags(rawValue: 0x20)
 }
 
-
-#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
-let optString = "amnoprsv"
-
+/// The variables that override what is found out about the machine: the names of this system, then (as a fallback) the
+/// ones of the other systems, UNAME_ and the option.
 let env_opts : [String:String] = [
-  "m" :  "UNAME_MACHINE",
-  "n" :  "UNAME_NODENAME",
-  "r" :  "UNAME_RELEASE",
-  "s" :  "UNAME_SYSNAME",
-  "v" : "UNAME_VERSION"
-  ]
-
-#else
-let optString = "abiKmnoprsUv"
-#endif
+  "m" : "UNAME_MACHINE",
+  "n" : "UNAME_NODENAME",
+  "r" : "UNAME_RELEASE",
+  "s" : "UNAME_SYSNAME",
+  "v" : "UNAME_VERSION",
+]
 
 @main final class uname : ShellCommand {
-  
+
   struct CommandOptions {
     var flags : Flags = []
   }
 
   var options : CommandOptions!
 
+  let usage = "usage: uname [-amnoprsv]"
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
-    // setup_get()
     var opts = CommandOptions()
-    
-    let go = BSDGetopt(optString)
+
+    let go = BSDGetopt("amnoprsv")
     while let (ch, _) = try go.getopt() {
       switch ch {
       case "a":
-          opts.flags = Flags.all
-        
-#if os(Windows) || os(Linux)
-      case "b":
-          opts.flags.formUnion(.BFLAG)
-      case "i":
-          opts.flags.formUnion(.IFLAG)
-      case "K":
-          opts.flags.formUnion(.KFLAG)
-      case "U":
-          opts.flags.formUnion(.UFLAG)
-#endif
-        
+        // (the processor type is not part of "all" when the behavior is that of Unix2003, which it is)
+        opts.flags.formUnion([.MFLAG, .NFLAG, .RFLAG, .SFLAG, .VFLAG])
       case "m":
-          opts.flags.formUnion(.MFLAG)
+        opts.flags.formUnion(.MFLAG)
       case "n":
-          opts.flags.formUnion(.NFLAG)
+        opts.flags.formUnion(.NFLAG)
       case "p":
-          opts.flags.formUnion(.PFLAG)
+        opts.flags.formUnion(.PFLAG)
       case "r":
-          opts.flags.formUnion(.RFLAG)
-      case "s","o":
-          opts.flags.formUnion(.SFLAG)
+        opts.flags.formUnion(.RFLAG)
+      case "s", "o":
+        opts.flags.formUnion(.SFLAG)
       case "v":
-          opts.flags.formUnion(.VFLAG)
-      case "?":
-        fallthrough
+        opts.flags.formUnion(.VFLAG)
       default:
         throw CmdErr(1)
       }
     }
-    
-    if go.remaining.count > 0 {
+
+    if !go.remaining.isEmpty {
       throw CmdErr(1)
     }
-    
+
     if opts.flags.isEmpty {
       opts.flags.formUnion(.SFLAG)
     }
     return opts
   }
-  
+
   func runCommand() throws(CmdErr) {
     print_uname(options.flags)
+    if ferror(stdout) != 0 || fflush(stdout) != 0 {
+      err(1, "stdout")
+    }
   }
-  
-  /*
-   func setup_get() {
-   CHECK_ENV("s", sysname);
-   CHECK_ENV("n", hostname);
-   CHECK_ENV("r", release);
-   CHECK_ENV("v", version);
-   CHECK_ENV("m", platform);
-   CHECK_ENV("p", arch);
-   #if os(Windows) || OS(Linux)
-   CHECK_ENV("i", ident);
-   CHECK_ENV("K", kernvers);
-   CHECK_ENV("U", uservers);
-   CHECK_ENV("b", buildid);
-   #endif
-   }
-   */
-  
+
   func print_uname(_ flags : Flags) {
-    PRINT_FLAG(flags, .SFLAG, { self.native_q(CTL_KERN, KERN_OSTYPE) } )
-    PRINT_FLAG(flags, .NFLAG, { self.native_q(CTL_KERN, KERN_HOSTNAME) } )
-    PRINT_FLAG(flags, .RFLAG, { self.native_q(CTL_KERN, KERN_OSRELEASE) } )
-    PRINT_FLAG(flags, .VFLAG, { self.native_q(CTL_KERN, KERN_VERSION).replacing(/\n|\t/, with: " ") } )
-    PRINT_FLAG(flags, .MFLAG, { self.native_q(CTL_HW, HW_MACHINE) } )
-    PRINT_FLAG(flags, .PFLAG, { self.arch } )
-    
-#if os(Windows) || os(Linux)
-    PRINT_FLAG(flags, .IFLAG, ident);
-    PRINT_FLAG(flags, .KFLAG, kernvers);
-    PRINT_FLAG(flags, .UFLAG, uservers);
-    PRINT_FLAG(flags, .BFLAG, buildid);
-#endif
-    
-    print("");
+    var space = false
+
+    func show(_ flag : Flags, _ option: String, _ native: () -> String) {
+      if flags.contains(flag) {
+        if space {
+          print(" ", terminator: "")
+        } else {
+          space = true
+        }
+        print(scan_env(option) ?? native(), terminator: "")
+      }
+    }
+
+    show(.SFLAG, "s") { native_q(CTL_KERN, KERN_OSTYPE) }
+    show(.NFLAG, "n") { native_q(CTL_KERN, KERN_HOSTNAME) }
+    show(.RFLAG, "r") { native_q(CTL_KERN, KERN_OSRELEASE) }
+    show(.VFLAG, "v") {
+      // tabs and newlines in the version are shown as spaces
+      String(decoding: Array(native_q(CTL_KERN, KERN_VERSION).utf8).map { $0 == 0x0a || $0 == 0x09 ? 0x20 : $0 }, as: UTF8.self)
+    }
+    show(.MFLAG, "m") { native_q(CTL_HW, HW_MACHINE) }
+    show(.PFLAG, "p") { arch }
+
+    print("")
   }
-  
+
   var arch : String {
 #if arch(powerpc) || arch(powerpc64)
     return "powerpc"
@@ -202,49 +155,23 @@ let optString = "abiKmnoprsUv"
     return "unknown"
 #endif
   }
-  
-  var space = 0
-  func PRINT_FLAG(_ flags : Flags, _ flag : Flags, _ v : @escaping () -> String) {
-    if flags.contains(flag) {
-      if space != 0 {
-        print(" ", terminator: "");
-      } else {
-        space+=1;
-      }
-      
-      if let z = scan_env(flag.char) {
-        print( z, terminator: "");
-      } else {
-        let z = v()
-        print( z, terminator: "");
-      }
-    }
-  }
-  
-  
-  var usage = "usage: uname [-\(optString)]"
-  
+
   func native_q(_ mib0 : Int32, _ mib1 : Int32) -> String {
     var mib : [Int32] = [ mib0, mib1]
-    var buf = Array(repeating: Int8(0), count: 1024)
+    var buf = [CChar](repeating: 0, count: 1024)
     var len : Int = 1024
-    let x = sysctl(&mib, 2, &buf, &len, nil, 0)
-    if x == -1 {
+    if sysctl(&mib, 2, &buf, &len, nil, 0) == -1 {
       err(1, "sysctl")
     }
-    return String(cString: &buf)
+    return String(cString: buf)
   }
-  
-  /*
-   * Scan the environment for an override.  upstream_optalias is the 1:1 name that
-   * upstream uses (e.g., -n => UNAME_n); we'll fallback to it if the mapped
-   * long option does not exist.  Our aliases take precedence.
-   */
+
+  /// Scan the environment for an override: the variable of this system, if there is one for the option, else
+  /// the one that the other systems use (UNAME_ and the option).  Ours take precedence.
   func scan_env(_ opt : String) -> String? {
-//    let k = ProcessInfo.processInfo.environment
-    if let a = env_opts[opt],
-       let z = Environment[a] { return z }
+    if let name = env_opts[opt], let value = Environment[name] {
+      return value
+    }
     return Environment["UNAME_\(opt)"]
   }
-  
 }
