@@ -38,164 +38,188 @@
 
 import CMigration
 
-@main final class Xargs : ShellCommand {
-  let unix2003 = true
-//  var pad9314053: Int = MemoryLayout<UnsafePointer<CChar>>.size
-  let NOPID = 0
+import Darwin
 
-  var childpids: Set<Int> = []
-  var jbxp : [String] = []
-  var kbxp : [String] = []
-  var rval = 0
-  
-  class CommandOptions {
-//    var arg_max: Int = Int(Darwin.sysconf(Darwin._SC_ARG_MAX))
-    var Jflag = false
+/// The text of the arguments are bytes: they may not be anything in particular, and are passed on as they are (to the
+/// first NUL, as C strings are).
+typealias Bytes = [UInt8]
+
+func cstring(_ b: Bytes) -> Bytes {
+  if let nul = b.firstIndex(of: 0) { return Array(b[..<nul]) }
+  return b
+}
+
+func text(_ b: Bytes) -> String {
+  String(decoding: cstring(b), as: UTF8.self)
+}
+
+let _PATH_ECHO = "/bin/echo"
+
+@main final class Xargs : ShellCommand {
+  struct CommandOptions {
     var Iflag = false
+    var Jflag = false
     var Lflag = 0
-    var tflag = false
-    var zflag = false
-    var xflag = false
-    var nargs: Int = 5000
-    var nflag = false
-    var jfound = false
-    
-    var pflag = false
     var Rflag = 0
     var Sflag = 0
-    var maxprocs: Int = 0
-    
-    // nline is the calculation of how long the command is going to be (in C)
-    // in Swift, I can just build a command line -- however long it is.
-    //      var nline: Int = -1 // Int(sysconf(_SC_ARG_MAX)) - Int(MAXPATHLEN)
-    var linelen: Int = -1
-//    var rl: rlimit = Darwin.rlimit()
-    var replstr: String?
-    var eofstr: String?
+    var nflag = false
     var oflag = false
-//    var nline = -1
-
-    var args : [String] = []
-    
-    var inp = FileDescriptor.standardInput // UnsafeMutablePointer<FILE>! = stdio_h.stdin
+    var pflag = false
+    var tflag = false
+    var xflag = false
+    var zflag = false
+    var eofstr = Bytes()
+    var replstr: Bytes? = nil
+    var nargs = 5000
+    var nline = 0
+    var pad = 0
+    var maxprocs = 1
+    var args = [String]()
   }
 
   var options : CommandOptions!
 
-  func numericArg(_ chx : String, _ arg : String, _ min : Int) throws(CmdErr) -> Int {
-    let ch = chx.count == 1 ? "-\(chx)" : "--\(chx)"
-    if let i = Int(arg) {
-      if i >= min {
-        return i
-      } else {
-        throw CmdErr(1, "\(ch) \(arg): too small")
-      }
-    } else {
-      throw CmdErr(1, "\(ch) \(arg): invalid")
-    }
-  }
-  
-  func parseOptions() throws(CmdErr) -> CommandOptions {
-    let optstr = "+0E:I:J:L:n:oP:pR:S:s:rtxf:"
-    let opts = CommandOptions()
-    
-    let long_options: [LongOption] = [
-      .init("exit", .no_argument),             // x
-      .init("interactive", .no_argument),      // p
-      .init("max-args", .required_argument),   // n
-      .init("max-chars", .required_argument),  // s
-      .init("max-procs", .required_argument),  // P
-      .init("no-run-if-empty", .no_argument),  // r
-      .init("null", .no_argument),             // 0
-      .init("verbose", .no_argument),          // t
-      .init("input-file", .required_argument), // f
-    ]
+  let usage = """
+    usage: xargs [-0opt] [-E eofstr] [-I replstr [-R replacements] [-S replsize]]
+                 [-J replstr] [-L number] [-n number [-x]] [-P maxprocs]
+                 [-s size] [utility [argument ...]]
+    """
 
-    let go = BSDGetopt_long(optstr, long_options)
-    opts.maxprocs = 1
-    while let (ch, optarg) = try go.getopt_long() {
+  // The state of the reading of the input.
+  /// The utility and the arguments that were given (up to the replacement string of -J), with what is read after them.
+  var base = [Bytes]()
+  var xs = [Bytes]()
+  /// The arguments that follow the replacement string of -J.
+  var afterJ = [Bytes]()
+  var jfound = false
+  /// The text of what is read, and where the argument that is being read begins in it.
+  var buf = Bytes()
+  var argp = 0
+  /// How much of it can be used.
+  var ebp = 0
+  var inpline: Bytes? = nil
+  var count = 0
+  var insingle = false, indouble = false, wasquoted = false
+  var last_was_newline = true
+  var last_was_blank = false
+  var rval = 0
+  var argc = 0
+  var utilityName: String { base.isEmpty ? "(null)" : text(base[0]) }
+
+  // The processes that were started.
+  var childpids = [pid_t]()
+  var curprocs = 0
+
+  /// How the number given to an option is checked: the same as strtonum(3), with the message it would give.
+  func number(_ option: String, _ arg: String, _ low: Int, _ high: Int) -> Int {
+    var errstr: UnsafePointer<CChar>? = nil
+    let n = strtonum(arg, Int64(low), Int64(high), &errstr)
+    if let errstr {
+      errx(1, "-\(option) \(arg): \(String(cString: errstr))")
+    }
+    return Int(n)
+  }
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
+
+    // POSIX.2 limits the exec line length to ARG_MAX - 2K.  Running that caused some E2BIG errors, so it was changed to
+    // ARG_MAX - 4K.  Given that the smallest argument is 2 bytes in length, this means that the number of arguments is
+    // limited to: (ARG_MAX - 4K - LENGTH(utility + arguments)) / 2.  We arbitrarily limit the number of arguments to
+    // 5000.
+    let arg_max = sysconf(_SC_ARG_MAX)
+    if arg_max == -1 {
+      errx(1, "sysconf(_SC_ARG_MAX) failed")
+    }
+    opts.pad = MemoryLayout<UnsafeMutablePointer<CChar>>.size
+    opts.nline = Int(Int32(truncatingIfNeeded: arg_max)) - 1024  /* for argv[0] from execvp() */
+    var ep = environ
+    while let entry = ep.pointee {
+      /* 1 byte for each '\0' */
+      opts.nline -= strlen(entry) + 1 + MemoryLayout<UnsafeMutablePointer<CChar>>.size
+      ep += 1
+    }
+    opts.nline -= opts.pad
+
+    let long_options: [LongOption] = [
+      .init("exit", .no_argument),
+      .init("interactive", .no_argument),
+      .init("max-args", .required_argument),
+      .init("max-chars", .required_argument),
+      .init("max-procs", .required_argument),
+      .init("no-run-if-empty", .no_argument),
+      .init("null", .no_argument),
+      .init("verbose", .no_argument),
+    ]
+    // what the long forms are for
+    let longForms = ["exit": "x", "interactive": "p", "max-args": "n", "max-chars": "s", "max-procs": "P",
+                     "no-run-if-empty": "r", "null": "0", "verbose": "t"]
+
+    let go = BSDGetopt_long("+0E:I:J:L:n:oP:pR:S:s:rtx", long_options)
+    while let (name, optarg) = try go.getopt_long() {
+      let ch = longForms[name] ?? name
       switch ch {
       case "E":
-        opts.eofstr = optarg
+        opts.eofstr = Array(optarg.utf8)
       case "I":
         opts.Jflag = false
         opts.Iflag = true
         opts.Lflag = 1
-        opts.replstr = optarg
+        opts.replstr = Array(optarg.utf8)
       case "J":
         opts.Iflag = false
         opts.Jflag = true
-        opts.replstr = optarg
+        opts.replstr = Array(optarg.utf8)
       case "L":
-        opts.Lflag = try numericArg(ch, optarg, 1)
-        if unix2003 {
-          opts.nflag = false
-          opts.nargs = 5000
-        }
-      case "n", "max-args":
+        opts.Lflag = number(ch, optarg, 1, Int(Int32.max))
+        opts.nflag = false  /* Override */
+        opts.nargs = 5000
+      case "n":
         opts.nflag = true
-        opts.nargs = try numericArg(ch, optarg, 1)
-        if unix2003 {
-          opts.Lflag = 0
-        }
+        opts.nargs = number(ch, optarg, 1, Int(Int32.max))
+        opts.Lflag = 0  /* Override */
       case "o":
         opts.oflag = true
-      case "P", "max-procs":
-          // FIXME: do I need this ?  Or will posix_spawn behave appropriately?
-
-          opts.maxprocs = try numericArg(ch, optarg, 0)
-
-          // FIXME: put me back?
-          /*
-        if getrlimit(RLIMIT_NPROC, &opts.rl) != 0 {
-          throw CmdErr(1, "getrlimit failed")
+      case "P":
+        opts.maxprocs = number(ch, optarg, 0, Int(Int32.max))
+        var rl = rlimit()
+        if getrlimit(RLIMIT_NPROC, &rl) != 0 {
+          errx(1, "getrlimit failed")
         }
-        if opts.maxprocs == 0 || opts.maxprocs > opts.rl.rlim_cur {
-          opts.maxprocs = Int(opts.rl.rlim_cur)
+        if opts.maxprocs == 0 || rl.rlim_cur < UInt64(opts.maxprocs) {
+          opts.maxprocs = Int(Int32(truncatingIfNeeded: rl.rlim_cur))
         }
-           */
-      case "p", "interactive":
+      case "p":
         opts.pflag = true
       case "R":
-        opts.Rflag = try numericArg(ch, optarg, Int.min)
-        if opts.Rflag < 0 {
-          opts.Rflag = Int.max
+        opts.Rflag = number(ch, optarg, Int(Int32.min), Int(Int32.max))
+        if opts.Rflag == 0 {
+          errx(1, "-\(ch) \(optarg): must be non-zero")
         }
-      case "r", "no-run-if-empty":
+      case "r":
+        /* GNU compatibility */
         break
       case "S":
-        opts.Sflag = try numericArg(ch, optarg, 0)
-      case "s", "max-chars":
-          // FIXME: do I need this?  Will posix_spawn complain if the command line is too big?
-          break
-//        opts.nline = try numericArg(ch, optarg, 0)
-//        pad9314053 = 0
-      case "t", "verbose":
+        opts.Sflag = number(ch, optarg, 0, Int(Int32.max))
+      case "s":
+        opts.nline = number(ch, optarg, 0, Int(Int32.max))
+        opts.pad = 0  /* assume the -s value is valid */
+      case "t":
         opts.tflag = true
-      case "x", "exit":
+      case "x":
         opts.xflag = true
-      case "0", "null":
+      case "0":
         opts.zflag = true
-      case "f", "input-file":
-          do {
-          opts.inp = try FileDescriptor(forReading: optarg)
-        } catch(let e) {
-          throw CmdErr(1, "-f \(optarg): \(e)")
-        }
-      case "?":
-        fallthrough
       default:
         throw CmdErr(1)
       }
     }
-    
-    let args = go.remaining
-    opts.args = args
-    
+    opts.args = go.remaining
+
     if !opts.Iflag && opts.Rflag != 0 {
       throw CmdErr(1)
     }
-    if !opts.Iflag && opts.Sflag != 0{
+    if !opts.Iflag && opts.Sflag != 0 {
       throw CmdErr(1)
     }
     if opts.Iflag && opts.Rflag == 0 {
@@ -210,271 +234,490 @@ import CMigration
     if opts.Iflag || opts.Lflag != 0 {
       opts.xflag = true
     }
-    if let s = opts.replstr, s.isEmpty {
-      throw CmdErr(1, "replstr may not be empty")
-    }
-
-    childpids = Set<Int>()
-
-    opts.linelen = 1 + opts.args.count + opts.nargs + 1
-
-    let _PATH_ECHO = "/bin/echo"
-    let echo = _PATH_ECHO
-    
-    if opts.args.isEmpty {
-      jbxp.append(echo)
-    } else {
-      if opts.Jflag, let rr = opts.replstr, let k = opts.args.firstIndex(of: rr) {
-        opts.jfound = true
-        jbxp.append(contentsOf: opts.args[0..<k])
-        kbxp = Array(opts.args[(k+1)...])
-      } else {
-        jbxp.append(contentsOf: opts.args)
-      }
+    if let r = opts.replstr, r.isEmpty {
+      errx(1, "replstr may not be empty")
     }
     return opts
   }
 
-  /**
-    r0ml added this function.
-    the original had a function called to read each character -- with the embedded logic and state to handle execution when complete.
-   
-   This function reads the next *argument* instead of the next character, and the logic for what to do is embedded at this level.
-   */
-  
-  enum ArgState {
-      case eof
-    case tab
-    case zero
-    case newline
-  }
-  
-  func parseArgument(_ prevc : Character, _ inp : inout AsyncCharacterReader.AsyncIterator) async throws(CmdErr) -> (String, Character?) {
-    var indouble = false
-    var insingle = false
-    var argp = ""
-    var wasquoted = false
-    var prevchar = prevc
-    
-    // Constructs the next argument from stdin
-    while true {
-      var ch : Character? = nil
-      do {
-        ch = try await inp.next()
-      } catch(let e) {
-        throw CmdErr(1, "reading input: \(e)")
-      }
-      guard let ch else {
-        if insingle || indouble {
-          throw CmdErr(1, "unterminated quote")
-        }
-        return (argp, nil)
-      }
+  // MARK: running the commands
 
-      switch ch {
-      case " ":
-        fallthrough
-      case "\t":
-        if insingle || indouble || options.zflag || options.Lflag > 0 {
-          argp.append(ch)
-          break
-        } else {
-          if !options.Iflag {
-            if argp.count == 0 && !wasquoted {
-              break
-            }
-            return (argp, ch)
-          }
-        }
-      case "\0":
-        if options.zflag {
-          return (argp, ch)
-        } else {
-          argp.append(ch)
-        }
-      case "\n":
-        if options.zflag {
-          argp.append(ch)
-          break
-        }
-        if unix2003 {
-          // is this the same as last_was_newline?
-          if argp.count == 0 {
-            break
-          }
-          // if line ends in blank, next line is continuation
-        if !options.Iflag && prevchar == " " {
-            break
-          }
-        }
-        if insingle || indouble {
-          throw CmdErr(1, "unterminated quote")
-        }
-        if argp.count == 0 && !wasquoted {
-          break
-        }
-        return (argp, ch)
-      case "'":
-        if indouble || options.zflag {
-          argp.append(ch)
-        } else {
-          insingle.toggle()
-          wasquoted = true
-        }
-      case "\"":
-        if insingle || options.zflag {
-          argp.append(ch)
-        } else {
-          indouble.toggle()
-          wasquoted = true
-        }
-      case "\\":
-        if options.zflag {
-          argp.append(ch)
-          break
-        }
-        if !insingle && !indouble {
-          do {
-            let ch = try await inp.next()
-            guard let ch else {
-              throw CmdErr(1, "backslash at EOF")
-            }
-            argp.append(ch)
-          } catch(let e) {
-            throw CmdErr(1, "reading input: \(e)")
+  func runCommand() throws(CmdErr) {
+    let o = options!
+    argc = o.args.count
+
+    pidsInit(o.maxprocs)
+
+    // Use the user's name for the utility as argv[0], just like the shell.  Echo is the default.
+    var cnt: Int
+    if o.args.isEmpty {
+      base = [Array(_PATH_ECHO.utf8)]
+      cnt = _PATH_ECHO.utf8.count + o.pad
+    } else {
+      cnt = 0
+      var rest = o.args[...]
+      while let arg = rest.first {
+        if o.Jflag, let replstr = o.replstr, Array(arg.utf8) == replstr {
+          jfound = true
+          afterJ = rest.dropFirst().map { Array($0.utf8) }
+          for a in afterJ {
+            cnt += a.count + 1 + o.pad
           }
           break
         }
-      default:
-        argp.append(ch)
-        // The original code tests to see if the argument exceeds the available space at this point, and if so, reports an error or truncates the argument.
-        // the "available space" is opts.nline
-        // As Swift will grow the argument string size, perhaps this is not necessary.
-//        if argp.count >= opts.nline {
-//          fatalError("see xargs.c[572]")
-//        }
+        base.append(Array(arg.utf8))
+        cnt += arg.utf8.count + 1 + o.pad
+        rest = rest.dropFirst()
       }
-      prevchar = ch
+    }
+
+    // Buffer space is the default or specified space, minus the length of the utility name and arguments.
+    let nline = o.nline - cnt
+    if nline <= 0 {
+      errx(1, "insufficient space for command")
+    }
+    ebp = nline - 1
+
+    while true {
+      parseInput()
     }
   }
 
-  func prerun(_ jbxp : [String], _ ibxp : [String], _ kbxp : [String], _ inpline : String) async throws(CmdErr) {
-    let repls = options.Rflag
+  /// A character of the input, or EOF.
+  func parseInput() {
+    let o = options!
+    var last_was_backslashed = false
 
-    if repls == 0 {
-      try await run(jbxp + (ibxp.filter { !$0.isEmpty }) + kbxp)
+    var ch = getchar()
+    enum Step { case arg1, arg2, addch, next }
+    var step = Step.next
+
+    switch ch {
+    case EOF:
+      /* No arguments since last exec. */
+      if buf.isEmpty {
+        waitchildren(utilityName, true)
+        exit(Int32(rval))
+      }
+      step = .arg1
+    case Int32(UInt8(ascii: " ")), Int32(UInt8(ascii: "\t")):
+      if ch == Int32(UInt8(ascii: " ")) {
+        last_was_blank = true
+      }
+      /* Quotes escape tabs and spaces. */
+      step = insingle || indouble || o.zflag ? .addch : .arg2
+    case 0:
+      if o.zflag {
+        // Increment 'count', so that nulls will be treated as end-of-line, as well as end-of-argument.  This is needed
+        // so -0 works properly with -I and -L.
+        count += 1
+        step = .arg2
+      } else {
+        step = .addch
+      }
+    case Int32(UInt8(ascii: "\n")):
+      if o.zflag {
+        step = .addch
+      } else if last_was_newline {
+        /* don't count empty line */
+        step = .next
+      } else {
+        if o.Iflag || !last_was_blank {
+          /* only count if NOT continuation line */
+          count += 1
+        }
+        last_was_newline = true
+        /* Quotes do not escape newlines. */
+        step = .arg1
+      }
+    case Int32(UInt8(ascii: "'")):
+      if indouble || o.zflag {
+        step = .addch
+      } else {
+        insingle.toggle()
+        wasquoted = true
+      }
+    case Int32(UInt8(ascii: "\"")):
+      if insingle || o.zflag {
+        step = .addch
+      } else {
+        indouble.toggle()
+        wasquoted = true
+      }
+    case Int32(UInt8(ascii: "\\")):
+      last_was_backslashed = true
+      if o.zflag {
+        step = .addch
+      } else {
+        /* Backslash escapes anything, is escaped by quotes. */
+        if !insingle && !indouble {
+          ch = getchar()
+          if ch == EOF {
+            warnx("backslash at EOF")
+            xexit(utilityName, 1)
+          }
+        }
+        step = .addch
+      }
+    default:
+      step = .addch
+    }
+
+    if step == .arg1 {
+      if insingle || indouble {
+        warnx("unterminated quote")
+        xexit(utilityName, 1)
+      }
+      step = .arg2
+    }
+
+    if step == .arg2 {
+      var foundeof = !o.eofstr.isEmpty && buf.count - argp == o.eofstr.count && Array(buf[argp...]) == o.eofstr
+
+      /* 6591323: -I specifies that it processes the entire line, so only recognize eofstr at the end of a line. */
+      if o.Iflag && !last_was_newline {
+        foundeof = false
+      }
+
+      /* 6591323: Essentially the same as the EOF handling above. */
+      if foundeof && buf.count - o.eofstr.count == 0 {
+        // (the name is what comes after the replacement string of -J, if there is any: what the C has in argv)
+        waitchildren(jfound ? (afterJ.first.map { text($0) } ?? "(null)") : "(null)", true)
+        exit(Int32(rval))
+      }
+
+      /* Do not make empty args unless they are quoted */
+      if (argp != buf.count || wasquoted) && !foundeof {
+        let arg = cstring(Array(buf[argp...]))
+        buf.append(0)
+        xs.append(arg)
+        if o.Iflag {
+          // The arguments, with a space between them, for the replacement.
+          if var line = inpline, !line.isEmpty {
+            line.append(UInt8(ascii: " "))
+            line += arg
+            inpline = line
+          } else {
+            inpline = arg
+          }
+        }
+      }
+
+      // If max'd out on args or buffer, or reached EOF, run the command.  If xflag and max'd out on buffer but not on
+      // args, object.  Having reached the limit of input lines, as specified by -L is the same as maxing out on
+      // arguments.
+      if xs.count == o.nargs || buf.count + count * o.pad > ebp || ch == EOF || (o.Lflag <= count && o.xflag) || foundeof {
+        if o.xflag && xs.count != o.nargs && buf.count + count * o.pad > ebp {
+          warnx("insufficient space for arguments")
+          xexit(utilityName, 1)
+        }
+        if jfound {
+          xs += afterJ
+        }
+        prerun()
+        if ch == EOF || foundeof {
+          waitchildren(utilityName, true)
+          exit(Int32(rval))
+        }
+        buf = []
+        xs = []
+        count = 0
+      }
+      argp = buf.count
+      wasquoted = false
+    } else if step == .addch {
+      if buf.count < ebp {
+        buf.append(UInt8(truncatingIfNeeded: ch))
+      } else {
+        /* If only one argument, not enough buffer space. */
+        if xs.isEmpty {
+          warnx("insufficient space for argument")
+          xexit(utilityName, 1)
+        }
+        /* Didn't hit argument limit, so if xflag object. */
+        if o.xflag {
+          warnx("insufficient space for arguments")
+          xexit(utilityName, 1)
+        }
+        if jfound {
+          xs += afterJ
+        }
+        prerun()
+        xs = []
+        buf = Array(buf[argp...])
+        argp = 0
+        buf.append(UInt8(truncatingIfNeeded: ch))
+      }
+    }
+
+    if ch != Int32(UInt8(ascii: " ")) {
+      last_was_blank = false
+    }
+    if ch != Int32(UInt8(ascii: "\n")) || last_was_backslashed {
+      last_was_newline = false
+    }
+  }
+
+  /// Do things necessary before run()'ing, such as -I substitution, and then call run().
+  func prerun() {
+    let o = options!
+    var repls = o.Rflag
+
+    if argc == 0 || repls == 0 {
+      run(base + xs)
       return
     }
-    
-    var avj = jbxp
-    
-    var tmp = [String]()
 
-    if let firstArg = avj.first {
-      tmp.append(firstArg)
-      avj.removeFirst()
-    }
-    
-    var rr = 0
-    for var tmpLast in avj {
-      if rr < repls, let replstr = options.replstr, tmpLast.contains(replstr) {
-        tmpLast = tmpLast.replacing(replstr, with: inpline) //  strnsubst(str: tmpLast, match: replstr, replstr: inpline)
-          rr += 1
+    // Save the first argument and iterate over it, we cannot do strnsubst() to it.
+    var tmp = [base[0]]
+
+    // For each argument to utility, if we have not used up the number of replacements we are allowed to do, and if
+    // the argument contains at least one occurrence of replstr, call strnsubst(), else just save the string.
+    let replstr = o.replstr!
+    for item in base.dropFirst() {
+      if repls != 0 && contains(item, replstr) {
+        let (substituted, error) = strnsubst(item, replstr, inpline, o.Sflag)
+        tmp.append(substituted)
+        if error {
+          warnx("command line cannot be assembled, too long")
+          xexit(utilityName, 1)
         }
-      tmp.append(tmpLast)
+        if repls > 0 {
+          repls -= 1
+        }
+      } else {
+        tmp.append(item)
+      }
     }
-    
-    try await run(tmp)
-  }
-  
-  func run(_ args : [String]) async throws(CmdErr) {
 
-    if options.tflag || options.pflag {
-      print(args.joined(separator: " "))
-      if options.pflag {
-        switch await prompt() {
-          case .yes:
-            return
-          case .no:
-            break
-          case .neither:
-            break
+    run(tmp)
+
+    // Free the input line buffer, if we have one.
+    inpline = nil
+  }
+
+  func contains(_ haystack: Bytes, _ needle: Bytes) -> Bool {
+    indexOf(needle, in: haystack, from: 0) != nil
+  }
+
+  /// strstr on bytes (as C strings): where `needle` is in `haystack`, at or after `from`.
+  func indexOf(_ needle: Bytes, in haystack: Bytes, from: Int) -> Int? {
+    let h = cstring(haystack), n = cstring(needle)
+    if n.isEmpty { return from <= h.count ? from : nil }
+    if h.count < n.count { return nil }
+    var i = from
+    while i + n.count <= h.count {
+      if h[i..<i + n.count].elementsEqual(n) { return i }
+      i += 1
+    }
+    return nil
+  }
+
+  /// Replaces each occurrence of `match` in the string by `replstr`, with the result no longer than `maxsize` (counting
+  /// a NUL).  The error is that more room than that was needed.
+  func strnsubst(_ str: Bytes, _ matchText: Bytes?, _ replstrText: Bytes?, _ maxsizeIn: Int) -> (Bytes, Bool) {
+    var s1 = cstring(str)
+    var match = matchText.map(cstring)
+    var maxsize = maxsizeIn
+    var error = false
+
+    // If maxsize is 0 then set it to the length of s1, because we have to duplicate s1.
+    if maxsize == 0 {
+      match = nil
+      maxsize = s1.count + 1
+    }
+    var s2 = Bytes()
+    let replstr = replstrText.map(cstring) ?? []
+
+    /// strlcpy / strlcat: what fits with a NUL
+    func fitting(_ appended: ArraySlice<UInt8>) { s2 += appended.prefix(max(0, maxsize - 1 - s2.count)) }
+
+    if match == nil || maxsize == s1.count {
+      fitting(s1[...])
+      return (s2, false)
+    }
+
+    let m = match!
+    var start = 0
+    while true {
+      guard let this = indexOf(m, in: s1, from: start) else { break }
+      if s2.count + (s1.count - start) + replstr.count - m.count + 1 > maxsize {
+        fitting(s1[start...])
+        error = true
+        return (s2, error)
+      }
+      s2 += s1[start..<this]
+      s2 += replstr
+      start = this + m.count
+    }
+    s2 += s1[start...]
+    s1 = []
+    return (s2, error)
+  }
+
+  func run(_ argv: [Bytes]) {
+    let o = options!
+
+    // If the user wants to be notified of each command before it is executed, notify them.  If they want the
+    // notification to be followed by a prompt, then prompt them.
+    if o.tflag || o.pflag {
+      var line = text(argv[0])
+      for a in argv.dropFirst() {
+        line += " " + text(a)
+      }
+      fputs(line, stderr)
+      // If the user has asked to be prompted, do so.
+      var prompted = false
+      if o.pflag {
+        // If they asked not to exec, return without execution but if they asked to, go to the execution.  If we could
+        // not open their tty, drop back to -t behaviour.
+        switch prompt() {
+        case 0:
+          return
+        case 1:
+          prompted = true
+        default:
+          break
         }
       }
-      print("\n")
-    }
-
-    let inpath = options.oflag ? _PATH_TTY : _PATH_DEVNULL
-
-    // use a TaskGroup here?
-
-    do {
-      let p = try await DarwinProcess().run(args[0], args: Array(args.dropFirst()), output: (nil, nil) )
-    } catch(let e) {
-      throw CmdErr(1, "\(e)")
-    }
-  }
-
-  /*
-  mutating func arg2(_ av : [String]) throws {
-
-    foundeof = inpline == opts.eofstr
-    
-    if opts.Iflag && !lastWasNewline {
-      foundeof = false
-    }
-
-    if (!argp.isEmpty || wasquoted) && !foundeof {
-//      p += 1
-      // FIXME: what is xp doing?
-      av.append(argp)
-      if opts.Iflag {
-        var curlen: size_t = 0
-    */
-
-  func runCommand() async throws(CmdErr) {
-    var pc : Character? = "\n"
-    var a : String = ""
-    var ibxp = [String]()
-
-    var argi = options.inp.characters.makeAsyncIterator()
-
-    defer {
-      if options.inp != FileDescriptor.standardInput {
-        try? options.inp.close()
+      if !prompted {
+        fputs("\n", stderr)
+        fflush(stderr)
       }
     }
 
-    while pc != nil {
-      (a, pc) = try await parseArgument(pc!, &argi)
-      if (!a.isEmpty) || (options.zflag && options.xflag) {
-        ibxp.append(a)
+    var actions: posix_spawn_file_actions_t? = nil
+    if posix_spawn_file_actions_init(&actions) != 0 {
+      err(1, "posix_spawn_file_actions_init failed")
+    }
+    defer { posix_spawn_file_actions_destroy(&actions) }
+    if posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, o.oflag ? "/dev/tty" : "/dev/null", O_RDONLY, 0o444) != 0 {
+      err(1, "posix_spawn_file_actions_addopen failed")
+    }
+
+    var cargv: [UnsafeMutablePointer<CChar>?] = argv.map { a in
+      let c = cstring(a) + [0]
+      return c.withUnsafeBufferPointer { p in p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) { strdup($0) } }
+    } + [nil]
+    defer { for p in cargv { free(p) } }
+
+    var pid: pid_t = 0
+    let rc = posix_spawnp(&pid, cargv[0], &actions, nil, cargv, environ)
+    if rc != 0 {
+      // If we couldn't invoke the utility wait until all other children have exited before exiting with 126 or 127
+      // without reading any further input.
+      waitchildren(text(argv[0]), true)
+      warnc(rc, text(argv[0]))
+      exit(rc == ENOENT ? 127 : 126)
+    } else {
+      pidsAdd(pid)
+      waitchildren(text(argv[0]), false)
+    }
+  }
+
+  /// Wait for a tracked child to exit and return its pid and exit status.
+  ///
+  /// Ignores (discards) all untracked child processes.  Returns -1 and sets errno to ECHILD if no tracked children
+  /// exist.  If block is set, waits indefinitely for a child process to exit.  If block is not set and no children
+  /// have exited, returns 0 immediately.
+  func xwait(_ block: Bool, _ status: inout Int32) -> pid_t {
+    if curprocs == 0 {
+      errno = ECHILD
+      return -1
+    }
+
+    var pid = waitpid(-1, &status, block ? 0 : WNOHANG)
+    while pid > 0 {
+      if pidsRemove(pid) {
+        break
       }
-      if (pc == nil && ibxp.count > 0) || ibxp.count >= options.nargs || (options.xflag && options.Lflag <= ibxp.count)  {
-          //        try arg2(av)
-          try await prerun(jbxp, ibxp, kbxp, a)
-        ibxp = []
+      pid = waitpid(-1, &status, block ? 0 : WNOHANG)
+    }
+    return pid
+  }
+
+  func xexit(_ name: String, _ code: Int32) -> Never {
+    waitchildren(name, true)
+    exit(code)
+  }
+
+  func waitchildren(_ name: String, _ waitallIn: Bool) {
+    var waitall = waitallIn
+    var status: Int32 = 0
+    var cause_exit: Int32 = 0
+
+    while true {
+      let pid = xwait(waitall || curprocs >= childpids.count, &status)
+      if pid <= 0 {
+        if cause_exit != 0 {
+          exit(cause_exit)
+        }
+        if pid == -1 && errno != ECHILD {
+          err(1, "waitpid")
+        }
+        return
+      }
+      // If we couldn't invoke the utility or if utility exited because of a signal or with a value of 255, warn (per
+      // POSIX), and then wait until all other children have exited before exiting 1-125.  POSIX requires us to stop
+      // reading if child exits because of a signal or with 255, but it does not require us to exit immediately; waiting
+      // is preferable to orphaning.
+      let signaled = (status & 0x7f) != 0 && (status & 0x7f) != 0x7f
+      let exitStatus = (status >> 8) & 0xff
+      if signaled {
+        waitall = true
+        cause_exit = 1
+        warnx("\(name): terminated with signal \(status & 0x7f); aborting")
+      } else if exitStatus == 255 {
+        waitall = true
+        cause_exit = 1
+        warnx("\(name): exited with status 255; aborting")
+      } else if exitStatus != 0 {
+        rval = 1
       }
     }
   }
 
-  func prompt() async -> YesNo {
-    let ttyfp = try? FileDescriptor.open(_PATH_TTY, .readOnly)
-    guard let ttyfp else {
-      return .neither
-    }
-    defer {
-      try? ttyfp.close()
-    }
+  // MARK: the table of processes
 
-    var se = FileDescriptor.standardError
-    print("?...", terminator: "", to: &se)
-    var ma = ttyfp.bytes.lines.makeAsyncIterator()
-    guard let response = try? await ma.next() else {
-      return .neither
-    }
-    return rpmatch(response)
+  func pidsInit(_ maxprocs: Int) {
+    childpids = [pid_t](repeating: 0, count: maxprocs)
   }
 
-  var usage = "usage: xargs [-0opt] [-E eofstr] [-I replstr [-R replacements] [-S replsize]] [-J replstr] [-L number] [-n number [-x]] [-P maxprocs] [-s size] [utility [argument ...]]"
+  func pidsAdd(_ pid: pid_t) {
+    guard let slot = childpids.firstIndex(of: 0) else {
+      errx(1, "internal error: no free pid slot")
+    }
+    childpids[slot] = pid
+    curprocs += 1
+  }
+
+  func pidsRemove(_ pid: pid_t) -> Bool {
+    guard let slot = childpids.firstIndex(of: pid) else { return false }
+    childpids[slot] = 0
+    curprocs -= 1
+    return true
+  }
+
+  /// Prompt the user about running a command: 1 for yes, 0 for no, and 2 if the terminal could not be had.
+  func prompt() -> Int {
+    guard let ttyfp = fopen("/dev/tty", "r") else {
+      return 2  /* Indicate that the TTY failed to open. */
+    }
+    fputs("?...", stderr)
+    fflush(stderr)
+    var cre = regex_t()
+    var rsize = 0
+    guard let response = fgetln(ttyfp, &rsize), regcomp(&cre, nl_langinfo(YESEXPR), REG_EXTENDED) == 0 else {
+      fclose(ttyfp)
+      return 0
+    }
+    var line = Array(UnsafeBufferPointer(start: UnsafeRawPointer(response).assumingMemoryBound(to: UInt8.self), count: rsize))
+    if !line.isEmpty { line[line.count - 1] = 0 } else { line = [0] }
+    let match = line.withUnsafeBufferPointer { b in
+      b.baseAddress!.withMemoryRebound(to: CChar.self, capacity: b.count) { regexec(&cre, $0, 0, nil, 0) }
+    }
+    fclose(ttyfp)
+    regfree(&cre)
+    return match == 0 ? 1 : 0
+  }
 }
