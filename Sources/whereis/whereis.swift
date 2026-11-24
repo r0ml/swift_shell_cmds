@@ -36,363 +36,325 @@
  * was pretty inferior in functionality.
  */
 
-// FIXME: deal with #ifndef __APPLE__ stuff
 import CMigration
 import Darwin
 
 let NO_BIN_FOUND : Int32 = 1
 let NO_MAN_FOUND : Int32 = 2
-let NO_SRC_FOUND : Int32 = 4
 
 let PATH_LIBEXEC = "/usr/libexec"
 
+/* How to query the current manpath. */
+let MANPATHCMD = "manpath -q"
 
 /* How to obtain the location of manpages, and how to match this result. */
+let MANWHEREISCMD = "man -S1:8:6 -w %s 2>/dev/null"
+let MANWHEREISALLCMD = "man -a -w %s 2>/dev/null"
 let MANWHEREISMATCH = "^.* [(]source: (.*)[)]$"
 
-// typealias ccharp = UnsafePointer<CChar>
+let EX_USAGE_STATUS = 64
+let EX_DATAERR_STATUS = 65
+let EX_OSERR_STATUS = 71
+let EX_UNAVAILABLE_STATUS = 69
 
-func decolonify(_ s: String) -> [String] {
-  return s.split(separator: ":").map { String($0) }
+/// A command run by the shell, with its standard output to be read.
+struct ShellPipe {
+  var stream: UnsafeMutablePointer<FILE>
+  var pid: pid_t
+
+  /// What popen(3) with "r" does: the command goes to /bin/sh -c, and what it writes is read from the stream.
+  init?(_ command: String) {
+    var fds: [Int32] = [0, 0]
+    if pipe(&fds) != 0 { return nil }
+    var actions: posix_spawn_file_actions_t? = nil
+    posix_spawn_file_actions_init(&actions)
+    defer { posix_spawn_file_actions_destroy(&actions) }
+    posix_spawn_file_actions_adddup2(&actions, fds[1], 1)
+    posix_spawn_file_actions_addclose(&actions, fds[0])
+    posix_spawn_file_actions_addclose(&actions, fds[1])
+    var argv: [UnsafeMutablePointer<CChar>?] = ["sh", "-c", command].map { strdup($0) } + [nil]
+    defer { for a in argv { free(a) } }
+    var child: pid_t = 0
+    let rc = posix_spawn(&child, "/bin/sh", &actions, nil, argv, environ)
+    Darwin.close(fds[1])
+    guard rc == 0, let stream = fdopen(fds[0], "r") else {
+      Darwin.close(fds[0])
+      return nil
+    }
+    self.stream = stream
+    self.pid = child
+  }
+
+  /// What pclose(3) does: closes the stream and waits for the command; its wait status.
+  func close() -> Int32 {
+    fclose(stream)
+    var status: Int32 = 0
+    while waitpid(pid, &status, 0) == -1 && errno == EINTR {}
+    return status
+  }
 }
-
-/*
- * Join string list `cpp' into a colon-separated string.
- */
-func colonify(_ cpp: [String]) -> String {
-  return cpp.joined(separator: ":")
-}
-
 
 @main final class Whereis : ShellCommand {
-  
-  var usage = "usage: whereis [-abmqu] [-BM dir ... -f] program ..."
+
+  let usage = "usage: whereis [-abmqu] [-BM dir ... -f] program ..."
 
   struct CommandOptions {
-  var opt_a: Bool = false
-  var opt_b: Bool = false
-  var opt_m: Bool = false
-  var opt_q: Bool = false
-  var opt_u: Bool = false
-  var bindirs: [String]? = nil
-  var mandirs: [String]? = nil
-  var query: [String] = []
-
-    var unusual : Int32 = 0
-
+    var opt_a = false
+    var opt_b = false
+    var opt_m = false
+    var opt_q = false
+    var opt_u = false
+    /// The directories to look in, if they were given; a list that is nil is made up from the defaults.
+    var bindirs: [String]? = nil
+    var mandirs: [String]? = nil
+    var query: [String] = []
   }
-  
+
   var options : CommandOptions!
 
-//  var re : Regex<String>
-//  = Regex(MANWHEREISMATCH)
-  /*
-   var i: Int
-   var printed: Int
-   var bin: String?
-   var buf = [CChar](repeating: 0, count: BUFSIZ)
-   var cp: String?
-   var cp2: String?
-   var man: String?
-   var name: String?
-   var src: String?
-   var dp: UnsafePointer<CChar>?
-   var nlen: size_t
-   var olen: size_t
-   var s: size_t
-   var sb = stat()
-   var re = regex_t()
-   var matches = [regmatch_t](repeating: regmatch_t(), count: 2)
-   var rlen: regoff_t
-   var p: UnsafeMutablePointer<FILE>?
-   */
-  
-  func scanopts(_ opts : inout CommandOptions) throws(CmdErr) {
-    // FIXME: where does this get used?
-    var dirlist : [String]
-    
-//    let argc = CommandLine.argc
-//    let argv = CommandLine.unsafeArgv
-  
-    let go = BSDGetopt("BMabfmqu")
-    while let (ch, _) = try go.getopt() {
-      switch ch {
-      case "B":
-          dirlist = opts.bindirs ?? []
-        fallthrough
-      case "M":
-          dirlist = opts.mandirs ?? []
-        fatalError("not yet implemented")
-        // FIXME: put me back
-        /*
-        while optind < argc,
-              let jj = argv[Int(optind)],
-                let ao = Optional(String(cString: jj)),
-              ao == "-f" || ao == "-B" || ao == "-M" {
-          dirlist.append(contentsOf: decolonify(ao))
-          optind += 1
-        }
-         */
-      case "a":
-          opts.opt_a = true
-      case "b":
-          opts.opt_b = true
-      case "f":
-        break
-      case "m":
-          opts.opt_m = true
-      case "q":
-          opts.opt_q = true
-      case "u":
-          opts.opt_u = true
-      default:
-        throw CmdErr(1)
+  /// Split string `s' at colons, and add the parts to the list.  A part is only added if it has a length greater than 0,
+  /// and if it's not already in the list.
+  func decolonify(_ s: String, _ list: inout [String]) {
+    for part in s.split(separator: ":", omittingEmptySubsequences: true) {
+      let p = String(part)
+      if !list.contains(where: { Array($0.utf8) == Array(p.utf8) }) {
+        list.append(p)
       }
     }
-    
-    opts.query = go.remaining
-    if opts.query.count == 0 {
-      throw CmdErr(1)
-    }
   }
-  
-  func parseOptions() async throws(CmdErr) -> CommandOptions {
+
+  /// Join string list into a colon-separated string.
+  func colonify(_ list: [String]) -> String {
+    list.joined(separator: ":")
+  }
+
+  /// Scan options passed to program.
+  ///
+  /// Note that the -B/-M options expect a list of directory names that must be terminated with -f.
+  func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
 
-    try scanopts(&opts)
-    await defaults(&opts)
-    
+    let go = BSDGetopt("BMabfmqu")
+    scan: while let (ch, _) = try usageError(go.getopt) {
+      switch ch {
+      case "B", "M":
+        var list = [String]()
+        while let next = go.remaining.first, next != "-f", next != "-B", next != "-M" {
+          decolonify(next, &list)
+          go.skip()
+        }
+        if ch == "B" {
+          opts.bindirs = list
+        } else {
+          opts.mandirs = list
+        }
+      case "a":
+        opts.opt_a = true
+      case "b":
+        opts.opt_b = true
+      case "f":
+        break scan
+      case "m":
+        opts.opt_m = true
+      case "q":
+        opts.opt_q = true
+      case "u":
+        opts.opt_u = true
+      default:
+        throw CmdErr(EX_USAGE_STATUS)
+      }
+    }
+
+    opts.query = go.remaining
+    if opts.query.isEmpty {
+      throw CmdErr(EX_USAGE_STATUS)
+    }
+    return opts
+  }
+
+  /// A bad option is a usage error, which has its own exit status.
+  func usageError<T>(_ f: () throws(CmdErr) -> T) throws(CmdErr) -> T {
+    do {
+      return try f()
+    } catch {
+      throw CmdErr(EX_USAGE_STATUS, error.message)
+    }
+  }
+
+  /// Provide defaults for all options and directory lists.
+  func defaults(_ opts : inout CommandOptions) {
+    /* default to -bm if none has been specified */
+    if !opts.opt_b && !opts.opt_m {
+      opts.opt_b = true
+      opts.opt_m = true
+    }
+
+    /* -b defaults to default path + /usr/libexec + user's path */
+    if opts.bindirs == nil {
+      /* Retrieve the standard path. */
+      let len = confstr(_CS_PATH, nil, 0)
+      if len == 0 {
+        err(1, "user_cs_path: sysctl: zero length\n")
+      }
+      var buf = [CChar](repeating: 0, count: len)
+      if confstr(_CS_PATH, &buf, len) == 0 {
+        err(1, "sysctl: user_cs_path")
+      }
+
+      var dirs = [String]()
+      decolonify(String(cString: buf), &dirs)
+      dirs.append(PATH_LIBEXEC)
+      if let path = Environment["PATH"] {
+        decolonify(path, &dirs)
+      }
+      opts.bindirs = dirs
+    }
+
+    /* -m defaults to $(manpath) */
+    if opts.mandirs == nil {
+      guard let p = ShellPipe(MANPATHCMD) else {
+        err(EX_OSERR_STATUS, "cannot execute manpath command")
+      }
+      var buf = [CChar](repeating: 0, count: Int(BUFSIZ))
+      if fgets(&buf, BUFSIZ - 1, p.stream) == nil || p.close() != 0 {
+        err(EX_OSERR_STATUS, "error processing manpath results")
+      }
+      var text = String(cString: buf)
+      if let newline = text.firstIndex(of: "\n") {
+        text = String(text[..<newline])
+      }
+      var dirs = [String]()
+      decolonify(text, &dirs)
+      opts.mandirs = dirs
+    }
+  }
+
+  func runCommand() throws(CmdErr) {
+    var opts = options!
+    setlocale(LC_ALL, "")
+
+    defaults(&opts)
+
     if opts.mandirs == nil {
       opts.opt_m = false
     }
     if opts.bindirs == nil {
       opts.opt_b = false
     }
-
-    let EX_DATAERR = 65
-    if !(opts.opt_m || opts.opt_b) {
-      errx(EX_DATAERR, "no directories to search")
+    if !opts.opt_m && !opts.opt_b {
+      errx(EX_DATAERR_STATUS, "no directories to search")
     }
-    
+
+    var re = regex_t()
     if opts.opt_m {
-      try? Environment.setenv("MANPATH", colonify(opts.mandirs!) )
-//      re = try
-//      if regcomp(&re, MANWHEREISMATCH, REG_EXTENDED) != 0 {
-//        regerror(i, &re, buf, BUFSIZ - 1)
-//        errx(EX_UNAVAILABLE, "regcomp(%s) failed: %s", MANWHEREISMATCH, buf)
-//      }
+      setenv("MANPATH", colonify(opts.mandirs!), 1)
+      let i = regcomp(&re, MANWHEREISMATCH, REG_EXTENDED)
+      if i != 0 {
+        var buf = [CChar](repeating: 0, count: Int(BUFSIZ))
+        regerror(i, &re, &buf, Int(BUFSIZ) - 1)
+        errx(EX_UNAVAILABLE_STATUS, "regcomp(\(MANWHEREISMATCH)) failed: \(String(cString: buf))")
+      }
     }
-    
-    return opts
-    
-  }
-  
 
-  func runCommand() async throws(CmdErr) {
-    var opts = options!
-    
-    while let nam = opts.query.first {
-      opts.query.removeFirst()
-       var name = Substring(nam)
-      
-      if let x = name.lastIndex(of: "/") {
-        name = name[x...]
-      }
-      
-      if name.hasSuffix(".z") || name.hasSuffix(".Z") {
-        name = name.dropLast(2)
-      } else if name.hasSuffix(".gz") {
-        name = name.dropLast(3)
-      } else if name.hasSuffix(".bz2") {
-        name = name.dropLast(4)
+    for argument in opts.query {
+      var name = Array(argument.utf8)
+      /* strip leading path name component */
+      if let slash = name.lastIndex(of: UInt8(ascii: "/")) {
+        name = Array(name[(slash + 1)...])
       }
 
-      let namex = String(name)
-      
-      var bin : String? = nil
-      var man : String? = nil
-      //      s = strlen(name)
-      
-      if options.opt_b {
-        bin = do_optB(namex)
+      /* compression suffix */
+      func hasSuffix(_ suffix: String) -> Bool { name.count > suffix.utf8.count && name.suffix(suffix.utf8.count) == Array(suffix.utf8)[...] }
+      if hasSuffix(".z") || hasSuffix(".Z") {
+        name.removeLast(2)
+      } else if hasSuffix(".gz") {
+        name.removeLast(3)
+      } else if hasSuffix(".bz2") {
+        name.removeLast(4)
       }
-      
-      if opts.opt_m  {
-        man = await do_optM(namex, &opts)
+      let nameText = String(decoding: name, as: UTF8.self)
+
+      var unusual: Int32 = 0
+      var bin: String? = nil
+      var man: String? = nil
+
+      if opts.opt_b {
+        // Binaries have to match exactly, and must be regular executable files.
+        unusual |= NO_BIN_FOUND
+        for dir in opts.bindirs! {
+          let candidate = "\(dir)/\(nameText)"
+          var sb = stat()
+          if stat(candidate, &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFREG
+              && (sb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 {
+            unusual &= ~NO_BIN_FOUND
+            bin = bin.map { $0 + " " + candidate } ?? candidate
+            if !opts.opt_a {
+              break
+            }
+          }
+        }
       }
-      
-      if opts.opt_u && opts.unusual == 0 {
+
+      if opts.opt_m {
+        // Ask the man command to perform the search for us.
+        unusual |= NO_MAN_FOUND
+        let command = opts.opt_a ? "man -a -w \(nameText) 2>/dev/null" : "man -S1:8:6 -w \(nameText) 2>/dev/null"
+        if let p = ShellPipe(command) {
+          var buf = [CChar](repeating: 0, count: Int(BUFSIZ))
+          while fgets(&buf, BUFSIZ - 1, p.stream) != nil {
+            unusual &= ~NO_MAN_FOUND
+
+            var line = Array(buf.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) })
+            if let newline = line.firstIndex(of: 10) {
+              line = Array(line[..<newline])
+            }
+            var found = String(decoding: line, as: UTF8.self)
+            var matches = [regmatch_t](repeating: regmatch_t(), count: 2)
+            let lineC = line + [0]
+            let matched = lineC.withUnsafeBufferPointer { b in
+              b.baseAddress!.withMemoryRebound(to: CChar.self, capacity: b.count) { regexec(&re, $0, 2, &matches, 0) }
+            }
+            if matched == 0 && matches[1].rm_eo - matches[1].rm_so > 0 {
+              // man -w found formatted page, need to pick up source page name.
+              found = String(decoding: line[Int(matches[1].rm_so)..<Int(matches[1].rm_eo)], as: UTF8.self)
+            }
+            // (otherwise man -w found plain source page, use it.)
+
+            man = man.map { $0 + " " + found } ?? found
+
+            if !opts.opt_a {
+              break
+            }
+          }
+          _ = p.close()
+        }
+      }
+
+      if opts.opt_u && unusual == 0 {
         continue
       }
-      
+
       var printed = 0
       if !opts.opt_q {
-        print("\(name):", terminator: "")
+        fputs("\(nameText):", stdout)
         printed += 1
       }
-      if let bin {
-        if printed > 0 {
-          print(" ", terminator: "")
-        }
-        print(bin, terminator: "")
-        printed += 1
-      }
-      if let man {
-        if printed > 0 {
-          print(" ", terminator: "")
-        }
-        print(man, terminator: "")
-        printed += 1
-      }
-      
-      // FIXME: this is from #ifndef __APPLE__ stuff
-      /*
-       if let src {
-       if printed > 0 {
-       fputs(" ", stdout)
-       }
-       fputs(src, stdout)
-       printed += 1
-       }
-       */
-      
-      if printed > 0 {
-        print("")
-      }
-    }
-  }
-  
-  func do_optB(_ name : String) -> String? {
-    options.unusual = options.unusual | NO_BIN_FOUND
-
-    var bin : String?
-    while let dp = options.bindirs?.first {
-      options.bindirs?.removeFirst()
-      let cp = "\(dp)/\(name)"
-      if let sb = try? FilePath(cp).stat(followTargetSymlink: true),
-         sb.type == .regular,
-         sb.permissions.containsAny(of: [.ownerExecute, .groupExecute, .otherExecute]) {
-        options.unusual = options.unusual & ~NO_BIN_FOUND
-        if var bin {
-          bin.append(" ")
-          bin.append(cp)
-        } else {
-          bin = cp
-        }
-        if !options.opt_a {
-          break
-        }
-      }
-    }
-    return bin
-  }
-  
-  func do_optM(_ name : String, _ opts : inout CommandOptions) async -> String? {
-    opts.unusual = opts.unusual | NO_MAN_FOUND
-    let cp = opts.opt_a ? ["-a","-w", name] : ["-S1:8:6", "-w", name]
-//    let cpx = cp + ["-M", colonify(mandirs ?? [])]
-    if let p = try? await DarwinProcess().run("/usr/bin/man", args: cp),
-       let j = try? p.string(encoded: .utf8) {
-      return j
-    } else {
-      return nil
-    }
-  }
-  
-  
-  /// Returns the output of running `executable` with `args`. Throws an error if the process exits indicating failure.
-//  @discardableResult
-//  func captureStdoutLaunch(_ executable: String, _ args: [String], _ input : String? = nil ) throws -> (Int32, String?, String?) {
-    
-    
-    
-//    let res = try ProcessRunner.run(command: executable, arguments: args)
-    
-//    let process = Process()
-//    let output = Pipe()
-//    let stderr = Pipe()
-//    let inputs : Pipe? = if input != nil { Pipe() } else { nil }
-//    let execu = executable
-//    process.launchPath = execu
-//    process.arguments = args
-//    process.standardOutput = output
-//    process.standardInput = inputs
-//    process.standardError = stderr
-//    process.launch()
-    
-//    if let inputs, let input {
-//      Task.detached {
-//        if let k = input.data(using: .utf8) {
-//          inputs.fileHandleForWriting.write( k )
-//        }
-//        try? inputs.fileHandleForWriting.close()
-//      }
-//    }
-    
-//    process.waitUntilExit()
-    
-//    let k1 = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .ascii)
-//    let k2 = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .ascii)
-//    return (process.terminationStatus, k1, k2)
-    
-
-//      }
-  
-  /*
-   * Provide defaults for all options and directory lists.
-   */
-  func defaults(_ opts : inout CommandOptions) async {
-//      var s: Int
-//      var b: String
-  //    var buf = [Character](repeating: "\0", count: BUFSIZ)
-//      var cp: String
-//      var nele: Int
-//      var p: UnsafeMutablePointer<FILE>?
-//      var bindirs: [String?]
-//      var mandirs: [String?]
-
-      // default to -bm if none has been specified
-    if !opts.opt_b && !opts.opt_m {
-      opts.opt_b = true
-      opts.opt_m = true
-      }
-
-      // -b defaults to default path + /usr/libexec + user's path
-    if opts.bindirs == nil {
-      // Retrieve the standard path. Use confstr(_CS_PATH) rather than the
-      // "user.cs_path" sysctl node, which some hardened runtime configurations
-      // deny to non-platform binaries.
-      let len = confstr(_CS_PATH, nil, 0)
-      var buf = [Int8](repeating: 0, count: len)
-      guard confstr(_CS_PATH, &buf, len) > 0 else {
-        err(1, "confstr(_CS_PATH) failed\n")
-      }
-      opts.bindirs = decolonify(buf.withUnsafeBufferPointer { String(cString: $0.baseAddress!) })
-      opts.bindirs?.append(PATH_LIBEXEC)
-
-      if let path = Environment["PATH"] {
-              // don't destroy the original environment...
-            opts.bindirs?.append(contentsOf: decolonify(path))
+      for part in [bin, man] {
+        if let part {
+          if printed > 0 {
+            putchar(Int32(UInt8(ascii: " ")))
           }
-      }
-
-      // -m defaults to $(manpath)
-    if opts.mandirs == nil {
-      
-      /* How to query the current manpath. */
-      let MANPATHCMD = ["manpath","-q"]
-      do {
-        var res = try await DarwinProcess().run("/usr/bin/manpath", args: MANPATHCMD)
-        let rr = try res.string(encoded: .utf8)
-        var b = Substring(rr)
-        if let x = b.lastIndex(of: "\n") {
-          b = b[b.startIndex..<x]
+          printed += 1
+          fputs(part, stdout)
         }
-        opts.mandirs = decolonify(String(b))
-      } catch {
-        let EX_OSERR = 71
-        err( EX_OSERR, "cannot execute manpath command")
       }
+      if printed > 0 {
+        putchar(Int32(UInt8(ascii: "\n")))
+      }
+    }
+
+    if opts.opt_m {
+      regfree(&re)
     }
   }
 }
