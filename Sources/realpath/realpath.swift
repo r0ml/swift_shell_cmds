@@ -35,60 +35,61 @@
 
 import CMigration
 
-import limits_h
-import stdlib_h
-import stdio_h
+import Darwin
 
-@main class realpath {
-  var qflag = 0
-  var rval = 0
-  var path: String?
-  var p: UnsafeMutablePointer<Int8>?
-  var buf = [Int8](repeating: 0, count: Int(limits_h.PATH_MAX))
-
-  required init() {}
-  
-  static func main() {
-    let z = Self().main()
-    stdlib_h.exit(z)
+@main final class realpathCommand : ShellCommand {
+  struct CommandOptions {
+    var qflag = false
+    /// the paths as they were passed (C strings: a name need not be text)
+    var args = [[CChar]]()
   }
-  
-  func main() -> Int32 {
-    // FIXME: CommandLine arguments is read-only
-    let zz = CommandLine.arguments.dropFirst() // equivalent to argc -= optind; argv += optind;
-    
-    for argument in zz {
-      if argument == "-q" {
-        qflag = 1
-      } else {
-        path = argument
+
+  var options : CommandOptions!
+
+  let usage = "usage: realpath [-q] [path ...]"
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
+    let go = BSDGetopt("q")
+    while let (ch, _) = try go.getopt() {
+      switch ch {
+      case "q":
+        opts.qflag = true
+      default:
+        throw CmdErr(1)
       }
     }
-    
-    path = path ?? "."
-    
-    var aa = CommandLine.arguments
-    repeat {
-      withUnsafeMutablePointer(to: &buf) { b in
-        p = stdlib_h.realpath(path, b)
+    // the paths are the last arguments on the command line
+    let count = go.remaining.count
+    let all = Int(CommandLine.argc)
+    for i in (all - count)..<all {
+      if let p = CommandLine.unsafeArgv[i] {
+        opts.args.append(Array(UnsafeBufferPointer(start: p, count: strlen(p) + 1)))
       }
-      
-      if p == nil {
-        if qflag == 0 {
-          print("Warning: \(path ?? "")")
+    }
+    return opts
+  }
+
+  func runCommand() throws(CmdErr) {
+    var rval = 0
+    for path in options.args.isEmpty ? [[CChar(UInt8(ascii: ".")), 0]] : options.args {
+      if let resolved = Darwin.realpath(path, nil) {
+        puts(resolved)
+        free(resolved)
+      } else {
+        if !options.qflag {
+          // (the C library shows the characters in the name that can't be seen)
+          let e = errno
+          path.withUnsafeBufferPointer { p in
+            errno = e
+            withVaList([p.baseAddress!]) { vwarn("%s", $0) }
+          }
         }
         rval = 1
-      } else {
-        print(String(cString: p!))
       }
-      path = aa.removeFirst()
-    } while path != nil
-    
-    return Int32(rval)
+    }
+    if rval != 0 {
+      throw CmdErr(rval)
+    }
   }
-  
-    func usage() {
-      stdio_h.fputs("usage: realpath [-q] [path ...]\n", stdio_h.stderr)
-      stdlib_h.exit(1)
-    }
-    }
+}
