@@ -40,6 +40,10 @@ import Darwin
 
 let DEF_BUF = 65536
 
+/// What the pseudo-terminal calls are not given by the Darwin module as constants.
+let TIOCGWINSZ_REQUEST: UInt = 0x4008_7468
+let TIOCSWINSZ_REQUEST: UInt = 0x8008_7467
+
 enum ScrDirection : UInt32 {
   case i = 105
   case o = 111
@@ -47,6 +51,7 @@ enum ScrDirection : UInt32 {
   case e = 101
 }
 
+/// The header of each record of a typescript made with -r.
 struct stamp {
   var scr_len : UInt64 = 0 /* amount of data */
   var scr_sec : UInt64 = 0 /* time it arrived in seconds... */
@@ -54,59 +59,15 @@ struct stamp {
   var scr_direction : UInt32 = 0 /* 'i', 'o', etc (also indicates endianness) */
 }
 
-//struct buf_elm {
-//  var rpos : size_t = 0
-//  var ibuf : Data = Data()
-//}
-
-
-
-/*
-static FILE *fscript;
-static int master, slave;
-static int child;
-static const char *fname;
-static char *fmfname;
-#ifdef ENABLE_FILEMON
-static int fflg
-#endif
-static int qflg, ttyflg;
-static int usesleep, rawout, showexit;
-static TAILQ_HEAD(, buf_elm) obuf_list = TAILQ_HEAD_INITIALIZER(obuf_list);
-
-static struct termios tt;
-*/
-
-/*
-#ifndef TSTAMP_FMT
-/* useful for tool and human reading */
-# define TSTAMP_FMT "%n@ %s [%Y-%m-%d %T]%n"
-#endif
-static const char *tstamp_fmt = TSTAMP_FMT;
-static int tflg;
-
-static void done(int) __dead2;
-static void doshell(char **);
-static void finish(void);
-static void record(FILE *, char *, size_t, int);
-static void consume(FILE *, off_t, char *, int);
-static void playback(FILE *) __dead2;
-static void usage(void);
-*/
+/// Input that has been read, and is waiting to be written to the pseudo-terminal.
+struct BufferElement {
+  var rpos = 0
+  var ibuf = [UInt8]()
+}
 
 @main final class script : ShellCommand {
-#if ENABLE_FILEMON
-let optString = "adeFfkpqr"
-#else
-let optString = "adeFkpqr"
-#endif
+  let optString = "adeFkpqr"
 
-  var win = winsize()
-//  var slave : Int32 = 0
-//  var masterFH : FileHandle = FileHandle.standardOutput
-
-  var fscript : FileDescriptor = FileDescriptor.standardOutput
-  
   struct CommandOptions {
     var aflg = false
     var Fflg = false
@@ -114,818 +75,534 @@ let optString = "adeFkpqr"
     var pflg = false
     var qflg = false
     var tflg = false
-    
+
     var tstamp_fmt = "%n@ %s [%Y-%m-%d %T]%n"
-    
-    
+
     var usesleep = true
     var rawout = false
     var flushtime = 30
-    
+
     var args = [String]()
     var fname : String = ""
   }
 
   var options : CommandOptions!
 
-//  var obuf_list = [buf_elm]()
-  
-  var readstdin = true
-  var start = time(nil)
+  var fscript : UnsafeMutablePointer<FILE>!
+  var master : Int32 = -1
+  var showexit = false
 
-    /*
-     struct termios rtt, stt;
-     struct winsize win;
-     struct timeval tv, *tvp;
-     time_t tvec, start;
-     char obuf[BUFSIZ];
-     char ibuf[BUFSIZ];
-     fd_set rfd, wfd;
-     struct buf_elm *be;
-     ssize_t cc;
-     int aflg, Fflg, kflg, pflg, ch, k, n, fcm;
-     int flushtime, readstdin;
-     #ifdef ENABLE_FILEMON
-     int fm_fd, fm_log;
-     #endif /* ENABLE_FILEMON */
-     */
+  let usage = """
+    usage: script [-aeFkpqr] [-t time] [file [command ...]]
+           script -p [-deq] [-T fmt] [file]
+    """
 
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
-    
-#if ENABLE_FILEMON
-    fm_fd = -1;  /* Shut up stupid "may be used uninitialized" GCC
-                  warning. (not needed w/clang) */
-#endif /* ENABLE_FILEMON */
-    
+
     let go = BSDGetopt("\(optString)T:t:")
     while let (ch, optarg) = try go.getopt() {
-      //      let argc = CommandLine.argc
-      //      let argv = CommandLine.unsafeArgv
-      
-      //      let chx = getopt(argc, argv, "\(optString)T:t:")
-      //      if chx == -1 { break }
-      //      let ch = UnicodeScalar(UInt32(chx))
       switch ch {
-        case "a":
-          opts.aflg = true
-        case "d":
-          opts.usesleep = false
-        case "e":  /* Default behavior, accepted for linux compat */
-          break
-        case "F":
-          opts.Fflg = true
-#if ENABLE_FILEMON
-        case "f":
-          opts.fflg = true
-#endif /* ENABLE_FILEMON */
-        case "k":
-          opts.kflg = true
-        case "p":
-          opts.pflg = true
-        case "q":
-          opts.qflg = true
-        case "r":
-          opts.rawout = true
-        case "t":
-          guard let ft = Int(optarg), ft >= 0 else {
-            err(1, "invalid flush time \(opts.flushtime)")
-          }
-          opts.flushtime = ft
+      case "a":
+        opts.aflg = true
+      case "d":
+        opts.usesleep = false
+      case "e":  /* Default behavior, accepted for linux compat */
+        break
+      case "F":
+        opts.Fflg = true
+      case "k":
+        opts.kflg = true
+      case "p":
+        opts.pflg = true
+      case "q":
+        opts.qflg = true
+      case "r":
+        opts.rawout = true
+      case "t":
+        // atoi: whatever number the beginning of the text is, or zero
+        opts.flushtime = Int(optarg.withCString { atoi($0) })
+        if opts.flushtime < 0 {
+          errno = 0
+          err(1, "invalid flush time \(opts.flushtime)")
+        }
       case "T":
-          opts.tflg = true
-          opts.pflg = true
-        
-          if optarg.contains("%") {
-            opts.tstamp_fmt = optarg
-          }
-      case "?":
-        fallthrough
+        opts.tflg = true
+        opts.pflg = true
+        if optarg.utf8.contains(UInt8(ascii: "%")) {
+          opts.tstamp_fmt = optarg
+        }
       default:
         throw CmdErr(1)
       }
     }
-    
+
     opts.args = go.remaining
-    
-    if opts.args.count > 0 {
-      opts.fname = opts.args.removeFirst()
-    } else {
+    if opts.args.isEmpty {
       opts.fname = "typescript"
+    } else {
+      opts.fname = opts.args.removeFirst()
     }
     return opts
   }
-  
-  func runCommand() async throws(CmdErr) {
-    var fs : FileDescriptor?
-    do {
-      if options.pflg {
-        fs = try FileDescriptor(forReading: options.fname)
-      } else {
-        if let _ = try? FilePath(options.fname).stat() {
-          fs = try FileDescriptor.open(options.fname, .writeOnly)
-        } else {
-          fs = try FileDescriptor.open(options.fname, .writeOnly, options: [.create], permissions: [.ownerReadWrite])
-        }
-        if options.aflg { try fs?.seek(offset: 0, from: .end) }
-        else { try fs?.resize(to: 0) }
-      }
-    } catch(let e) {
-      err(1, "\(e)")
-    }
-    if let fs {
-      fscript = fs
-    } else {
-      err(1, "unable to open \(options.fname)")
-    }
-    
-    /*
-    if ((fscript = fopen(fname, pflg ? "r" : aflg ? "a" : "w")) == NULL) {
-      err(1, "%s", fname);
-    }
-    */
-    
-    #if ENABLE_FILEMON
-    if (fflg) {
-      asprintf(&fmfname, "%s.filemon", fname);
-      if (!fmfname) {
-        err(1, "%s.filemon", fname);
-      }
-      if ((fm_fd = open("/dev/filemon", O_RDWR | O_CLOEXEC)) == -1) {
-        err(1, "open(\"/dev/filemon\", O_RDWR)");
-      }
-      if ((fm_log = open(fmfname,
-                         O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
-                         S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
-        err(1, "open(%s)", fmfname);
-      }
-      if (ioctl(fm_fd, FILEMON_SET_FD, &fm_log) < 0) {
-        err(1, "Cannot set filemon log file descriptor");
-      }
-    }
-#endif /* ENABLE_FILEMON */
-    
-    if (options.pflg) {
-      playback(fscript)
-    }
-//    var master : Int32 = 0
-    
-  /*
-    if (tcgetattr(STDIN_FILENO, &tt) == -1 ||
-        ioctl(STDIN_FILENO, TIOCGWINSZ, &win) == -1) {
 
-#if __APPLE__
-      if (errno != ENOTTY) { /* For debugger. */
-        err(1, "tcgetattr/ioctl");
+  // MARK: the session
+
+  func runCommand() async throws(CmdErr) {
+    let o = options!
+
+    guard let f = fopen(o.fname, o.pflg ? "r" : o.aflg ? "a" : "w") else {
+      err(1, o.fname)
+    }
+    fscript = f
+
+    if o.pflg {
+      playback(f)
+    }
+
+    var win = winsize()
+    var slave: Int32 = -1
+    var slaveName = ""
+    if tcgetattr(STDIN_FILENO, &tt) == -1 || ioctl(STDIN_FILENO, TIOCGWINSZ_REQUEST, &win) == -1 {
+      if errno != ENOTTY && errno != ENODEV { /* For debugger. */
+        err(1, "tcgetattr/ioctl")
       }
-#else
-      if (errno != ENOTTY && errno != ENODEV) { /* For debugger. */
-        err(1, "tcgetattr/ioctl");
-      }
-#endif
-    
-      /* do I need master and slave? */
-      /*
-      if (openpty(&master, &slave, nil, nil, nil) == -1) {
-        err(1, "openpty");
-      }
+      guard let pty = openpty(nil, nil) else { err(1, "openpty") }
+      (master, slave, slaveName) = pty
     } else {
-      if (openpty(&master, &slave, nil, &tt, &win) == -1) {
-        err(1, "openpty");
-      }
-       */
+      guard let pty = openpty(tt, win) else { err(1, "openpty") }
+      (master, slave, slaveName) = pty
       ttyflg = true
     }
-    */
-    
-    /*
-    var fcm = fcntl(master, F_GETFL);
-    if (fcm == -1) {
-      err(1, "master F_GETFL");
+    let fcm = fcntl(master, F_GETFL)
+    if fcm == -1 {
+      err(1, "master F_GETFL")
     }
-    fcm |= O_NONBLOCK;
-    if (fcntl(master, F_SETFL, fcm) == -1) {
-      err(1, "master F_SETFL");
+    if fcntl(master, F_SETFL, fcm | O_NONBLOCK) == -1 {
+      err(1, "master F_SETFL")
     }
-    */
-    
-    if (options.rawout) {
-      record(fscript, [], .s);
+    // the command is to have only the terminal
+    for fd in [master, slave, fileno(fscript)] {
+      _ = fcntl(fd, F_SETFD, FD_CLOEXEC)
     }
-    
-    var showexit = false
 
-    if (!options.qflg) {
-      var tvec = time(nil);
-      print("Script started, output file is \(options.fname)")
-      if (!options.rawout) {
-        let c = ctime(&tvec)!
-        let cc = String(cString: c)
-        print("Script started on \(cc)", terminator: "", to: &fscript)
+    if o.rawout {
+      record([], .s)
+    }
 
-        if let z = options.args.first {
+    if !o.qflg {
+      var tvec = time(nil)
+      print("Script started, output file is \(o.fname)")
+      if !o.rawout {
+        write(fscript, "Script started on \(String(cString: ctime(&tvec)))")
+        if !o.args.isEmpty {
           showexit = true
-          print("Command: ", terminator: "", to: &fscript)
-          var ff = true
-          for k in options.args {
-            let kk = ff ? "" : " "
-            ff = false
-            
-            print("\(kk)\(k)", terminator: "", to: &fscript)
-          }
-          print("", to: &fscript)
+          write(fscript, "Command: " + o.args.joined(separator: " ") + "\n")
         }
       }
-      fsync(fscript.rawValue)
-
-      #if ENABLE_FILEMON
-      if (fflg) {
-        printf("Filemon started, output file is %s\n",
-                     fmfname);
-      }
-#endif /* ENABLE_FILEMON */
+      fflush(fscript)
     }
-    
-    /*
-    
-    if (ttyflg) {
+    if ttyflg {
       var rtt = tt
-      cfmakeraw(&rtt);
-      rtt.c_lflag &= ~UInt(ECHO)
-      tcsetattr(STDIN_FILENO, TCSAFLUSH, &rtt);
-    }
-    */
-    
-    
-/*    child = fork();
-    if (child < 0) {
-      warn("fork");
-      done(1);
-    }
-    if (child == 0) {
-*/      #if ENABLE_FILEMON
-      if (fflg) {
-        var pid = getpid();
-        if (ioctl(fm_fd, FILEMON_SET_PID, &pid) < 0) {
-          err(1, "Cannot set filemon PID");
-        }
-      }
-#endif /* ENABLE_FILEMON */
-    do {
-      let r = try await doshell(options.args)
-//    }
-//    close(slave)
-
-    
-    
-    
-    //    masterFH = FileHandle(fileDescriptor: master)
-    
-    // Launches the read-master task
-//    let k = Task { await readMaster() }
-    
-
-    // FIXME: how does this work in Swift 6?
-//    let j = Task { await self.readSlave() }
-
-//    let kk = await j.value
-//    finish();
-    done(r, showexit)
-    } catch(let e) {
-      throw CmdErr(127, "\(e)")
+      cfmakeraw(&rtt)
+      rtt.c_lflag &= ~tcflag_t(ECHO)
+      _ = tcsetattr(STDIN_FILENO, TCSAFLUSH, &rtt)
     }
 
+    let child = startChild(o.args, slave: slave, slaveName: slaveName)
+    close(slave)
+
+    mainLoop(o)
+    finish(child)
   }
-  
-  
-  /*
-  func readAndWrite() -> Bool {
-    var tv = timeval()
-    var tvp : timeval?
-    var tvec = time(nil)
 
-    var rfd = fd_set()
-    var wfd = fd_set()
-
-    FD_ZERO(&rfd)
-    FD_ZERO(&wfd)
-    FD_SET(master, &rfd)
-    if (readstdin) {
-      FD_SET(STDIN_FILENO, &rfd)
+  /// A pseudo-terminal pair: the master, the slave, and the name of the slave.
+  func openpty(_ termp: termios?, _ winp: winsize?) -> (Int32, Int32, String)? {
+    let m = posix_openpt(O_RDWR | O_NOCTTY)
+    if m < 0 { return nil }
+    guard grantpt(m) == 0, unlockpt(m) == 0, let n = ptsname(m) else {
+      close(m)
+      return nil
     }
-    if !obuf_list.isEmpty {
-      FD_SET(master, &wfd)
+    let name = String(cString: n)
+    let s = open(name, O_RDWR | O_NOCTTY)
+    if s < 0 {
+      close(m)
+      return nil
     }
-
-    if (!readstdin && ttyflg) {
-      tv.tv_sec = 1;
-      tv.tv_usec = 0;
-      tvp = tv
-      readstdin = true
-    } else if (flushtime > 0) {
-      tv.tv_sec = flushtime - (tvec - start);
-      tv.tv_usec = 0;
-      tvp = tv
-    } else {
-      tvp = nil
+    if var t = termp {
+      _ = tcsetattr(s, TCSAFLUSH, &t)
     }
-    
+    if var w = winp {
+      _ = ioctl(s, TIOCSWINSZ_REQUEST, &w)
+    }
+    return (m, s, name)
+  }
 
-    /// `master + 1` is the same as `slave`
-    var n : Int32
-    if var tvp {
-      n = withUnsafeMutablePointer(to: &tvp) { p in
-        select(slave, &rfd, &wfd, nil, p)
+  /// Starts the command (or the shell) with the slave as its terminal: standard streams and controlling terminal.
+  /// Returns its process id; zero if it could not be started, in which case what went wrong has been written to the
+  /// terminal, and the command can be taken to have exited with status 1.
+  func startChild(_ av: [String], slave: Int32, slaveName: String) -> pid_t {
+    var environment = Environment.getenv()
+    environment["SCRIPT"] = options.fname
+    var envp: [UnsafeMutablePointer<CChar>?] = environment.map { strdup("\($0.key)=\($0.value)") } + [nil]
+
+    let shell = environment["SHELL"] ?? _PATH_BSHELL
+    let argv = av.isEmpty ? [shell, "-i"] : av
+    var cargv: [UnsafeMutablePointer<CChar>?] = argv.map { strdup($0) } + [nil]
+    defer { for p in envp + cargv { free(p) } }
+
+    var attr: posix_spawnattr_t? = nil
+    posix_spawnattr_init(&attr)
+    defer { posix_spawnattr_destroy(&attr) }
+    // a new session, with no signals blocked and the default action for all of them
+    var noSignals = sigset_t()
+    sigemptyset(&noSignals)
+    var allSignals = sigset_t()
+    sigfillset(&allSignals)
+    posix_spawnattr_setsigmask(&attr, &noSignals)
+    posix_spawnattr_setsigdefault(&attr, &allSignals)
+    posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETSID | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF))
+
+    var actions: posix_spawn_file_actions_t? = nil
+    posix_spawn_file_actions_init(&actions)
+    defer { posix_spawn_file_actions_destroy(&actions) }
+    // opened by a session leader without a terminal, the slave becomes the controlling terminal
+    posix_spawn_file_actions_addopen(&actions, 0, slaveName, O_RDWR, 0)
+    posix_spawn_file_actions_adddup2(&actions, 0, 1)
+    posix_spawn_file_actions_adddup2(&actions, 0, 2)
+
+    var pid: pid_t = 0
+    let rc = av.isEmpty
+      ? posix_spawn(&pid, shell, &actions, &attr, cargv, envp)
+      : posix_spawnp(&pid, argv[0], &actions, &attr, cargv, envp)
+    if rc != 0 {
+      // what the failed exec would have said, from the command's side of the terminal and then exiting with 1
+      let report = ["sh", "-c", "printf '%s: %s: %s\\n' \"$0\" \"$1\" \"$2\" >&2; exit 1", programName, argv[0], String(cString: strerror(rc))]
+      var rargv: [UnsafeMutablePointer<CChar>?] = report.map { strdup($0) } + [nil]
+      defer { for p in rargv { free(p) } }
+      guard posix_spawn(&pid, "/bin/sh", &actions, &attr, rargv, envp) == 0 else { return 0 }
+    }
+    return pid
+  }
+
+  func write(_ f: UnsafeMutablePointer<FILE>, _ s: String) {
+    fputs(s, f)
+  }
+
+  /// Copies between the terminal and the pseudo-terminal until the command is done with the latter.
+  func mainLoop(_ o: CommandOptions) {
+    var obuf_list = [BufferElement]()
+    var obuf = [UInt8](repeating: 0, count: Int(BUFSIZ))
+    var ibuf = [UInt8](repeating: 0, count: Int(BUFSIZ))
+    var start = time(nil)
+    var tvec = start
+    var readstdin = true
+
+    while true {
+      var rfd = fd_set()
+      var wfd = fd_set()
+      FD_ZERO(&rfd)
+      FD_ZERO(&wfd)
+      FD_SET(master, &rfd)
+      if readstdin {
+        FD_SET(STDIN_FILENO, &rfd)
       }
-    } else {
-      n = select(slave, &rfd, &wfd, nil, nil)
-    }
-    
-    if (n < 0 && errno != EINTR) {
-      return false;
-    }
-    
-
-    if (n > 0 && FD_ISSET(master, &wfd) ) {
-      while let be = obuf_list.first {
-        
-        let cc = be.ibuf.withUnsafeBytes { p in
-          write(master, p.baseAddress, be.ibuf.count)
+      if !obuf_list.isEmpty {
+        FD_SET(master, &wfd)
+      }
+      var tv = timeval()
+      var timed = true
+      if !readstdin && ttyflg {
+        tv.tv_sec = 1
+        tv.tv_usec = 0
+        readstdin = true
+      } else if o.flushtime > 0 {
+        tv.tv_sec = o.flushtime - (tvec - start)
+        tv.tv_usec = 0
+      } else {
+        timed = false
+      }
+      let n: Int32 = timed ? select(master + 1, &rfd, &wfd, nil, &tv) : select(master + 1, &rfd, &wfd, nil, nil)
+      if n < 0 && errno != EINTR {
+        break
+      }
+      if n > 0 && FD_ISSET(STDIN_FILENO, &rfd) {
+        let cc = read(STDIN_FILENO, &ibuf, ibuf.count)
+        if cc < 0 {
+          break
         }
-          if (cc == -1) {
-            if (errno == EWOULDBLOCK ||
-                errno == EINTR) {
-              break;
-            }
-            warn("write master");
-            done(1);
+        if cc == 0 {
+          var stt = termios()
+          if tcgetattr(master, &stt) == 0 && (stt.c_lflag & tcflag_t(ICANON)) != 0 {
+            var eof = stt.c_cc.0
+            _ = Darwin.write(master, &eof, 1)
           }
-        
-        if (cc == 0) {
-          break; /* retry later ? */
+          readstdin = false
         }
-        
-        var stt = termios()
-        if (kflg && tcgetattr(master, &stt) >= 0 &&
-            ((stt.c_lflag & UInt(ECHO) ) == 0)) {
-          // FIXME: catch the try
-          try! fscript.write(contentsOf: be.ibuf)
-//            write(be.ibuf + be.rpos,
-//                         1, cc, fscript);
+        if cc > 0 {
+          let data = Array(ibuf[0..<cc])
+          if o.rawout {
+            record(data, .i)
+          }
+          obuf_list.append(BufferElement(rpos: 0, ibuf: data))
         }
-//          be.len -= cc;
-//          if (be.len == 0) {
-          obuf_list.removeFirst()
-     //     TAILQ_REMOVE(&obuf_list, be, link);
-     //     free(be);
-//          } else {
-//            be.rpos += cc;
-//          }
       }
-    }
-    
-     
-    if (tvec - start >= flushtime) {
-      try? fscript.synchronize()
-      start = tvec;
-    }
-    if (Fflg) {
-      try? fscript.synchronize()
-    }
-
-    return true
-  }
-  */
-  
-  
-  /*
-  func readMaster() async -> Bool {
-      var isReading = true
-      
-      while isReading {
-        let a = masterFH.availableData
-        if a.count == 0 { isReading = false }
-        FileHandle.standardOutput.write(a)
-        if (rawout) {
-          record(fscript, a, .o);
+      if n > 0 && FD_ISSET(master, &wfd) {
+        while !obuf_list.isEmpty {
+          let be = obuf_list[0]
+          let len = be.ibuf.count - be.rpos
+          let cc = be.ibuf.withUnsafeBytes { Darwin.write(master, $0.baseAddress! + be.rpos, len) }
+          if cc == -1 {
+            if errno == EWOULDBLOCK || errno == EINTR {
+              break
+            }
+            warn("write master")
+            done(1)
+          }
+          if cc == 0 {
+            break   /* retry later ? */
+          }
+          var stt = termios()
+          if o.kflg && tcgetattr(master, &stt) >= 0 && (stt.c_lflag & tcflag_t(ECHO)) == 0 {
+            be.ibuf.withUnsafeBytes { _ = fwrite($0.baseAddress! + be.rpos, 1, cc, fscript) }
+          }
+          if cc == len {
+            obuf_list.removeFirst()
+          } else {
+            obuf_list[0].rpos += cc
+          }
+        }
+      }
+      if n > 0 && FD_ISSET(master, &rfd) {
+        let cc = read(master, &obuf, obuf.count)
+        if cc <= 0 {
+          break
+        }
+        _ = Darwin.write(STDOUT_FILENO, obuf, cc)
+        if o.rawout {
+          record(Array(obuf[0..<cc]), .o)
         } else {
-          fscript.write(a)
+          _ = fwrite(obuf, 1, cc, fscript)
         }
       }
-      return true
+      tvec = time(nil)
+      if tvec - start >= o.flushtime {
+        fflush(fscript)
+        start = tvec
+      }
+      if o.Fflg {
+        fflush(fscript)
+      }
+    }
   }
-  */
-  
-  
-  
-  var usage : String { get  { return """
-usage: script [-\(optString)] [-t time] [file [command ...]]
-       script -p [-deq] [-T fmt] [file]
-"""
-  } }
-  
-  func finish() {
-    var e : Int32
-    var status : Int32
-    
-    fatalError("waitpid")
-    // FIXME: put me back?
-    /*
-    if (waitpid(child, &status, 0) == child) {
-      if (WIFEXITED(status)) {
-        e = WEXITSTATUS(status);
-      } else if (WIFSIGNALED(status)) {
-        e = WTERMSIG(status);
+
+  func finish(_ child: pid_t) {
+    if child == 0 {
+      done(1)
+    }
+    var status: Int32 = 0
+    if waitpid(child, &status, 0) == child {
+      let e: Int32
+      if (status & 0x7f) == 0 {
+        e = (status >> 8) & 0xff
+      } else if (status & 0x7f) != 0x7f {
+        e = status & 0x7f
       } else { /* can't happen */
-        e = 1;
+        e = 1
       }
-      done(e);
+      done(e)
     }
-     */
+    done(0)
   }
-  
-  func doshell(_ av : [String]) async throws -> Int32 {
-    var env = Environment.getenv()
-    
-    var shell = env["SHELL"] ?? _PATH_BSHELL
 
-//    close(master);
-//    try? fscript.close()
-//    free(fmfname);
-    
-//    login_tty(slave);
-    
-//    setenv("SCRIPT", fname, 1);
-    env["SCRIPT"] = options.fname
-
-    let args = Array(av.dropFirst())
-    
-    if let av0 = av.first {
-      let ff = searchPath(for: av0)
-      
-      try await DarwinProcess().run(ff!, args: args, env: env)
-
-//      execvp(av0, av);
-      warn(av0)
-    } else {
-      do {
-        let p = try await DarwinProcess().run(shell, withStdin: FileDescriptor.standardInput, args: ["-i"], env: env)
-        return p.code
-      } catch let e as Errno {
-        return e.rawValue
-      } catch {
-        return -1
-      }
-      
-//      execl(shell, shell, "-i", [] )
-      warnx(shell)
-      return 0
-      
+  func done(_ eno : Int32) -> Never {
+    if ttyflg {
+      _ = tcsetattr(STDIN_FILENO, TCSAFLUSH, &tt)
     }
-    return 1
-  }
-  
-  func done(_ eno : Int32, _ showexit : Bool) {
-    var tvec = time_t()
-    
-    /*
-    if (ttyflg) {
-      tcsetattr(STDIN_FILENO, TCSAFLUSH, &tt);
+    var tvec = time(nil)
+    if options.rawout {
+      record([], .e)
     }
-     */
-    
-    tvec = time(nil);
-    if (options.rawout) {
-      record(fscript, [], .e);
-    }
-    if (!options.qflg) {
-      if (!options.rawout) {
-        if (showexit) {
-          print("\nCommand exit status: \(eno)", terminator: "", to: &fscript)
+    if !options.qflg {
+      if !options.rawout {
+        if showexit {
+          write(fscript, "\nCommand exit status: \(eno)")
         }
-        let c = ctime(&tvec)!
-        let cc = String(cString: c)
-        print("\nScript done on \(cc)", terminator: "", to: &fscript)
+        write(fscript, "\nScript done on \(String(cString: ctime(&tvec)))")
       }
       print("\nScript done, output file is \(options.fname)")
-      #if ENABLE_FILEMON
-      if (fflg) {
-        printf("Filemon done, output file is %s\n",
-                     fmfname);
-      }
-#endif /* ENABLE_FILEMON */
     }
-    try? fscript.close()
-//    try? masterFH.close()
- //   close(master);
-    exit(eno);
+    fclose(fscript)
+    close(master)
+    exit(eno)
   }
-  
-  func record(_ fp : FileDescriptor, _ buf : [UInt8], _ direction : ScrDirection) {
-    var iov = (iovec(), iovec() )
+
+  /// Writes a record, with its header, to the typescript.
+  func record(_ buf : [UInt8], _ direction : ScrDirection) {
     var stampx = stamp()
     var tv = timeval()
-    
+
     gettimeofday(&tv, nil)
-    stampx.scr_len = UInt64(UInt(buf.count))
-    stampx.scr_sec = UInt64(UInt(tv.tv_sec))
+    stampx.scr_len = UInt64(buf.count)
+    stampx.scr_sec = UInt64(tv.tv_sec)
     stampx.scr_usec = UInt32(tv.tv_usec)
     stampx.scr_direction = direction.rawValue
-    
-/*
-    iov.0.iov_len = MemoryLayout.size(ofValue: stampx)
-    iov.0.iov_base = &stampx;
-    iov.1.iov_len = cc;
-    iov1.iov_base = buf;
-*/
-    
-    do {
-      let _ = try withUnsafeBytes(of: stampx) { p in
-        try fp.write(p) // contentsOf: Data(bytesNoCopy: p.baseAddress!, count: MemoryLayout<stamp>.size, deallocator: .none))
-      }
-      if buf.count > 0 { let _ = try withUnsafeBytes(of: buf) { try fp.write($0) } }
-    } catch(let e) {
-      err(1, "\(e)")
-    }
-    
-//    if (writev(fileno(fp), &iov.0, 2) == -1) {
-//      err(1, "writev");
-//    }
-  }
-  
-  func consume(_ fp : FileDescriptor, _ lenx : UInt64, _ reg : Bool) -> [UInt8] {
 
-    var len = lenx
-    
-    if (reg) {
-      do {
-        try fp.seek(offset: Int64(len), from: .current )
-      } catch(let e) {
-        err(1, "\(e)")
-      }
-//      if (fseeko(fp, len, SEEK_CUR) == -1) {
-//        err(1, "");
-//      }
-      return []
-    }
-    else {
-      var res = [UInt8]()
-      while (len > 0) {
-//        let l = min(DEF_BUF, Int(len) );
-        do {
-          let buf = try fp.readUpToCount(Int(len) )
-            len = len - UInt64(buf.count)
-          res.append(contentsOf: buf)
-        } catch(let e) {
-//        if (fread(buf, sizeof(char), l, fp) != l) {
-          err(1, "cannot read buffer");
+    var iov = [iovec](repeating: iovec(), count: 2)
+    withUnsafeMutableBytes(of: &stampx) { h in
+      buf.withUnsafeBytes { b in
+        iov[0] = iovec(iov_base: h.baseAddress, iov_len: h.count)
+        iov[1] = iovec(iov_base: UnsafeMutableRawPointer(mutating: b.baseAddress), iov_len: b.count)
+        if writev(fileno(fscript), iov, 2) == -1 {
+          err(1, "writev")
         }
       }
-      return res
-      
     }
   }
 
-  
+  // MARK: playback
+
+  func consume(_ fp : UnsafeMutablePointer<FILE>, _ len : UInt64, _ reg : Bool) {
+    if reg {
+      if fseeko(fp, off_t(bitPattern: len), SEEK_CUR) == -1 {
+        err(1, nil)
+      }
+    } else {
+      var left = len
+      var buf = [UInt8](repeating: 0, count: DEF_BUF)
+      while left > 0 {
+        let l = Int(min(UInt64(DEF_BUF), left))
+        if fread(&buf, 1, l, fp) != l {
+          err(1, "cannot read buffer")
+        }
+        left -= UInt64(l)
+      }
+    }
+  }
+
   func swapstamp(_ stampx : inout stamp) {
-    if (stampx.scr_direction > 0xff) {
+    if stampx.scr_direction > 0xff {
       stampx.scr_len = stampx.scr_len.byteSwapped
       stampx.scr_sec = stampx.scr_sec.byteSwapped
       stampx.scr_usec = stampx.scr_usec.byteSwapped
       stampx.scr_direction = stampx.scr_direction.byteSwapped
     }
   }
-    
-    
-    
-  func readSlave() async -> Bool {
-  //    let slaveFH = FileHandle.standardInput
-  //    let slaveFH = FileHandle(fileDescriptor: slave)
-    
-      let slaveFH = FileDescriptor.standardInput
-      var isReading = true
-      //   var stt = termios()
-      
-      
-      while isReading {
-        do {
-          let a = try slaveFH.readUpToCount(4096)
-          let j = try! IEncoding.latin1.toString(a)
-          print("slave: \(j)")
-          if a.count == 0 {
-            isReading = false
-            //        if (tcgetattr(masterFH.fileDescriptor, &stt) == 0 &&
-            //            (stt.c_lflag & UInt(ICANON) ) != 0) {
-            // VEOF is 0
-            //          write(masterFH.fileDescriptor, &stt.c_cc, 1);
-            //        }
-            
-          }
-          
-          if (options.rawout) {
-            record(fscript, a, .i);
-          }
-          try FileDescriptor.standardOutput.write(a) // /* masterFH */ .write(a)
-        } catch(let e) {
-          print(e)
-          return false
-        }
-      }
-      return true
-  }
 
-
-    
-    
-    
-    func termset() {
-     var traw = termios()
-    
-    if (tcgetattr(STDOUT_FILENO, &tt) == -1) {
-#if __APPLE__
-      if (errno != ENOTTY && errno != ENODEV) { /* For debugger. */
-        err(1, "tcgetattr");
+  func termset() {
+    var traw = termios()
+    if tcgetattr(STDOUT_FILENO, &tt) == -1 {
+      if errno != ENOTTY && errno != ENODEV { /* For debugger. */
+        err(1, "tcgetattr")
       }
-#else
-      if (errno != ENOTTY) { /* For debugger. */
-        err(1, "tcgetattr");
-      }
-
-#endif
-      return;
+      return
     }
     ttyflg = true
-    traw = tt;
-    cfmakeraw(&traw);
-      traw.c_lflag |= UInt(ISIG);
-    tcsetattr(STDOUT_FILENO, TCSANOW, &traw);
+    traw = tt
+    cfmakeraw(&traw)
+    traw.c_lflag |= tcflag_t(ISIG)
+    _ = tcsetattr(STDOUT_FILENO, TCSANOW, &traw)
   }
-  
-  
-  func playback(_ fp : FileDescriptor) {
-    /*
-     struct timespec tsi, tso;
-     struct stamp stamp;
-     struct stat pst;
-     char buf[DEF_BUF];
-     off_t nread, save_len;
-     size_t l;
-     time_t tclock;
-     time_t lclock;
-     int reg;
-     */
-    
-//    var stampx = stamp()
+
+  func playback(_ fp : UnsafeMutablePointer<FILE>) -> Never {
     var tsi = timespec()
     var tso = timespec()
-    var tclock : Int = time_t()
-    var lclock : Int = time_t();
+    var lclock : time_t = 0
+    var pst = Darwin.stat()
 
-//    var buf : Data?
-    
-    guard let pst = try? fp.stat() else {
+    if fstat(fileno(fp), &pst) == -1 {
       err(1, "fstat failed")
     }
-    
-    let reg = pst.type == .regular
+    let reg = (pst.st_mode & S_IFMT) == S_IFREG
 
-    
-    // FIXME: nread is never updated!
-    var nread = Int64(0)
-
-    while true {
-      if reg && nread >= pst.size { break }
-      //      for (nread = 0; !reg || nread < pst.st_size; nread += save_len) {
-      
-      var ss : [UInt8]?
-      
-      do {
-        ss = try fp.readUpToCount(MemoryLayout<stamp>.size)
-      } catch(let e) {
-        err(1, "reading playback header: \(e)")
-      }
-      //      if (fread(&stampx, sizeof(stampx), 1, fp) != 1) {
-      
-      // EOF?
-      if ss == nil { break }
-      
-      if ss?.count != MemoryLayout<stamp>.size {
-        if (reg) {
-          err(1, "reading playback header");
-        }
-        else {
-          break;
+    var nread : Int64 = 0
+    var save_len : Int64 = 0
+    while !reg || nread < Int64(pst.st_size) {
+      var stampx = stamp()
+      if fread(&stampx, MemoryLayout<stamp>.size, 1, fp) != 1 {
+        if reg {
+          err(1, "reading playback header")
+        } else {
+          break
         }
       }
-      var stampx = ss!.withUnsafeBytes { p in
-        p.bindMemory(to: stamp.self)[0]
+      swapstamp(&stampx)
+      save_len = Int64(MemoryLayout<stamp>.size)
+
+      // unsigned arithmetic, as the length is checked against what is left of the file
+      if reg && stampx.scr_len > UInt64(bitPattern: Int64(pst.st_size) - save_len) &- UInt64(bitPattern: nread) {
+        errx(1, "invalid stamp")
       }
-      swapstamp(&stampx);
-      var save_len = Int64(MemoryLayout.size(ofValue: stampx))
-      
-      if (reg && stampx.scr_len >
-          (Int64(pst.size) - save_len) - nread) {
-        errx(1, "invalid stamp");
+
+      save_len = save_len &+ Int64(bitPattern: stampx.scr_len)
+      var tclock = time_t(truncatingIfNeeded: stampx.scr_sec)
+      tso.tv_sec = time_t(truncatingIfNeeded: stampx.scr_sec)
+      tso.tv_nsec = Int(stampx.scr_usec &* 1000)
+      if nread == 0 {
+        tsi = tso
       }
-      
-      save_len += Int64(stampx.scr_len)
-      tclock = Int(stampx.scr_sec)
-      tso.tv_sec = Int(stampx.scr_sec)
-      tso.tv_nsec = Int(stampx.scr_usec * 1000)
-      if (nread == 0) {
-        tsi = tso;
-      }
-        
+
       switch ScrDirection(rawValue: stampx.scr_direction) {
       case .s:
-        
-          if (!options.qflg) {
-          let c = ctime(&tclock)!
-          let cc = String(cString: c)
-          print("Script started on \(cc)", terminator: "")
+        if !options.qflg {
+          print("Script started on \(String(cString: ctime(&tclock)))", terminator: "")
         }
-        tsi = tso;
-        let _ = consume(fp, stampx.scr_len, reg);
-        termset();
-        atexit( termreset )
-        break;
-        
+        tsi = tso
+        consume(fp, stampx.scr_len, reg)
+        termset()
+        atexit(termreset)
       case .e:
-        
-        termreset();
-          if (!options.qflg) {
-          let c = ctime(&tclock)!
-          let cc = String(cString: c)
-          print("\nScript done on \(cc)", terminator: "")
+        termreset()
+        if !options.qflg {
+          print("\nScript done on \(String(cString: ctime(&tclock)))", terminator: "")
         }
-        let _ = consume(fp, stampx.scr_len, reg)
-
-        break;
+        consume(fp, stampx.scr_len, reg)
       case .i:
         /* throw input away */
-
-        let _ = consume(fp, stampx.scr_len, reg);
-
-        break;
+        consume(fp, stampx.scr_len, reg)
       case .o:
-          if (options.tflg) {
-          if (stampx.scr_len == 0) {
-            continue;
+        if options.tflg {
+          if stampx.scr_len == 0 {
+            nread = nread &+ save_len
+            continue
           }
-          if (tclock - lclock > 0) {
-            
-            let bb = withUnsafeTemporaryAllocation(byteCount: 256, alignment: 1) { p in
-              let k = p.baseAddress!.assumingMemoryBound(to: UInt8.self)
-              let l = strftime(k, 256, options.tstamp_fmt,
-                           localtime(&tclock))
-        //      let d = Data(bytesNoCopy: k, count: l, deallocator: .none)
-              let j = UnsafeBufferPointer(start: k, count: l)
-              let tb = try! IEncoding.latin1.toString(Array(j))
-              let bb = tb
-              return bb
-            }
-            print(bb, terminator: "")
+          if tclock - lclock > 0 {
+            var buf = [CChar](repeating: 0, count: DEF_BUF)
+            let l = strftime(&buf, buf.count, options.tstamp_fmt, localtime(&tclock))
+            _ = Darwin.write(STDOUT_FILENO, buf, l)
           }
-          lclock = tclock;
+          lclock = tclock
         } else {
-          tsi.tv_sec = tso.tv_sec - tsi.tv_sec;
-          tsi.tv_nsec = tso.tv_nsec - tsi.tv_nsec;
-          if (tsi.tv_nsec < 0) {
-            tsi.tv_sec -= 1;
-            tsi.tv_nsec += 1000000000;
+          tsi.tv_sec = tso.tv_sec - tsi.tv_sec
+          tsi.tv_nsec = tso.tv_nsec - tsi.tv_nsec
+          if tsi.tv_nsec < 0 {
+            tsi.tv_sec -= 1
+            tsi.tv_nsec += 1000000000
           }
-          if (options.usesleep) {
+          if options.usesleep {
             nanosleep(&tsi, nil)
           }
-          tsi = tso;
+          tsi = tso
         }
-        while (stampx.scr_len > 0) {
-//          let l = min(DEF_BUF, stampx.scr_len);
-          
-          do {
-            let bb = try fp.readUpToCount(Int(stampx.scr_len))
-             let _ = try FileDescriptor.standardOutput.write(bb)
-              stampx.scr_len -= UInt64(bb.count);
-
-//            if (fread(buf, sizeof(char), l, fp) != l) {
-//              err(1, "cannot read buffer");
-//            }
-          } catch(let e) {
-            err(1, "cannot read buffer: \(e)")
+        var buf = [UInt8](repeating: 0, count: DEF_BUF)
+        var left = stampx.scr_len
+        while left > 0 {
+          let l = Int(min(UInt64(DEF_BUF), left))
+          if fread(&buf, 1, l, fp) != l {
+            err(1, "cannot read buffer")
           }
-          
+          _ = Darwin.write(STDOUT_FILENO, buf, l)
+          left -= UInt64(l)
         }
-        break;
       default:
-        errx(1, "invalid direction");
+        errx(1, "invalid direction")
       }
-      nread += save_len
+      nread = nread &+ save_len
     }
-     
-    try? fp.close()
+    fclose(fp)
     exit(0)
   }
-  
 }
 
 func FD_SET(_ a : Int32, _ b : inout fd_set ) {
@@ -938,14 +615,6 @@ func FD_ISSET(_ a : Int32, _ b : inout fd_set ) -> Bool {
 
 func FD_ZERO(_ b : inout fd_set) {
   bzero(&b, MemoryLayout.size(ofValue:b))
-}
-
-func _WSTATUS(_ i : Int32) -> Int32 {
-  return i & 0177
-}
-
-func WTERMSIG(_ i : Int32) -> Int32 {
-  return _WSTATUS(i)
 }
 
 // =====================================
