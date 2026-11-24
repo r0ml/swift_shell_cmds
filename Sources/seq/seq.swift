@@ -35,193 +35,159 @@
 
 import CMigration
 
+import Darwin
+
 @main final class seq : ShellCommand {
-  
+
   struct CommandOptions {
-    var format: String?
-    var separator: String = "\n"
-    var terminator: String?
-    var equalWidth: Bool = false
-    var pad : Character = "0"
+    var format: [UInt8]?
+    var formatText = ""
+    var separator: [UInt8] = [UInt8(ascii: "\n")]
+    var terminator: [UInt8]?
+    var equalize = 0
+    var pad = UInt8(ascii: "0")
 
     var args : [String] = []
   }
 
   var options : CommandOptions!
 
-  func parseOptions() throws(CmdErr) -> CommandOptions {
-    var opts = CommandOptions()
-    let go = BSDGetopt_long(optstring, longOpts)
-    while let (opt, optarg) = try go.getopt_long() {
-      switch opt {
-      case "f", "format":  /* format (plan9) */
-        opts.format = optarg
-        opts.equalWidth = false
-      case "s", "separator":  /* separator (GNU) */
-        opts.separator = unescape(optarg)
-      case "t", "terminator":  /* terminator (new) */
-        opts.terminator = unescape(optarg)
-      case "w", "equal-width":  /* equal width (plan9) */
-        if opts.format == nil {
-          if opts.equalWidth {
-            opts.pad = " ";
-          }
-          opts.equalWidth = true
-        }
-        
-      case "h", "help":  /* help (GNU) */
-        fallthrough
-      default:
-        throw CmdErr(1)
-      }
-    }
-    
-    opts.args = go.remaining
-    if opts.args.count < 1 || opts.args.count > 3 {
-      throw CmdErr(1)
-    }
-    return opts
-  }
-  
-  
-  var usage: String = "usage: seq [-w] [-f format] [-s string] [-t string] [first [incr]] last"
-  
-  
-  func MAX(_ a: Double, _ b: Double) -> Double {
-    return a < b ? b : a
-  }
-  
-  func ISSIGN(_ c: Character) -> Bool {
-    return String(c) == "-" || String(c) == "+"
-  }
-  
-  func ISEXP(_ c: Character) -> Bool {
-    return String(c) == "e" || String(c) == "E"
-  }
-  
-  func ISODIGIT(_ c: Character) -> Bool {
-    return Int(String(c))! >= 0 && Int(String(c))! <= 7
-  }
-  
-  var decimal_point: String = "." // default
-  var defaultFormat: String = "%g" // default
-  
-  
-//  var options = Option(format: nil, separator: nil, terminator: nil, equalWidth: false)
-  
-  
-  let decimalPoint: String = "." // default
-  
-  
-  
-  let optstring = "f:hs:t:w"
+  let usage = "usage: seq [-w] [-f format] [-s string] [-t string] [first [incr]] last"
+
+  let optstring = "+f:hs:t:w"
   let longOpts: [LongOption] = [
     .init("format", .required_argument),
     .init("separator", .required_argument),
     .init("terminator", .required_argument),
     .init("equal-width", .no_argument),
-    .init("help", .no_argument),
-    //      (nil, .noArgument, 0)
   ]
-  
-  
-  /*
-   func e_atof(_ str: String) -> Double {
-   return Double(str)!
-   }
-   
-   func decimal_places(_ str: String) -> Int {
-   return str.components(separatedBy: ".").last!.count
-   }
-   */
-  
-  /*
-   func numeric(_ str: String) -> Bool {
-   return Double(str) != nil
-   }
-   
-   func valid_format(_ str: String) -> Bool {
-   return str.contains("%")
-   }
-   */
-  
-  
-  /*
-   * numeric - verify that string is numeric
-   */
-  func numeric(s: String) -> Bool {
-    var s = s
-    var seenDecimalPt = false
-    let decimalPtLen = decimalPoint.count
-    
-    /* skip any sign */
-    if ISSIGN(s.first!) {
-      s.removeFirst()
+
+  /// The decimal point of the "C" locale (seq never sets the locale).
+  let decimalPoint = UInt8(ascii: ".")
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
+    var errflg = 0
+    let go = BSDGetopt_long(optstring, longOpts)
+
+    // Options are handled only as long as the next argument isn't a number, so that negative numbers aren't
+    // taken for options.  A bad option is reported, and the rest are still looked at.
+    var guardCount = 0
+    while let next = go.remaining.first, !numeric(next), guardCount < 100_000 {
+      guardCount += 1
+      do {
+        guard let (opt, optarg) = try go.getopt_long() else { break }
+        switch opt {
+        case "f", "format":  /* format (plan9) */
+          opts.format = Array(optarg.utf8)
+          opts.formatText = optarg
+          opts.equalize = 0
+        case "s", "separator":  /* separator (GNU) */
+          opts.separator = unescape(Array(optarg.utf8))
+        case "t", "terminator":  /* terminator (new) */
+          opts.terminator = unescape(Array(optarg.utf8))
+        case "w", "equal-width":  /* equal width (plan9) */
+          if opts.format == nil {
+            if opts.equalize != 0 {
+              opts.pad = UInt8(ascii: " ")
+            }
+            opts.equalize += 1
+          }
+        default:  /* help (GNU) and the rest */
+          errflg += 1
+        }
+      } catch {
+        fputs("\(error.message)\n", stderr)
+        errflg += 1
+      }
     }
-    
-    while !s.isEmpty {
-      if !s.first!.isWholeNumber {
-        if !seenDecimalPt && s.hasPrefix(decimalPoint) {
-          s.removeFirst(decimalPtLen)
+
+    opts.args = go.remaining
+    if opts.args.count < 1 || opts.args.count > 3 {
+      errflg += 1
+    }
+    if errflg > 0 {
+      throw CmdErr(1)
+    }
+    return opts
+  }
+
+  // MARK: helpers
+
+  func isDigit(_ c: UInt8) -> Bool { c >= 0x30 && c <= 0x39 }
+  func isSign(_ c: UInt8) -> Bool { c == UInt8(ascii: "-") || c == UInt8(ascii: "+") }
+  func isExp(_ c: UInt8) -> Bool { c == UInt8(ascii: "e") || c == UInt8(ascii: "E") }
+  func isOctal(_ c: UInt8) -> Bool { c >= 0x30 && c <= 0x37 }
+  func isHex(_ c: UInt8) -> Bool { isDigit(c) || (c >= 0x41 && c <= 0x46) || (c >= 0x61 && c <= 0x66) }
+
+  /// The byte at `i`, or the NUL that ends a C string.
+  func byte(_ s: [UInt8], _ i: Int) -> UInt8 { i < s.count ? s[i] : 0 }
+
+  /// numeric - verify that string is numeric
+  func numeric(_ str: String) -> Bool {
+    let s = Array(str.utf8)
+    var i = 0
+
+    /* skip any sign */
+    if isSign(byte(s, i)) { i += 1 }
+
+    var seenDecimalPt = false
+    while byte(s, i) != 0 {
+      if !isDigit(byte(s, i)) {
+        if !seenDecimalPt && byte(s, i) == decimalPoint {
+          i += 1
           seenDecimalPt = true
           continue
         }
-        if ISEXP(s.first!) {
-          s.removeFirst()
-          if ISSIGN(s.first!) || s.first!.isWholeNumber {
-            s.removeFirst()
+        if isExp(byte(s, i)) {
+          i += 1
+          if isSign(byte(s, i)) || isDigit(byte(s, i)) {
+            i += 1
             continue
           }
         }
         break
       }
-      s.removeFirst()
+      i += 1
     }
-    return s.isEmpty
+    return byte(s, i) == 0
   }
-  
-  /*
-   * valid_format - validate user specified format string
-   */
-  func valid_format(_ fmtx: String) -> Bool {
-    var fmt = fmtx
+
+  /// valid_format - validate user specified format string
+  func valid_format(_ f: [UInt8]) -> Bool {
+    var i = 0
     var conversions = 0
-    
-    while !fmt.isEmpty {
+
+    while byte(f, i) != 0 {
       /* scan for conversions */
-      if fmt.first! != "%" {
-        fmt.removeFirst()
+      if f[i] != UInt8(ascii: "%") {
+        i += 1
         continue
       }
-      fmt.removeFirst()
-      
+      i += 1
+
       /* allow %% but not things like %10% */
-      if fmt.first! == "%" {
-        fmt.removeFirst()
+      if byte(f, i) == UInt8(ascii: "%") {
+        i += 1
         continue
       }
-      
+
       /* flags */
-      while !fmt.isEmpty && "#0- +'".contains(fmt.first!) {
-        fmt.removeFirst()
-      }
-      
+      while byte(f, i) != 0 && "#0- +'".utf8.contains(f[i]) { i += 1 }
+
       /* field width */
-      while !fmt.isEmpty && "0123456789".contains(fmt.first!) {
-        fmt.removeFirst()
-      }
-      
+      while byte(f, i) != 0 && isDigit(f[i]) { i += 1 }
+
       /* precision */
-      if fmt.first! == "." {
-        fmt.removeFirst()
-        while !fmt.isEmpty && "0123456789".contains(fmt.first!) {
-          fmt.removeFirst()
-        }
+      if byte(f, i) == UInt8(ascii: ".") {
+        i += 1
+        while byte(f, i) != 0 && isDigit(f[i]) { i += 1 }
       }
-      
+
       /* conversion */
-      switch fmt.first! {
-      case "A", "a", "E", "e", "F", "f", "G", "g":
+      switch byte(f, i) {
+      case UInt8(ascii: "A"), UInt8(ascii: "a"), UInt8(ascii: "E"), UInt8(ascii: "e"),
+           UInt8(ascii: "F"), UInt8(ascii: "f"), UInt8(ascii: "G"), UInt8(ascii: "g"):
         /* floating point formats are accepted */
         conversions += 1
       default:
@@ -229,237 +195,269 @@ import CMigration
         return false
       }
     }
-    
+
     /* PR 236347 -- user format strings must have a conversion */
     return conversions == 1
   }
-  
-  /*
-   func unescape(_ str: String) -> String {
-   return str.replacingOccurrences(of: "\\", with: "")
-   }
-   */
-  
-  
-  /*
-   * unescape - handle C escapes in a string
-   */
-  func unescape(_ oorig: String) -> String {
-    var new = ""
-    var orig = oorig
-    while !orig.isEmpty {
-      let cp = orig.removeFirst()
-      if cp != "\\" {
-        new.append(cp)
+
+  /// unescape - handle C escapes in a string.  The result is a C string: it ends at the first NUL.
+  func unescape(_ orig: [UInt8]) -> [UInt8] {
+    var new = [UInt8]()
+    var i = 0
+    while byte(orig, i) != 0 {
+      let c = orig[i]
+      if c != UInt8(ascii: "\\") {
+        new.append(c)
+        i += 1
         continue
       }
-      
-      if orig.isEmpty {
-        break
-      }
-      
-      let ncp = orig.removeFirst()
-      
-      switch ncp {
-      case "a":  /* alert (bell) */
-        new.append("\u{07}")
-      case "b":  /* backspace */
-        new.append("\u{08}")
-      case "e":  /* escape */
-        new.append("\u{1B}")
-      case "f":  /* formfeed */
-        new.append("\u{0C}")
-      case "n":  /* newline */
-        new.append("\n")
-      case "r":  /* carriage return */
-        new.append("\r")
-      case "t":  /* horizontal tab */
-        new.append("\t")
-      case "v":  /* vertical tab */
-        new.append("\u{0B}")
-      case "\\":  /* backslash */
-        new.append( "\\")
-      case "'":  /* single quote */
-        new.append("'")
-      case "\"":  /* double quote */
-        new.append("\"")
-      case "0", "1", "2", "3", "4", "5", "6", "7":  /* octal */
-        var i = 0
-        var c : Character = "\0"
-        while i < 3 && !orig.isEmpty {
+      i += 1
+      switch byte(orig, i) {
+      case UInt8(ascii: "a"): new.append(0x07)
+      case UInt8(ascii: "b"): new.append(0x08)
+      case UInt8(ascii: "e"): new.append(0x1b)
+      case UInt8(ascii: "f"): new.append(0x0c)
+      case UInt8(ascii: "n"): new.append(0x0a)
+      case UInt8(ascii: "r"): new.append(0x0d)
+      case UInt8(ascii: "t"): new.append(0x09)
+      case UInt8(ascii: "v"): new.append(0x0b)
+      case UInt8(ascii: "\\"): new.append(UInt8(ascii: "\\"))
+      case UInt8(ascii: "'"): new.append(UInt8(ascii: "'"))
+      case UInt8(ascii: "\""): new.append(UInt8(ascii: "\""))
+      case UInt8(ascii: "0")...UInt8(ascii: "7"):  /* octal */
+        var v: UInt8 = 0
+        var n = 0
+        while isOctal(byte(orig, i)) && n < 3 {
+          v = v << 3 | (orig[i] - 0x30)
+          n += 1
           i += 1
-          let ch = orig.removeFirst()
-          c = Character(UnicodeScalar(Int(c.asciiValue!) << 3 | Int(ch.asciiValue!) - 48)!)
         }
-        new.append(c)
-      case "x":  /* hexadecimal number */
-        var i = 0
-        var c : Character = "\0"
-        while i < 2 && !orig.isEmpty {
+        if v == 0 { return new }
+        new.append(v)
+        continue
+      case UInt8(ascii: "x"):  /* hexadecimal number */
+        i += 1
+        var v: UInt8 = 0
+        var n = 0
+        while isHex(byte(orig, i)) && n < 2 {
+          let h = orig[i]
+          v = v << 4 | (isDigit(h) ? h - 0x30 : (h & 0xdf) - 0x41 + 10)
+          n += 1
           i += 1
-          let ch = orig.removeFirst()
-          c = Character(UnicodeScalar(Int(c.asciiValue!) << 4 | Int(ch.asciiValue!) - (ch.isNumber ? 48 : 55))!)
         }
-        new.append(c)
+        if v == 0 { return new }
+        new.append(v)
+        continue
       default:
-        break
+        /* the backslash stays, and what follows is looked at as itself */
+        new.append(UInt8(ascii: "\\"))
+        continue
       }
+      i += 1
     }
-    
     return new
   }
-  
-  /*
-   * e_atof - convert an ASCII string to a double
-   *  exit if string is not a valid double, or if converted value would
-   *  cause overflow or underflow
-   */
+
+  /// e_atof - convert an ASCII string to a double
+  ///  exit if string is not a valid double, or if converted value would
+  ///  cause overflow or underflow
   func e_atof(_ num: String) -> Double {
-    guard let dbl = Double(num) else {
-      fatalError("Invalid floating point argument: \(num)")
+    var endp: UnsafeMutablePointer<CChar>? = nil
+    errno = 0
+    var dbl = num.withCString { strtod($0, &endp) }
+    let failure = errno
+
+    if failure == ERANGE {
+      /* under or overflow */
+      warnc(ERANGE, num)
+      exit(2)
+    } else if let endp, endp.pointee != 0 {
+      /* "junk" left in number */
+      errx(2, "invalid floating point argument: \(num)")
     }
-    
+
     /* zero shall have no sign */
     if dbl == -0.0 {
-      return 0
+      dbl = 0
     }
     return dbl
   }
-  
-  /*
-   * decimal_places - count decimal places in a number (string)
-   */
-  func decimal_places(number: String) -> Int {
+
+  /// decimal_places - count decimal places in a number (string)
+  func decimal_places(_ number: [UInt8]) -> Int {
     var places = 0
-    
+
     /* look for a decimal point */
-    if let dp = number.firstIndex(of: ".") {
-      let decimalPart = number[dp...].dropFirst()
-      for char in decimalPart {
-        if char.isNumber {
-          places += 1
-        }
+    if let dp = number.firstIndex(of: decimalPoint) {
+      var i = dp + 1
+      while isDigit(byte(number, i)) {
+        places += 1
+        i += 1
       }
     }
     return places
   }
-  
-  func runCommand() throws(CmdErr) {
-    var opts = options!
-    let last = e_atof(opts.args.last!) // replace "1" with actual input
-    
-    var first : Double = 1
-    var incr : Double = 0
-    
-    if opts.args.count > 1 {
-      first = e_atof(opts.args[0])
-    }
-    
-    if opts.args.count > 2 {
-      incr = e_atof(opts.args[1])
-      if incr == 0 {
-        throw CmdErr(1, "zero \( first < last ? "in" : "de") crement")
+
+  /// The C library's formatting of one double with a format the caller has checked.
+  func format(_ fmt: [UInt8], _ value: Double) -> [UInt8] {
+    let specification = fmt + [0]
+    var text = [UInt8]()
+    specification.withUnsafeBufferPointer { p in
+      p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) { f in
+        let needed = withVaList([value]) { vsnprintf(nil, 0, f, $0) }
+        if needed < 0 { return }
+        var buffer = [UInt8](repeating: 0, count: Int(needed) + 1)
+        buffer.withUnsafeMutableBytes { raw in
+          raw.baseAddress!.withMemoryRebound(to: CChar.self, capacity: raw.count) { b in
+            _ = withVaList([value]) { vsnprintf(b, raw.count, f, $0) }
+          }
+        }
+        text = Array(buffer.prefix(Int(needed)))
       }
     }
-    
-    if incr == 0 {
-      incr = first < last ? 1 : -1
-    }
-    
-    if incr <= 0 && first < last {
-      throw CmdErr(1, "needs positive incement")
-    }
-    
-    if incr >= 0 && first > last {
-      throw CmdErr(1, "needs negative decrement")
-    }
-    
-    if var fmt = opts.format {
-      if (!valid_format(fmt)) {
-        throw CmdErr(1, "invalid format string: `\(fmt)'")
-     }
-      fmt = unescape(fmt)
-      if (!valid_format(fmt)) {
-        throw CmdErr(1, "invalid format string")
-      }
-      opts.format = fmt
-    } else {
-      opts.format = generate_format(first, incr, last, opts.equalWidth, opts.pad)
-    }
-    // More processing here
-    
-    for cur in stride(from: first, through: last, by: incr) {
-      print(opts.format!.cFormat(cur), terminator: opts.separator)
-    }
-    
-    // More processing here
-    
-    if opts.terminator != nil {
-      print("", terminator: opts.terminator!)
-    }
+    return text
   }
-  
-  /*
-   * generateFormat - create a format string
-   *
-   * XXX to be bug for bug compatible with Plan9 and GNU return "%g"
-   * when "%g" prints as "%e" (this way no width adjustments are made)
-   */
-  func generate_format(_ first: Double, _ incr: Double, _ lastx: Double, _ equalize: Bool, _ pad: Character) -> String {
-    var buf = ""
-    var cc: Character = "\0"
-    var precision, width1, width2, places: Int
-    
-    if !equalize {
+
+  func put(_ bytes: [UInt8]) {
+    bytes.withUnsafeBufferPointer { _ = fwrite($0.baseAddress, 1, $0.count, stdout) }
+  }
+
+  /// generate_format - create a format string
+  ///
+  /// XXX to be bug for bug compatible with Plan9 and GNU return "%g"
+  /// when "%g" prints as "%e" (this way no width adjustments are made)
+  func generate_format(_ first: Double, _ incr: Double, _ lastValue: Double, _ equalize: Int, _ pad: UInt8) -> [UInt8] {
+    let defaultFormat = Array("%g".utf8)
+    if equalize == 0 {
       return defaultFormat
     }
-    
-    var last = lastx
-    
+    var last = lastValue
+    var cc: UInt8 = 0
+
     /* figure out "last" value printed */
     if first > last {
-      last = first - incr * floor((first - last) / incr)
+      last = first.addingProduct(-incr, floor((first - last) / incr))
     } else {
-      last = first + incr * floor((last - first) / incr)
+      last = first.addingProduct(incr, floor((last - first) / incr))
     }
-    
-    buf = "%g".cFormat(incr)
-    if buf.contains("e") {
-      cc = "e"
+
+    var buf = format(defaultFormat, incr)
+    if buf.contains(UInt8(ascii: "e")) { cc = UInt8(ascii: "e") }
+    var precision = decimal_places(buf)
+
+    buf = format(defaultFormat, first)
+    var width1 = buf.count
+    if buf.contains(UInt8(ascii: "e")) { cc = UInt8(ascii: "e") }
+    var places = decimal_places(buf)
+    if places != 0 {
+      width1 -= places + 1
     }
-    precision = decimal_places(number: buf)
-    
-    width1 = buf.count
-    if buf.contains("e") {
-      cc = "e"
-    }
-    places = decimal_places(number: buf)
-    if places > 0 {
-      width1 -= (places + decimalPoint.count)
-    }
-    
+
     precision = max(places, precision)
-    
-    width2 = buf.count
-    if buf.contains("e") {
-      cc = "e"
+
+    buf = format(defaultFormat, last)
+    var width2 = buf.count
+    if buf.contains(UInt8(ascii: "e")) { cc = UInt8(ascii: "e") }
+    places = decimal_places(buf)
+    if places != 0 {
+      width2 -= places + 1
     }
-    places = decimal_places(number: buf)
-    if places > 0 {
-      width2 -= (places + decimalPoint.count)
-    }
-    
-    let padx = UInt8(pad.unicodeScalars.first!.value)
+
+    let conversion = cc != 0 ? cc : UInt8(ascii: "f")
+    var result = [UInt8(ascii: "%"), pad]
     if precision != 0 {
-      String((cc != "\0") ? cc : "f").withCString {
-        buf = "%%%c%d.%d%c".cFormat(padx, max(width1, width2) + decimalPoint.count + precision, precision, $0)
+      result += Array("\(max(width1, width2) + 1 + precision).\(precision)".utf8) + [conversion]
+    } else {
+      result += Array("\(max(width1, width2))".utf8) + [cc != 0 ? cc : UInt8(ascii: "g")]
+    }
+    return result
+  }
+
+  // MARK: the sequence
+
+  func runCommand() throws(CmdErr) {
+    let opts = options!
+    let args = opts.args
+
+    let last = e_atof(args[args.count - 1])
+    var first = 1.0
+    var incr = 0.0
+
+    if args.count > 1 {
+      first = e_atof(args[0])
+    }
+
+    if args.count > 2 {
+      incr = e_atof(args[1])
+      /* Plan 9/GNU don't do zero */
+      if incr == 0.0 {
+        errx(1, "zero \(first < last ? "in" : "de")crement")
+      }
+    }
+
+    /* default is one for Plan 9/GNU work alike */
+    if incr == 0.0 {
+      incr = first < last ? 1.0 : -1.0
+    }
+
+    if incr <= 0.0 && first < last {
+      errx(1, "needs positive increment")
+    }
+
+    if incr >= 0.0 && first > last {
+      errx(1, "needs negative decrement")
+    }
+
+    var fmt: [UInt8]
+    if let f = opts.format {
+      if !valid_format(f) {
+        errx(1, "invalid format string: `\(opts.formatText)'")
+      }
+      fmt = unescape(f)
+      if !valid_format(fmt) {
+        errx(1, "invalid format string")
       }
     } else {
-      String(cc != "\0" ? cc : "g").withCString {
-        buf = "%%%c%d%c".cFormat(padx, max(width1, width2), $0)
-      }
+      fmt = generate_format(first, incr, last, opts.equalize, opts.pad)
     }
-    
-    return buf
+
+    // the format as a C string, and room for the usual line
+    let cfmt = fmt.map { CChar(bitPattern: $0) } + [0]
+    var scratch = [CChar](repeating: 0, count: 512)
+
+    var step = 1.0
+    var cur = first
+    var lastShown = 0.0
+    while incr > 0 ? cur <= last : cur >= last {
+      let n = scratch.withUnsafeMutableBufferPointer { b in
+        withVaList([cur]) { Int(vsnprintf(b.baseAddress, b.count, cfmt, $0)) }
+      }
+      if n >= 0 && n < scratch.count {
+        scratch.withUnsafeBufferPointer { _ = fwrite($0.baseAddress, 1, n, stdout) }
+      } else {
+        put(format(fmt, cur))
+      }
+      put(opts.separator)
+      lastShown = cur
+      // fused, as the C compiler does it
+      cur = first.addingProduct(incr, step)
+      step += 1
+    }
+
+    // Did we miss the last value of the range in the loop above?
+    //
+    // We might have, so check if the printable version of the last computed value ('cur') and desired 'last'
+    // value are equal.  If they are equal after formatting truncation, but 'cur' and 'lastShown' are not equal,
+    // it means the exit condition of the loop held true due to a rounding error and we still need to print 'last'.
+    let curPrint = format(fmt, cur)
+    let lastPrint = format(fmt, last)
+    if curPrint == lastPrint && cur != lastShown {
+      put(lastPrint)
+      put(opts.separator)
+    }
+
+    if let term = opts.terminator {
+      put(term)
+    }
   }
 }
