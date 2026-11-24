@@ -32,54 +32,18 @@
 
 import CMigration
 
-func isTherex(candidate: FilePath, silent: Bool) -> Bool {
-  if let fin = try? candidate.stat(),
-     fin.type == .regular,
-     (userId != 0 || !fin.permissions.intersection([.ownerExecute, .groupExecute, .otherExecute]).isEmpty)
-  {
-
-//    if access(candidate, X_OK) == 0 &&  && S_ISREG(fin.st_mode) && (getuid() != 0 || (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0) {
-        if !silent {
-            print("\(candidate)")
-        }
-        return true
-    }
-    return false
-}
-
-func printMatches(path: String, filename: FilePath, allpaths: Bool, silent: Bool) -> Bool {
-    var candidate = ""
-    var found = false
-
-  if filename.components.count > 1 {
-      return isTherex(candidate: filename, silent: silent)
-    }
-
-    for dx in path.split(separator: ":") {
-        let d = dx.isEmpty ? "." : dx
-        candidate = "\(d)/\(filename)"
-        if candidate.count >= PATH_MAX {
-            continue
-        }
-      if isTherex(candidate: FilePath(candidate), silent: silent) {
-            found = true
-            if !allpaths {
-                break
-            }
-        }
-    }
-    return found
-}
-
+import Darwin
 
 @main final class Which : ShellCommand {
   struct CommandOptions {
     var silent = false
     var allpaths = false
-    var args = ArraySlice<String>()
+    var args = [String]()
   }
 
   var options : CommandOptions!
+
+  let usage = "usage: which [-as] program ..."
 
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
@@ -87,35 +51,71 @@ func printMatches(path: String, filename: FilePath, allpaths: Bool, silent: Bool
     while let (ch, _) = try go.getopt() {
       switch ch {
       case "a":
-          opts.allpaths = true
+        opts.allpaths = true
       case "s":
-          opts.silent = true
+        opts.silent = true
       default:
         throw CmdErr(1)
       }
     }
-    
-    opts.args = ArraySlice(go.remaining)
-    
-    if opts.args.count == 0 {
+
+    opts.args = go.remaining
+
+    if opts.args.isEmpty {
       throw CmdErr(1)
     }
     return opts
   }
-  
+
   func runCommand() throws(CmdErr) {
-//    guard let path = ProcessInfo.processInfo.environment["PATH"]
-    guard let path = Environment["PATH"]
-    else {
-      throw CmdErr(1, "no PATH")
+    // without a path there is nowhere to look, and nothing to say
+    guard let path = Environment["PATH"] else {
+      throw CmdErr(1)
     }
-    
-    for a in options.args {
-      if a.count >= MAXPATHLEN || !printMatches(path: path, filename: FilePath(a), allpaths: options.allpaths, silent: options.silent) {
-        throw CmdErr(1)
+
+    var status = 0
+    for name in options.args {
+      if name.utf8.count >= Int(FILENAME_MAX) || !printMatches(path, name) {
+        status = 1
       }
     }
+    if status != 0 {
+      throw CmdErr(status)
+    }
   }
-  
-  var usage = "usage: which [-as] program ..."
+
+  func is_there(_ candidate: String) -> Bool {
+    var fin = stat()
+    // XXX work around access(2) false positives for superuser
+    if access(candidate, X_OK) == 0 && stat(candidate, &fin) == 0 && (fin.st_mode & S_IFMT) == S_IFREG
+        && (getuid() != 0 || (fin.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0) {
+      if !options.silent {
+        fputs("\(candidate)\n", stdout)
+      }
+      return true
+    }
+    return false
+  }
+
+  /// Whether the name is found: if it has a slash, as it is; if not, in each of the directories of the path.
+  func printMatches(_ path: String, _ filename: String) -> Bool {
+    if filename.utf8.contains(UInt8(ascii: "/")) {
+      return is_there(filename)
+    }
+    var found = false
+    for part in path.split(separator: ":", omittingEmptySubsequences: false) {
+      let directory = part.isEmpty ? "." : String(part)
+      let candidate = "\(directory)/\(filename)"
+      if candidate.utf8.count >= Int(PATH_MAX) {
+        continue
+      }
+      if is_there(candidate) {
+        found = true
+        if !options.allpaths {
+          break
+        }
+      }
+    }
+    return found
+  }
 }
