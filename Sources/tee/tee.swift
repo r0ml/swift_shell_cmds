@@ -35,30 +35,32 @@
 
 import CMigration
 
-// import Darwin
-import signal_h
+import Darwin
 
-// let DEFFILEMODE = Darwin.S_IRUSR|Darwin.S_IWUSR|Darwin.S_IRGRP|Darwin.S_IWGRP|Darwin.S_IROTH|Darwin.S_IWOTH
-let DEFFILEMODE : FilePermissions = [.ownerRead, .ownerWrite, .groupRead, .groupWrite, .otherRead, .otherWrite]
+/// The permissions of the files made: read and write for everyone, less what the umask takes away.
+let DEFFILEMODE: mode_t = 0o666
 
 @main final class tee : ShellCommand {
-  struct FDs {
-    var fd: FileDescriptor
+  /// An output: its descriptor and the name it is known by in messages.
+  struct Output {
+    var fd: Int32
     var name: String
   }
-  var head: [FDs] = []
-  
-  func add(_ fd: FileDescriptor, _ name: String) {
-    head.append(FDs(fd: fd, name: name))
+
+  /// Where the input is copied to.  New ones go in front, so the last file named is written first and the
+  /// standard output last.
+  var head: [Output] = []
+
+  func add(_ fd: Int32, _ name: String) {
+    head.insert(Output(fd: fd, name: name), at: 0)
   }
-  
-  var usage = "usage: tee [-ai] [file ...]"
+
+  let usage = "usage: tee [-ai] [file ...]"
 
   let BSIZE = 8 * 1024
 
   struct CommandOptions {
     var args : [String] = []
-    //  var exitval: Int = 0
     var append = false
   }
 
@@ -66,66 +68,78 @@ let DEFFILEMODE : FilePermissions = [.ownerRead, .ownerWrite, .groupRead, .group
 
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
-    
+
     let go = BSDGetopt("ai")
     while let (ch, _) = try go.getopt() {
-      switch(ch) {
+      switch ch {
       case "a":
-          opts.append = true
-        break
+        opts.append = true
       case "i":
-          signal(SIGINT, SIG_IGN)
-        break
-      case "?":
-        fallthrough
+        signal(SIGINT, SIG_IGN)
       default:
         throw CmdErr(1)
       }
     }
-    
+
     opts.args = go.remaining
     return opts
   }
-  
+
+  /// A write to a pipe that has no reader kills a C program, unless the signal is ignored.  Here the signal for the
+  /// process may be taken by another thread a little later, so the death is brought about at once.
+  func diesOfBrokenPipe() {
+    var action = sigaction()
+    sigaction(SIGPIPE, nil, &action)
+    if unsafeBitCast(action.__sigaction_u.__sa_handler, to: Int.self) == 0 {
+      var pipeSignal = sigset_t()
+      sigemptyset(&pipeSignal)
+      sigaddset(&pipeSignal, SIGPIPE)
+      pthread_sigmask(SIG_UNBLOCK, &pipeSignal, nil)
+      raise(SIGPIPE)
+    }
+  }
+
   func runCommand() throws(CmdErr) {
     var exitval = 0
+    var buf = [UInt8](repeating: 0, count: BSIZE)
 
-    add(FileDescriptor.standardOutput, "stdout")
+    add(STDOUT_FILENO, "stdout")
 
     for arg in options.args {
-      do {
-        let fd = try FileDescriptor.open(arg, .writeOnly, options: options.append ? [.create, .append] : [.create, .truncate], permissions: DEFFILEMODE )
-        add(fd, arg)
-      } catch {
-        //       let fd = Darwin.open(arg, opts.append ? Darwin.O_WRONLY|Darwin.O_CREAT|Darwin.O_APPEND : Darwin.O_WRONLY|Darwin.O_CREAT|Darwin.O_TRUNC, DEFFILEMODE)
-        var se = FileDescriptor.standardError
-        print("\(programName): \(arg): \(error)", to: &se)
-        // warn(arg)
+      let fd = open(arg, options.append ? O_WRONLY | O_CREAT | O_APPEND : O_WRONLY | O_CREAT | O_TRUNC, DEFFILEMODE)
+      if fd < 0 {
+        warnc(errno, arg)
         exitval = 1
+      } else {
+        add(fd, arg)
       }
     }
-    
-     let ii = FileDescriptor.standardInput
-      while true {
-        do {
-          let buf = try ii.readUpToCount(BSIZE)
-          if buf.count == 0 { break }
-          for p in head {
-            do {
-              try p.fd.write(buf)
-            } catch {
-              var se = FileDescriptor.standardError
-              print("\(p.name): \(error)", to: &se)
-              //              warn( p.name)
-            }
-          }
-        } catch {
-          throw CmdErr(1, "reading: \(error)")
-        }
-    }
 
+    var rval = read(STDIN_FILENO, &buf, BSIZE)
+    while rval > 0 {
+      for p in head {
+        var offset = 0
+        var n = rval
+        repeat {
+          let wval = buf.withUnsafeBytes { write(p.fd, $0.baseAddress! + offset, n) }
+          if wval == -1 {
+            let e = errno
+            if e == EPIPE { diesOfBrokenPipe() }
+            warnc(e, p.name)
+            exitval = 1
+            break
+          }
+          offset += wval
+          n -= wval
+        } while n != 0
+      }
+      rval = read(STDIN_FILENO, &buf, BSIZE)
+    }
+    if rval < 0 {
+      err(1, "read")
+    }
     if exitval != 0 {
-      throw CmdErr(exitval, "")
+      throw CmdErr(exitval)
     }
   }
 }
