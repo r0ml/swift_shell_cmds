@@ -31,42 +31,50 @@
  * SUCH DAMAGE.
  */
 
+import CMigration
+
 import Darwin
 
-@main struct Users {
-  static func main() {
-    
-    var names = Set<String>()
-    
-    if CommandLine.argc > 1 {
-      print("usage: users")
-      exit(1)
+@main final class users : ShellCommand {
+  struct CommandOptions {}
+
+  var options : CommandOptions!
+
+  let usage = "usage: users"
+
+  /// There are no options and no operands: whatever is given is a mistake.
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    if CommandLine.arguments.count > 1 {
+      throw CmdErr(1)
     }
-    
+    return CommandOptions()
+  }
+
+  func runCommand() throws(CmdErr) {
+    // the names of the users logged in, each once, in the order of their bytes
+    var names = Set<[UInt8]>()
+
     setutxent()
-    
-    while let ut = Darwin.getutxent() {
-      if ut.pointee.ut_type == Darwin.USER_PROCESS {
+    while let ut = getutxent() {
+      if ut.pointee.ut_type == USER_PROCESS {
         withUnsafeBytes(of: ut.pointee.ut_user) { u in
-          let j = u.bindMemory(to: CChar.self)
-          let  m = String(cString: j.baseAddress!)
-          names.insert(m)
+          names.insert(Array(u.prefix { $0 != 0 }))
         }
       }
     }
-    Darwin.endutxent()
-    
-    //  let last = names.removeLast()
-    var first = true
-    for name in names {
-      if !first {
-        print(" ", terminator: "")
-        first = false
+    endutxent()
+
+    // with nobody there, nothing at all is shown (not even the line end)
+    if !names.isEmpty {
+      var line = [UInt8]()
+      for (index, name) in names.sorted(by: { $0.lexicographicallyPrecedes($1) }).enumerated() {
+        if index > 0 {
+          line.append(UInt8(ascii: " "))
+        }
+        line += name
       }
-      print(name, terminator: "")
+      line.append(UInt8(ascii: "\n"))
+      line.withUnsafeBufferPointer { _ = fwrite($0.baseAddress, 1, $0.count, stdout) }
     }
-    print("")
-    
-    Darwin.exit(0)
   }
 }
