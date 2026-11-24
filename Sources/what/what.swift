@@ -35,6 +35,8 @@
 
 import CMigration
 
+import Darwin
+
 @main final class What : ShellCommand {
   struct CommandOptions {
     var qflag = false
@@ -44,18 +46,20 @@ import CMigration
 
   var options : CommandOptions!
 
+  let usage = "usage: what [-qs] [file ...]"
+
   func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
 
     let go = BSDGetopt("qs")
     while let (ch, _) = try go.getopt() {
       switch ch {
-        case "q":
-          opts.qflag = true
-        case "s":
-          opts.sflag = true
-        default:
-          throw CmdErr(1)
+      case "q":
+        opts.qflag = true
+      case "s":
+        opts.sflag = true
+      default:
+        throw CmdErr(1)
       }
     }
 
@@ -63,106 +67,74 @@ import CMigration
     return opts
   }
 
-  func runCommand() async throws(CmdErr) {
-    var file: String?
+  func runCommand() throws(CmdErr) {
     var found = false
 
-    do {
-      if options.args.count == 0 {
-        let fh = try FileDescriptor(forReading: "/dev/stdin")
-        if try await search(options.sflag, options.qflag, fh) {
+    if options.args.isEmpty {
+      if search(options.sflag, options.qflag, stdin) {
+        found = true
+      }
+    } else {
+      for file in options.args {
+        guard let input = fopen(file, "r") else {
+          if !options.qflag {
+            warnc(errno, file)
+          }
+          continue
+        }
+        if !options.qflag {
+          printText("\(file):\n")
+        }
+        if search(options.sflag, options.qflag, input) {
           found = true
         }
-      } else {
-        for arg in options.args {
-          file = arg
-
-          do {
-            let inStream = try FileDescriptor(forReading: file!)
-            if !options.qflag {
-              print("\(file!):")
-            }
-            if try await search(options.sflag, options.qflag, inStream) {
-              found = true
-            }
-            try? inStream.close()
-          } catch {
-            if !options.qflag {
-              var se = FileDescriptor.standardError
-              print("\(programName): \(file!): \(error)", to: &se)
-            }
-            continue
-          }
-        }
+        fclose(input)
       }
-    } catch let e as CmdErr {
-      throw e
-    } catch {
-      let z = String(describing: error)
-      throw CmdErr(2, z)
     }
-
-    if !found { throw CmdErr(1, "") }
-//    stdlib_h.exit(found ? 0 : 1)
+    if !found {
+      throw CmdErr(1)
+    }
   }
 
-  var usage = "usage: what [-qs] [file ...]"
+  func printText(_ text: String) {
+    fputs(text, stdout)
+  }
 
-  func search(_ one: Bool, _ quiet: Bool, _ inStream: FileDescriptor) async throws -> Bool {
+  /// Looks in the file for what identifies it: the text that follows "@(#)", up to a quote, a greater-than sign, a
+  /// backslash, a newline or the end of the string, which is shown, a line to each.  With `one`, only the first is.
+  func search(_ one: Bool, _ quiet: Bool, _ input: UnsafeMutablePointer<FILE>) -> Bool {
     var found = false
 
-    var state = 0
-    for try await b in inStream.bytes {
-      let ch = Character(UnicodeScalar(b))
-
-      switch state {
-        case 0:
-          if ch != "@" {
-            state = 0
-            continue
-          }
-          state = 1
-        case 1:
-          if ch != "(" {
-            state = 0
-            continue
-          }
-          state = 2
-
-        case 2:
-          if ch != "#" {
-            state = 0
-            continue
-          }
-          state = 3
-        case 3:
-          if ch != ")" {
-            state = 0
-            continue
-          }
-          state = 4
-
-          if !quiet {
-            print("\t", terminator: "")
-          }
-        case 4:
-          if (b != 0 && ch != "\"" && ch != ">" && ch != "\\" && ch != "\n") {
-            print(ch, terminator: "")
-            continue
-          }
-          print("")
-          found = true
-          if one {
-            break
-          } else {
-            state = 0
-            continue
-          }
-        default:
-          fatalError("not possible")
+    var c = fgetc(input)
+    while c != EOF {
+      // what is not part of a marker is looked at again as the possible start of one
+      if c != Int32(UInt8(ascii: "@")) {
+        c = fgetc(input)
+        continue
       }
+      c = fgetc(input)
+      if c != Int32(UInt8(ascii: "(")) { continue }
+      c = fgetc(input)
+      if c != Int32(UInt8(ascii: "#")) { continue }
+      c = fgetc(input)
+      if c != Int32(UInt8(ascii: ")")) { continue }
+
+      if !quiet {
+        putchar(Int32(UInt8(ascii: "\t")))
+      }
+      c = fgetc(input)
+      while c != EOF && c != 0 && c != Int32(UInt8(ascii: "\"")) && c != Int32(UInt8(ascii: ">"))
+              && c != Int32(UInt8(ascii: "\\")) && c != Int32(UInt8(ascii: "\n")) {
+        putchar(c)
+        c = fgetc(input)
+      }
+      putchar(Int32(UInt8(ascii: "\n")))
+      found = true
+      if one {
+        break
+      }
+      c = fgetc(input)
     }
     return found
   }
 }
-
