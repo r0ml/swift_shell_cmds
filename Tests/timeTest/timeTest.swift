@@ -27,7 +27,7 @@ import ShellTesting
     //    let po = try await ShellProcess(cmd, "sleep", "1").run()
     try await run(args: "sleep", "1") {po in
       #expect(po.code == 0)
-      let r = try po.string(encoded: .utf8)
+      let r = po.error
       let rr = String(r.drop { $0.isWhitespace }.reversed().drop { $0.isWhitespace }.reversed())
 
       let k = rr.split( separator: " ", omittingEmptySubsequences: true)
@@ -42,8 +42,8 @@ import ShellTesting
   }
 
   // FIXME: can't figure out how to make the time command get values for those last three items 
-  @Test("check instructions retired", .disabled("the instructions retired/cycles elapsed/peak memory footprint members of rusage are always zero")) func instructionsRetired() async throws {
-    try await run(output: /instructions retired/, args: "-l", "sleep", "1", env: [:])
+  @Test("check instructions retired") func instructionsRetired() async throws {
+    try await run(error: /instructions retired/, args: "-l", "sleep", "1", env: [:])
   }
 
   @Test("check child SIGUSR1", .disabled("not sure how the signal handling is working -- but I don't get an error return even though the sleep is interrupted")) func check_child_sigusr1() async throws {

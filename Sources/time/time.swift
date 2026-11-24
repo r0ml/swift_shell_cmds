@@ -37,59 +37,41 @@ import CMigration
 
 import Darwin
 
-let PRIu64 = "u"
-
-nonisolated(unsafe) var child_running = true
-
-func child_handler(_ sig: Int32) {
-  child_running = false
-//  print("child")
-  
-}
-
-nonisolated(unsafe) var siginfo_recvd = false
+/// Set by the handler of SIGINFO: a report of the times so far is asked for.
+nonisolated(unsafe) var siginfo_recvd: sig_atomic_t = 0
+/// Cleared once the command has ended.
+nonisolated(unsafe) var child_running: sig_atomic_t = 1
+nonisolated(unsafe) var childPid: pid_t = -1
+/// The thread that waits for the command.  A signal for the process can be taken by any thread, but only the
+/// thread that waits is interrupted by it, so a handler that runs elsewhere passes SIGINFO on.
+nonisolated(unsafe) var waitingThread: pthread_t? = nil
+nonisolated(unsafe) var waitBody: (() -> Void)? = nil
 
 func siginfo(_ sig: Int32) {
-  siginfo_recvd = true
-}
-
-// var sigmask = sigset_t()
-// var suspmask = sigset_t()
-// var origmask = sigset_t()
-
-// ===================================
-
-actor Stuff {
-//  var pid : pid_t = -1
-  var status : Int32 = 0
-  var ru = Darwin.rusage()
-  var rusage_ret : Int32 = 0
-  var ruinfo = Darwin.rusage_info_v4()
-
-  func w4(_ pid : Darwin.pid_t) -> Int32 {
-    return Darwin.wait4(pid, &status, 0, &ru)
-  }
-
-  func lflagSetup(_ pid : pid_t) -> Int32 {
-    withUnsafeMutableBytes(of: &ruinfo) {p in
-      let qq = p.baseAddress
-      let zz = qq!.assumingMemoryBound(to: rusage_info_t?.self)
-      rusage_ret = Darwin.proc_pid_rusage(pid, RUSAGE_INFO_V4, zz)
-    }
-    return rusage_ret
+  siginfo_recvd = 1
+  if let t = waitingThread, pthread_equal(pthread_self(), t) == 0 {
+    pthread_kill(t, SIGINFO)
   }
 }
 
+/// If the process is still running, forward the signal which should have terminated us, which will then propagate
+/// back up via child wait status while still reporting.  If we can't kill(2) it, we'll just fall through to
+/// re-raising the signal and hoping for the best.
+func forward_signal_handler(_ sig: Int32) {
+  if childPid != -1 && child_running != 0 && kill(childPid, sig) == 0 {
+    return
+  }
+  signal(sig, SIG_DFL)
+  raise(sig)
+}
 
 @main final class time : ShellCommand {
-  var stuff = Stuff()
 
   struct CommandOptions {
-    var decimal_point : Int8 = Int8(".".first!.asciiValue!)
-    var pflag = false
+    var aflag = false
     var hflag = false
     var lflag = false
-    var aflag = false
+    var pflag = false
     var ofn : String?
 
     var args : [String] = []
@@ -97,123 +79,27 @@ actor Stuff {
 
   var options : CommandOptions!
 
-  var xstatus : Int32 = 0
-  var fh : FileDescriptor = FileDescriptor.standardOutput
-  var before_ts = Darwin.timespec()
-  var after = Darwin.timespec()
-  
-//  var pid : pid_t = -1
+  /// The decimal point of the locale.
+  var decimal_point = "."
 
-  var usage = "usage: time [-al] [-h | -p] [-o file] utility [argument ...]"
+  let usage = "usage: time [-al] [-h | -p] [-o file] utility [argument ...]"
 
-  /*
-   * Return the frequency of the kernel's statistics clock.
-   */
-  func getstathz() -> Int {
-    do {
-      let clockrate : Darwin.clockinfo = try Sysctl.get("kern.clockrate")
-      return Int(clockrate.stathz)
-    } catch(let e) {
-      errno = e.code
-      err(1, "sysctl kern.clockrate")
-    }
-  }
-  
-  func humantime(out: inout FileDescriptor, sec: Int, centisec: Int) {
-    let days = sec / (60 * 60 * 24)
-    let secx = sec % (60 * 60 * 24)
-    let hrs = secx / (60 * 60)
-    let secy = secx % (60 * 60)
-    let mins = secy / 60
-    let secz = secy % 60
-    
-    out.write("\t")
-    if days != 0 {
-      out.write("\(days)d")
-    }
-    if hrs != 0 {
-      out.write("\(hrs)h")
-    }
-    if mins != 0 {
-      out.write("\(mins)m")
-    }
-    out.write("\(secz)\(options.decimal_point)\("%02d".cFormat(centisec))s")
-  }
-  
-  func showtime(out: inout FileDescriptor, before: timespec, after: inout timespec, ru: rusage) {
-    
-    after.tv_sec -= before.tv_sec
-    after.tv_nsec -= before.tv_nsec
-    if after.tv_nsec < 0 {
-      after.tv_sec -= 1
-      after.tv_nsec += 1000000000
-    }
-    
-    if options.pflag {
-      print("real %jd%c%02ld".cFormat(after.tv_sec, options.decimal_point, after.tv_nsec/10000000), to: &out)
-      print("user %jd%c%02ld".cFormat(ru.ru_utime.tv_sec, options.decimal_point, ru.ru_utime.tv_usec/10000), to: &out)
-      print("sys %jd%c%02ld".cFormat(ru.ru_stime.tv_sec, options.decimal_point, ru.ru_stime.tv_usec/10000), to: &out)
-    } else if options.hflag {
-      humantime(out: &out, sec: Int(after.tv_sec), centisec: Int(after.tv_nsec/10000000))
-      print(" real\t", terminator: "", to: &out)
-      humantime(out: &out, sec: Int(ru.ru_utime.tv_sec), centisec: Int(ru.ru_utime.tv_usec)/10000)
-      
-      print(" user\t", terminator: "", to: &out)
-      
-      humantime(out: &out, sec: Int(ru.ru_stime.tv_sec), centisec: Int(ru.ru_stime.tv_usec)/10000)
-      print(" sys\n", to: &out)
-    } else {
-      print("%9jd%c%02ld real ".cFormat(after.tv_sec, options.decimal_point, after.tv_nsec/10000000), terminator: "", to: &out)
-      print("%9jd%c%02ld user ".cFormat(ru.ru_utime.tv_sec, options.decimal_point, ru.ru_utime.tv_usec/10000), terminator: "", to: &out)
-      print("%9jd%c%02ld sys".cFormat( ru.ru_stime.tv_sec, options.decimal_point, ru.ru_stime.tv_usec/10000), to: &out)
-    }
-  }
-  
-  
-  // =========================================================================
-  
-
-  func parseOptions() throws(CmdErr) -> CommandOptions  {
-    //    let argc = CommandLine.argc
-    //    let argv = CommandLine.unsafeArgv
-    
-    /*    int aflag, ch, lflag, status, rusage_ret = -1;
-     int exitonsig;
-     pid_t pid;
-     struct rlimit rl;
-     struct rusage ru;
-     struct rusage_info_v4 ruinfo;
-     sigset_t sigmask, suspmask, origmask;
-     struct timespec after;
-     char *ofn = NULL;
-     FILE *out = stderr;
-     */
-    
+  func parseOptions() throws(CmdErr) -> CommandOptions {
     var opts = CommandOptions()
-
-    // FIXME: localeconv seems to be missing in Swift 6.2
-    // ;opts.decimal_point = Darwin.localeconv().pointee.decimal_point[0]
 
     let go = BSDGetopt("ahlo:p")
     while let (ch, optarg) = try go.getopt() {
       switch ch {
       case "a":
-          opts.aflag = true
-        break;
+        opts.aflag = true
       case "h":
-          opts.hflag = true
-        break;
+        opts.hflag = true
       case "l":
-          opts.lflag = true
-        break;
+        opts.lflag = true
       case "o":
-          opts.ofn = optarg
-        break;
+        opts.ofn = optarg
       case "p":
-          opts.pflag = true
-        break;
-      case "?":
-        fallthrough
+        opts.pflag = true
       default:
         throw CmdErr(1)
       }
@@ -221,320 +107,289 @@ actor Stuff {
     opts.args = go.remaining
     return opts
   }
-  
-  func runCommand() async throws(CmdErr) {
-    if options.args.count == 0 { return }
 
-    /* r0ml: Supposing I get rid of all this muck
-    sigemptyset(&sigmask)
-    /*
-     * Block SIGCHLD so that the check for `child_running` doesn't miss the
-     * handler before calling `sigsuspend` and blocking forever.
-     */
-     Darwin.sigaddset(&sigmask, Darwin.SIGCHLD);
-     Darwin.sigprocmask(Darwin.SIG_BLOCK, &sigmask, &origmask);
-    
-    /*
-     * Ensure child signals are handled by the parent prior to fork; otherwise,
-     * they could be missed between the child forking and calling `sigsuspend`.
-     */
-     */
-    Darwin.signal(Darwin.SIGCHLD, child_handler);
-    /*
-    sigemptyset(&suspmask);
-    
-    var out : UnsafeMutablePointer<FILE>?
-    */
-    
-    do {
-      if let ofn = options.ofn {
-        if let _  = try? FilePath(ofn).stat() {
-          fh = try FileDescriptor.open(ofn, .writeOnly, options: [.truncate])
-        } else {
-          fh = try FileDescriptor.open(ofn, .writeOnly, options: [.create], permissions: [.ownerReadWrite])
-        }
-      } else {
-        fh = FileDescriptor.standardOutput
-      }
-      if options.aflag { try fh.seek(offset: 0, from: .end) }
-    } catch(let e) {
-      throw CmdErr(1, "\(e)")
+  // MARK: output
+
+  /// A number in a field of at least `width` characters, filled in front with `fill`.
+  func field(_ value: Int, _ width: Int, _ fill: Character = " ") -> String {
+    let text = String(value)
+    return String(repeating: fill, count: max(0, width - text.count)) + text
+  }
+
+  func put(_ text: String, _ out: UnsafeMutablePointer<FILE>) {
+    fputs(text, out)
+  }
+
+  /// Return the frequency of the kernel's statistics clock.
+  func getstathz() -> Int {
+    var clockrate = clockinfo()
+    var size = MemoryLayout<clockinfo>.size
+    if sysctlbyname("kern.clockrate", &clockrate, &size, nil, 0) == -1 {
+      err(1, "sysctl kern.clockrate")
     }
-    
-    /* r0ml: switched to FileHandle?
-    if let ofn {
-      out = fopen(ofn, aflag ? "ae" : "we")
-      if out == nil {
-        err(1, ofn);
-      }
-      // unbuffered
-      setvbuf(out, nil, _IONBF, 0);
+    return Int(clockrate.stathz)
+  }
+
+  func humantime(_ out: UnsafeMutablePointer<FILE>, _ secs: Int, _ centisec: Int) {
+    var sec = secs
+    let days = sec / (60 * 60 * 24)
+    sec %= 60 * 60 * 24
+    let hrs = sec / (60 * 60)
+    sec %= 60 * 60
+    let mins = sec / 60
+    sec %= 60
+
+    put("\t", out)
+    if days != 0 {
+      put("\(days)d", out)
     }
-    */
-    
-    if (clock_gettime(CLOCK_MONOTONIC, &before_ts) != 0) {
-      err(1, "clock_gettime")
+    if hrs != 0 {
+      put("\(hrs)h", out)
     }
-    /*
-     * NB: Don't add anything between these two lines -- measurement is
-     * happening now.
-     */
-    
-//    var pid : pid_t = -1
-//    var ru = rusage()
-    
-    if let ff = searchPath(for: options.args[0]) {
+    if mins != 0 {
+      put("\(mins)m", out)
+    }
+    put("\(sec)\(decimal_point)\(field(centisec, 2, "0"))s", out)
+  }
 
-      var sigmask = sigset_t()
-      var origmask = sigset_t()
-      
-      sigemptyset(&sigmask);
-      /*
-       * Block SIGCHLD so that the check for `child_running` doesn't miss the
-       * handler before calling `sigsuspend` and blocking forever.
-       */
-      sigaddset(&sigmask, SIGCHLD);
-      sigprocmask(SIG_BLOCK, &sigmask, &origmask);
+  func showtime(_ out: UnsafeMutablePointer<FILE>, _ before: timespec, _ after: inout timespec, _ ru: rusage) {
+    after.tv_sec -= before.tv_sec
+    after.tv_nsec -= before.tv_nsec
+    if after.tv_nsec < 0 {
+      after.tv_sec -= 1
+      after.tv_nsec += 1000000000
+    }
 
+    let real = Int(after.tv_sec), realCenti = after.tv_nsec / 10000000
+    let user = Int(ru.ru_utime.tv_sec), userCenti = Int(ru.ru_utime.tv_usec) / 10000
+    let sys = Int(ru.ru_stime.tv_sec), sysCenti = Int(ru.ru_stime.tv_usec) / 10000
 
-      
-      
-      
-      guard FilePath(ff).isExecutable else {
-        throw CmdErr(127, "\(ff) is not an executable")
-      }
-      
-      xstatus = 0
-      do {
-        let j = self.stuff
-        let res = try await DarwinProcess().run(ff, args: Array(options.args.dropFirst()))
-/*
- let res = try await p.run(prelaunch: { p in
- //         self.pid = p
-          let _ = await j.w4(p)
-        })
- */
-      } catch let e as Errno {
-        xstatus = e.rawValue
-      } catch(let e) {
-        throw CmdErr(1, "\(e)")
-      }
-      
-//      let process = Process()
-//      process.launchPath = ff
-//      process.arguments = Array(opts.args.dropFirst())
-//      process.launch()
-//      pid = process.processIdentifier
-      
-      
-/*      Task.detached {
-        while true {
-          let rr = await self.stuff.lflagSetup(self.pid)
-          print("rr flag \(rr)")
-          let k = await self.stuff.w4(self.pid)
-          if k == self.pid /*|| k == -1 */ { break }
-        }
-      }
-      await Task.yield()
-  */
-      
-
-      
-      /*
-      var suspmask = sigset_t()
-      sigemptyset(&suspmask)
-      
-      while child_running {
-        sigsuspend(&suspmask)
-      }
-      */
-      
-//      process.waitUntilExit()
-
-//      let ss = await stuff.lflagSetup(pid)
-//      print("ss flag \(ss)")
-      /*
-      if k == self.pid {
-        print("pid yes")
-      } else {
-        print("pid no")
-      }
-      */
-//      process.waitUntilExit()
-
-//      print("exited")
-//      xstatus = process.terminationStatus
-
+    if options.pflag {
+      /* POSIX wants output that must look like "real %f\nuser %f\nsys %f\n" and requires at least two digits after the
+         radix. */
+      put("real \(real)\(decimal_point)\(field(realCenti, 2, "0"))\n", out)
+      put("user \(user)\(decimal_point)\(field(userCenti, 2, "0"))\n", out)
+      put("sys \(sys)\(decimal_point)\(field(sysCenti, 2, "0"))\n", out)
+    } else if options.hflag {
+      humantime(out, real, realCenti)
+      put(" real\t", out)
+      humantime(out, user, userCenti)
+      put(" user\t", out)
+      humantime(out, sys, sysCenti)
+      put(" sys\n", out)
     } else {
-      err(1, "not found: \(options.args[0])")
+      put("\(field(real, 9))\(decimal_point)\(field(realCenti, 2, "0")) real ", out)
+      put("\(field(user, 9))\(decimal_point)\(field(userCenti, 2, "0")) user ", out)
+      put("\(field(sys, 9))\(decimal_point)\(field(sysCenti, 2, "0")) sys\n", out)
     }
-    
-    //      err(errno == ENOENT ? 127 : 126, args.first! );
-    /* NOTREACHED */
-    
-    /*
-     * Let the child handle signals that normally exit.
-     */
-    
-/* r0ml: more muck to get rid of
- signal(SIGINT, SIG_IGN)
-    signal(SIGQUIT, SIG_IGN)
-    siginfo_recvd = false
-    signal(SIGINFO, siginfo)
-    siginterrupt(SIGINFO, 1)
-    
-    while (child_running) {
-      if (siginfo_recvd) {
-        siginfo_recvd = false
-        if ((clock_gettime(CLOCK_MONOTONIC, &after)) != 0) {
-          err(1, "clock_gettime");
-        }
-        var ru = rusage()
-        getrusage(RUSAGE_CHILDREN, &ru);
-        
-        var so = FileHandle.standardOutput
-        showtime(out: &so, before: before_ts, after: &after, ru: ru);
+  }
+
+  // MARK: running the command
+
+  func runCommand() throws(CmdErr) {
+    let o = options!
+    if o.args.isEmpty {
+      return
+    }
+
+    setlocale(LC_NUMERIC, "")
+    if let point = localeconv()?.pointee.decimal_point, point.pointee != 0 {
+      decimal_point = String(UnicodeScalar(UInt8(bitPattern: point.pointee)))
+    }
+
+    var out = stderr
+    if let ofn = o.ofn {
+      guard let f = fopen(ofn, o.aflag ? "ae" : "we") else {
+        err(1, ofn)
       }
-      /*
-       * This would be racy, but SIGCHLD is blocked above (as part of
-       * `sigmask`).
-       */
-      sigsuspend(&suspmask);
-    }
-*/
-
-    
-    if ((clock_gettime(CLOCK_MONOTONIC, &after)) != 0) {
-      err(1, "clock_gettime");
+      out = f
+      setvbuf(out, nil, _IONBF, 0)
     }
 
+    // Checked in advance to avoid disturbing our measurements with extra syscall trips.
+    var osa = sigaction()
+    var sigintIgnored = false, sigquitIgnored = false
+    if sigaction(SIGINT, nil, &osa) == 0 {
+      sigintIgnored = unsafeBitCast(osa.__sigaction_u.__sa_handler, to: Int.self) == 1
+    }
+    if sigaction(SIGQUIT, nil, &osa) == 0 {
+      sigquitIgnored = unsafeBitCast(osa.__sigaction_u.__sa_handler, to: Int.self) == 1
+    }
 
-/*
- var ruz = rusage()
-    getrusage(RUSAGE_CHILDREN, &ruz);
-    
-    var so = FileHandle.standardOutput
-    showtime(out: &so, before: before_ts, after: &after, ru: ruz);
-*/
-    
-    
-    
-    /*
-     * minimize what's added between these statements to preserve the
-     * accuracy of the time measurement.
-     */
-    
-    if ((clock_gettime(CLOCK_MONOTONIC, &after)) != 0) {
+    var before_ts = timespec()
+    var after = timespec()
+    if clock_gettime(CLOCK_MONOTONIC, &before_ts) != 0 {
       err(1, "clock_gettime")
     }
-    
-//    var ruinfo = Optional(rusage_info_v4())
-//    var rusage_ret : Int32 = 0
-    
-//    if (lflag) {
-//      let tt = await stuff.lflagSetup(pid)
-//      print("tt flag \(tt)")
-//    }
-    
-    /*
-     var ru = rusage()
-     while true {
-     let k = wait4(pid, &status, 0, &ru)
-     if k == pid || k == -1 { break }
-     }
-     */
-    
-    if ( !WIFEXITED(xstatus)) {
-      warnx("command terminated abnormally");
-    }
-    
-      let ru = await stuff.ru
-      let _ = await stuff.rusage_ret
-//      print("stuff rusage \(rusage_ret)")
-      let exitonsig : Int32 = WIFSIGNALED(xstatus) ? xstatus & 0x7f : 0;
-    showtime(out: &fh, before: before_ts, after: &after, ru: ru);
-      
-      
-    if options.lflag {
-        
-        await lflagPrint(&fh,
-                         ru: ru,
-                         rusage_ret: stuff.rusage_ret,
-                         ruinfo: stuff.ruinfo )
+    // NB: Don't add anything between these two lines -- measurement is happening now.
+    var status: Int32 = 0
+    var spawnFailure: Int32 = 0
+    if let pid = startChild(o.args, failure: &spawnFailure) {
+      childPid = pid
+
+      // Let the child handle signals that normally exit, unless they were inherited as ignored.
+      if !sigintIgnored {
+        signal(SIGINT, forward_signal_handler)
       }
-      
-      
-      
-      
-      /*
-       * If the child has exited on a signal, exit on the same
-       * signal, too, in order to reproduce the child's exit status.
-       * However, avoid actually dumping core from the current process.
-       */
-      if exitonsig != 0 {
-        Darwin.signal(exitonsig, Darwin.SIG_DFL)
-        //      if (j == SIG_ERR) {
-        //        warn("signal")
-        //      } else {
-        var rl = Darwin.rlimit()
-        rl.rlim_max = 0
-        rl.rlim_cur = 0
-        if (Darwin.setrlimit(RLIMIT_CORE, &rl) == -1) {
+      if !sigquitIgnored {
+        signal(SIGQUIT, forward_signal_handler)
+      }
+      siginfo_recvd = 0
+      signal(SIGINFO, siginfo)
+      siginterrupt(SIGINFO, 1)
+
+      waitForChild(pid, before: before_ts)
+    } else {
+      // what the child would have said when the command could not be run, and how it would have ended
+      let name = o.args[0]
+      warnc(spawnFailure, name)
+      status = (spawnFailure == ENOENT ? 127 : 126) << 8
+    }
+
+    /*
+     * minimize what's added between these statements to preserve the accuracy of the time measurement.
+     */
+    if clock_gettime(CLOCK_MONOTONIC, &after) != 0 {
+      err(1, "clock_gettime")
+    }
+
+    var ru = rusage()
+    var ruinfo = rusage_info_v4()
+    var rusage_ret: Int32 = -1
+    if o.lflag && childPid != -1 {
+      rusage_ret = withUnsafeMutablePointer(to: &ruinfo) { p in
+        p.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(childPid, RUSAGE_INFO_V4, $0) }
+      }
+    }
+    if childPid != -1 {
+      while wait4(childPid, &status, 0, &ru) != childPid {
+      }
+    }
+    if (status & 0x7f) != 0 {
+      warnx("command terminated abnormally")
+    }
+    let exitonsig = (status & 0x7f) != 0 && (status & 0x7f) != 0x7f ? status & 0x7f : 0
+    showtime(out, before_ts, &after, ru)
+    if o.lflag {
+      let hz = getstathz()
+      var ticks = UInt(truncatingIfNeeded: hz * (Int(ru.ru_utime.tv_sec) + Int(ru.ru_stime.tv_sec)) +
+                       hz * (Int(ru.ru_utime.tv_usec) + Int(ru.ru_stime.tv_usec)) / 1000000)
+
+      /* If our round-off on the tick calculation still puts us at 0, then always assume at least one tick. */
+      if ticks == 0 {
+        ticks = 1
+      }
+
+      func line(_ value: Int, _ text: String) {
+        put("\(field(value, 20))  \(text)\n", out)
+      }
+      func perTick(_ value: Int) -> Int { Int(bitPattern: UInt(bitPattern: value) / ticks) }
+
+      line(Int(ru.ru_maxrss), "maximum resident set size")
+      line(perTick(Int(ru.ru_ixrss)), "average shared memory size")
+      line(perTick(Int(ru.ru_idrss)), "average unshared data size")
+      line(perTick(Int(ru.ru_isrss)), "average unshared stack size")
+      line(Int(ru.ru_minflt), "page reclaims")
+      line(Int(ru.ru_majflt), "page faults")
+      line(Int(ru.ru_nswap), "swaps")
+      line(Int(ru.ru_inblock), "block input operations")
+      line(Int(ru.ru_oublock), "block output operations")
+      line(Int(ru.ru_msgsnd), "messages sent")
+      line(Int(ru.ru_msgrcv), "messages received")
+      line(Int(ru.ru_nsignals), "signals received")
+      line(Int(ru.ru_nvcsw), "voluntary context switches")
+      line(Int(ru.ru_nivcsw), "involuntary context switches")
+
+      if rusage_ret >= 0 {
+        if ruinfo.ri_instructions > 0 {
+          line(Int(ruinfo.ri_instructions), "instructions retired")
+        }
+        if ruinfo.ri_cycles > 0 {
+          line(Int(ruinfo.ri_cycles), "cycles elapsed")
+        }
+        if ruinfo.ri_lifetime_max_phys_footprint > 0 {
+          line(Int(ruinfo.ri_lifetime_max_phys_footprint), "peak memory footprint")
+        }
+      }
+    }
+
+    // If the child has exited on a signal, exit on the same signal, too, in order to reproduce the child's exit
+    // status.  However, avoid actually dumping core from the current process.
+    if exitonsig != 0 {
+      let previous = signal(exitonsig, SIG_DFL)
+      if unsafeBitCast(previous, to: Int.self) == -1 {
+        warn("signal")
+      } else {
+        var rl = rlimit(rlim_cur: 0, rlim_max: 0)
+        if setrlimit(RLIMIT_CORE, &rl) == -1 {
           warn("setrlimit")
         }
-        Darwin.kill(Darwin.getpid(), exitonsig);
-        //      }
+        kill(getpid(), exitonsig)
       }
-      
-    Darwin.exit (WIFEXITED(xstatus) ? WEXITSTATUS(xstatus) : Darwin.EXIT_FAILURE)
-  }
-  
-  func lflagPrint(_ fh : inout FileDescriptor, ru : Darwin.rusage, rusage_ret : Int32, ruinfo : Darwin.rusage_info_v4 ) {
-    let hz = getstathz()
-    
-    let kk = hz * (ru.ru_utime.tv_sec + ru.ru_stime.tv_sec)
-    
-    var ticks = kk + hz * Int((ru.ru_utime.tv_usec + ru.ru_stime.tv_usec)) / 1000000
-    
-    /*
-     * If our round-off on the tick calculation still puts us at 0,
-     * then always assume at least one tick.
-     */
-    if (ticks == 0) {
-      ticks = 1
     }
-    
-    print("%20ld  maximum resident set size".cFormat(ru.ru_maxrss), to: &fh)
-    print("%20ld  average shared memory size".cFormat(ru.ru_ixrss / ticks), to: &fh)
-    print("%20ld  average unshared data size".cFormat(ru.ru_idrss / ticks), to: &fh)
-    
-    print("%20ld  average unshared stack size".cFormat(ru.ru_isrss / ticks), to: &fh)
-    
-    print("%20ld  page reclaims".cFormat(ru.ru_minflt), to: &fh)
-    print("%20ld  page faults".cFormat(ru.ru_majflt), to: &fh)
-    print("%20ld  swaps".cFormat(ru.ru_nswap), to: &fh)
-    print("%20ld  block input operations".cFormat(ru.ru_inblock), to: &fh)
-    print("%20ld  block output operations".cFormat(ru.ru_oublock), to: &fh)
-    print("%20ld  messages sent".cFormat(ru.ru_msgsnd), to: &fh)
-    print("%20ld  messages received".cFormat(ru.ru_msgrcv), to: &fh)
-    print("%20ld  signals received".cFormat(ru.ru_nsignals), to: &fh)
-    print("%20ld  voluntary context switches".cFormat(ru.ru_nvcsw), to: &fh)
-    print("%20ld  involuntary context switches".cFormat(ru.ru_nivcsw), to: &fh)
-    
-    if (rusage_ret >= 0) {
-      
-      if (ruinfo.ri_instructions > 0) {
-        print("%20\(PRIu64)  instructions retired".cFormat(ruinfo.ri_instructions), to: &fh)
+    let code = (status & 0x7f) == 0 ? Int((status >> 8) & 0xff) : Int(EXIT_FAILURE)
+    if code != 0 {
+      throw CmdErr(code)
+    }
+  }
+
+  /// Starts the command (found on the path as `execvp` would), with the signals it is to have by default.
+  /// Nil if it could not be started, and why.
+  func startChild(_ args: [String], failure: inout Int32) -> pid_t? {
+    var attr: posix_spawnattr_t? = nil
+    posix_spawnattr_init(&attr)
+    defer { posix_spawnattr_destroy(&attr) }
+    // as the child would have them from a shell: nothing blocked
+    var noSignals = sigset_t()
+    sigemptyset(&noSignals)
+    posix_spawnattr_setsigmask(&attr, &noSignals)
+    posix_spawnattr_setflags(&attr, Int16(POSIX_SPAWN_SETSIGMASK))
+
+    var argv: [UnsafeMutablePointer<CChar>?] = args.map { strdup($0) } + [nil]
+    defer { for p in argv { free(p) } }
+    var pid: pid_t = 0
+    let rc = posix_spawnp(&pid, args[0], nil, &attr, argv, environ)
+    if rc != 0 {
+      failure = rc
+      return nil
+    }
+    return pid
+  }
+
+  /// Waits for the command to be over (without taking it away, so that what it used can still be asked for),
+  /// showing the times so far whenever SIGINFO says to.
+  func waitForChild(_ pid: pid_t, before: timespec) {
+    waitBody = {
+      while child_running != 0 {
+        if siginfo_recvd != 0 {
+          siginfo_recvd = 0
+          var after = timespec()
+          if clock_gettime(CLOCK_MONOTONIC, &after) != 0 {
+            err(1, "clock_gettime")
+          }
+          var ru = rusage()
+          getrusage(RUSAGE_CHILDREN, &ru)
+          self.showtime(stdout, before, &after, ru)
+        }
+        var info = siginfo_t()
+        if waitid(P_PID, id_t(pid), &info, WEXITED | WNOWAIT) == 0 {
+          child_running = 0
+        }
       }
-      
-      if (ruinfo.ri_cycles > 0) {
-        print("%20\(PRIu64)  cycles elapsed".cFormat(ruinfo.ri_cycles), to: &fh)
-      }
-      if (ruinfo.ri_lifetime_max_phys_footprint > 0) {
-        print("%20\(PRIu64)  peak memory footprint".cFormat(
-          ruinfo.ri_lifetime_max_phys_footprint), to: &fh)
-      }
+    }
+    var thread: pthread_t? = nil
+    pthread_create(&thread, nil, { _ in
+      // a thread made by a thread that runs async code can start with the signal blocked
+      var info = sigset_t()
+      sigemptyset(&info)
+      sigaddset(&info, SIGINFO)
+      pthread_sigmask(SIG_UNBLOCK, &info, nil)
+      waitingThread = pthread_self()
+      waitBody?()
+      return nil
+    }, nil)
+    if let thread {
+      pthread_join(thread, nil)
     }
   }
 }
-
