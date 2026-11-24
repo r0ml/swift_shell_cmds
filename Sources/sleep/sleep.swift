@@ -33,83 +33,144 @@
 
 import CMigration
 
-import stdlib_h
-import time_h
-import limits_h
-import signal_h
+import Darwin
 
-nonisolated(unsafe) var reportRequested = false
+/// Set by the handler of SIGINFO; the report itself is not made in the handler.
+nonisolated(unsafe) var reportRequested: sig_atomic_t = 0
 
-func reportRequest(_ signo: Int32) {
-  reportRequested = true
+/// The thread that is sleeping.  A signal for the process can land on any thread, but only the one that is in
+/// nanosleep is woken by it, so a handler that runs on another thread passes the signal on.
+nonisolated(unsafe) var sleepingThread: pthread_t? = nil
+nonisolated(unsafe) var sleepBody: (() -> Void)? = nil
+
+func infoRequested(_ signo: Int32) {
+  reportRequested = 1
+  if let t = sleepingThread, pthread_equal(pthread_self(), t) == 0 {
+    pthread_kill(t, SIGINFO)
+  }
 }
 
-@main class sleep {
+@main final class sleep : ShellCommand {
 
-
-  required init() {}
-  
-  static func main() {
-    let z = Self().main()
-    stdlib_h.exit(z)
+  struct CommandOptions {
+    var seconds = 0.0
   }
-  
-  func main() -> Int32 {
-    let argc = CommandLine.argc
-    let argv = CommandLine.arguments
-    
-    var timeToSleep = time_h.timespec()
-    var timeSlept = time_h.timespec()
-    var d: Double = 0.0
-    var original: time_t = 0
-    var buf = [Character](repeating: " ", count: 2)
-    
-    if argc == 2 || (argc == 3 && argv.first == "--") {
-      // POSIX issue:   "sleep -- 3" should be the same as "sleep 3",
-      // normally getopt makes this kind of thing work, but sleep has
-      // no options, so we do it "the easy way"
-    } else {
-      usage()
+
+  var options : CommandOptions!
+
+  let usage = """
+    usage: sleep number[unit] [...]
+    Unit can be 's' (seconds, the default), m (minutes), h (hours), or d (days).
+    """
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
+
+    // There are no options: whatever begins with a dash (other than "--") is an error.
+    let go = BSDGetopt("")
+    while let _ = try go.getopt() {
+      throw CmdErr(1)
     }
-    
-    
-    withUnsafeMutablePointer(to: &d) { dp in
-      withUnsafeMutablePointer(to: &buf) { bufp in
-        withVaList([dp, bufp]) { va in
-          if stdlib_h.vsscanf(argv.last!, "%lf%1s", va) != 1 {
-            usage()
-          }
+    let args = go.remaining
+    if args.isEmpty {
+      throw CmdErr(1)
+    }
+
+    var seconds = 0.0
+    for arg in args {
+      seconds += parse_interval(arg)
+    }
+    if seconds > Double(Int32.max) {
+      throw CmdErr(1)
+    }
+    opts.seconds = seconds
+    return opts
+  }
+
+  /// The number of seconds in an interval given as a number with an optional unit.  What isn't one is reported, and
+  /// counts as forever (so that the command is not carried out).
+  func parse_interval(_ arg: String) -> Double {
+    var num = 0.0
+    var unit = [CChar](repeating: 0, count: 2)
+    var extra = [CChar](repeating: 0, count: 2)
+
+    let count = withUnsafeMutablePointer(to: &num) { n in
+      unit.withUnsafeMutableBufferPointer { u in
+        extra.withUnsafeMutableBufferPointer { e in
+          withVaList([n, u.baseAddress!, e.baseAddress!]) { vsscanf(arg, "%lf%c%c", $0) }
         }
       }
     }
-    
-    if d > Double(limits_h.INT_MAX) {
-      usage()
+    switch count {
+    case 2:
+      var valid = true
+      switch UInt8(truncatingIfNeeded: unit[0]) {
+      case UInt8(ascii: "d"):
+        num *= 24 * 60 * 60
+      case UInt8(ascii: "h"):
+        num *= 60 * 60
+      case UInt8(ascii: "m"):
+        num *= 60
+      case UInt8(ascii: "s"):
+        break
+      default:
+        valid = false
+      }
+      if valid && !num.isNaN {
+        return num
+      }
+    case 1:
+      if !num.isNaN {
+        return num
+      }
+    default:
+      break
     }
-    if d <= 0 {
-      return 0
-    }
-    
-    timeToSleep.tv_sec = time_t(d)
-    original = timeToSleep.tv_sec
-    timeToSleep.tv_nsec = Int(1e9 * (d - Double(timeToSleep.tv_sec)))
-    
-    signal_h.signal(signal_h.SIGINFO, { reportRequest($0) } )
+    warnx("invalid time interval: \(arg)")
+    return .infinity
+  }
 
-    while nanosleep(&timeToSleep, &timeSlept) != 0 {
-      if reportRequested {
-        print("about \(timeSlept.tv_sec) second(s) left out of the original \(original)")
-        reportRequested = false
-      } else if errno != EINTR {
-        print("nanosleep error")
+  func runCommand() throws(CmdErr) {
+    let seconds = options.seconds
+    if seconds < 1e-9 {
+      return
+    }
+
+    var timeToSleep = timespec()
+    timeToSleep.tv_sec = time_t(seconds)
+    let original = timeToSleep.tv_sec
+    timeToSleep.tv_nsec = Int(1e9 * (seconds - Double(timeToSleep.tv_sec)))
+
+    signal(SIGINFO, { infoRequested($0) })
+
+    // on a thread of its own, which can be sent the signal
+    sleepBody = {
+      var remaining = timespec()
+      while nanosleep(&timeToSleep, &remaining) != 0 {
+        if errno != EINTR {
+          err(1, "nanosleep")
+        }
+        timeToSleep = remaining
+        if reportRequested != 0 {
+          /* Reporting does not bother with nanoseconds. */
+          warnx("about \(timeToSleep.tv_sec) second(s) left out of the original \(original)")
+          reportRequested = 0
+        }
       }
     }
-    return 0
-  }
-  
-  func usage() {
-    var fh = FileDescriptor.standardError
-    print("usage: sleep seconds", to: &fh )
-    stdlib_h.exit(1)
+    var thread: pthread_t? = nil
+    pthread_create(&thread, nil, { _ in
+      // a thread made by a thread that runs async code can start with the signal blocked
+      var info = sigset_t()
+      sigemptyset(&info)
+      sigaddset(&info, SIGINFO)
+      pthread_sigmask(SIG_UNBLOCK, &info, nil)
+      sleepingThread = pthread_self()
+      sleepBody?()
+      return nil
+    }, nil)
+    if let thread {
+      pthread_join(thread, nil)
+    }
   }
 }

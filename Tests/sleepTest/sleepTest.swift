@@ -45,7 +45,7 @@ import ShellTesting
 
   @Test("Test that sleep(1) errors out with non-numeric argument",
         arguments: ["xyz", "x21", "/3"]) func nonnumeric(_ i : String) async throws {
-    try await run(status: 1, error: /^usage:/, args: i )
+    try await run(status: 1, error: /usage: sleep number\[unit\]/, args: i )
   }
   
   @Test("Test that sleep(1) handles hexadecimal arguments") func hex() async throws {
