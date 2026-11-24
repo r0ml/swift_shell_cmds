@@ -33,19 +33,81 @@
  * SUCH DAMAGE.
  */
 
-@main struct Yes {
-  
-  static func main() {
-    let exp = if CommandLine.argc > 1 {
-      CommandLine.arguments[1]
-    } else {
-      "y"
+import CMigration
+
+import Darwin
+
+@main final class Yes : ShellCommand {
+  struct CommandOptions {
+    /// What is said, as bytes: the arguments with a space between them (there are no options), or "y".
+    var expletive: [UInt8] = [UInt8(ascii: "y")]
+  }
+
+  var options : CommandOptions!
+
+  let usage = "usage: yes [expletive]"
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
+    let argv = CommandLine.unsafeArgv
+    if CommandLine.argc > 1 {
+      var words = [[UInt8]]()
+      for i in 1..<Int(CommandLine.argc) {
+        if let arg = argv[i] {
+          words.append(Array(UnsafeBufferPointer(start: UnsafeRawPointer(arg).assumingMemoryBound(to: UInt8.self), count: strlen(arg))))
+        }
+      }
+      // Empty arguments in front are not said: the first one that is not empty is where it begins.
+      while let first = words.first, first.isEmpty, words.count > 1 {
+        words.removeFirst()
+      }
+      opts.expletive = Array(words.joined(separator: [UInt8(ascii: " ")]))
+    }
+    return opts
+  }
+
+  /// A write to a pipe that has no reader kills a C program, unless the signal is ignored.  Here the signal for the
+  /// process may be taken by another thread a little later, so the death is brought about at once.
+  func diesOfBrokenPipe() {
+    var action = sigaction()
+    sigaction(SIGPIPE, nil, &action)
+    if unsafeBitCast(action.__sigaction_u.__sa_handler, to: Int.self) == 0 {
+      var pipeSignal = sigset_t()
+      sigemptyset(&pipeSignal)
+      sigaddset(&pipeSignal, SIGPIPE)
+      pthread_sigmask(SIG_UNBLOCK, &pipeSignal, nil)
+      raise(SIGPIPE)
+    }
+  }
+
+  func runCommand() throws(CmdErr) {
+    // The line, with its line end; and as many of them as fit in a buffer (a line that is longer is written as it is).
+    var line = options.expletive + [UInt8(ascii: "\n")]
+    let size = 8192
+    if line.count <= size {
+      var buffer = [UInt8]()
+      buffer.reserveCapacity(size)
+      repeat {
+        buffer += line
+      } while buffer.count + line.count <= size
+      line = buffer
     }
 
+    var more = line.count
     while true {
-      print(exp)
+      let offset = line.count - more
+      let written = line.withUnsafeBytes { write(STDOUT_FILENO, $0.baseAddress! + offset, more) }
+      if written <= 0 {
+        break
+      }
+      more -= written
+      if more == 0 {
+        more = line.count
+      }
     }
-    
-    fatalError("stdout") // this is never reached
+    if errno == EPIPE {
+      diesOfBrokenPipe()
+    }
+    err(1, "stdout")
   }
 }
