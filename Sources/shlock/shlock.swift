@@ -33,346 +33,332 @@
 
 import CMigration
 
-import stdlib_h
-import errno_h
-
 import Darwin
 
-@main class shlock {
-  
-  let LOCK_GOOD : Int32 = 0
-  let LOCK_BAD : Int32 = 1
-  
+@main final class shlock : ShellCommand {
+
   let LOCK_SET : Int32 = 0
   let LOCK_FAIL : Int32 = 1
 
-  var Debug = false
-  var Pname : String = ""
-  var file: String = ""
-  var uucpstyle = false // indicating UUCP style locks
+  let LOCK_GOOD : Int32 = 0
+  let LOCK_BAD : Int32 = 1
 
-  required init() {}
-  
-  static func main() {
-    let z = Self().main()
-    stdlib_h.exit(z)
-  }
-  
-  func xtmpfile(_ file: String, _ pid: pid_t, _ uucpstyle: Bool) -> String? {
-    let buf = "shlock\(getpid())"
-    var tempname = file
-    if let range = tempname.lastIndex(of: "/") {
-      tempname = tempname.prefix(upTo: range) + "/" + buf
-    } else {
-      tempname = buf
-    }
-    print("\(Pname): temporary filename: \(tempname)")
-    
-    let buf2 = "\(pid)"
-    let len = buf2.count
-    var fd: Int32
-    repeat {
-      fd = Darwin.open(tempname, Darwin.O_RDWR|Darwin.O_CREAT|Darwin.O_TRUNC|Darwin.O_SYNC|Darwin.O_EXCL, 0644)
-      if fd == -1 {
-        switch errno {
-          case errno_h.EEXIST:
-            if stdlib_h.unlink(tempname) == -1 {
-            warn("unlink(\(tempname))")
-            return nil
-          }
-        default:
-          warn("open(\(tempname))")
-          return nil
-        }
-      }
-    } while fd == -1
-    
-    var pidx = pid
-    if uucpstyle {
-      if write(fd, &pidx, MemoryLayout<pid_t>.size) != MemoryLayout<pid_t>.size {
-        print("write(\(tempname),\(pid))")
-        close(fd)
-        if Darwin.unlink(tempname) == -1 {
-          print("unlink(\(tempname))")
-        }
-        return nil
-      }
-    } else {
-      if Darwin.write(fd, buf2, len) != len {
-        print("write(\(tempname),\(pid))")
-        Darwin.close(fd)
-        if Darwin.unlink(tempname) == -1 {
-          print("unlink(\(tempname))")
-        }
-        return nil
-      }
-    }
-    Darwin.close(fd)
-    return tempname
-  }
-  
-  func p_exists(pid: Darwin.pid_t) -> Bool {
-    print("\(Pname): process \(pid) is ")
-    if pid <= 0 {
-      print("invalid")
-      return false
-    }
-    if Darwin.kill(pid, 0) == -1 {
-      switch errno {
-        case Darwin.ESRCH:
-        print("dead \(pid)")
-        return false
-        case Darwin.EPERM:
-        print("alive")
-        return true
-      default:
-          print("state unknown: \(String(cString: Darwin.strerror(errno)))")
-        return true
-      }
-    }
-    print("alive")
-    return true
-  }
-  
-  func cklock(_ file: String, _ st: inout Darwin.stat?, _ uucpstyle: Bool) -> Bool {
-    let fd = Darwin.open(file, O_RDONLY)
-    var pid: Darwin.pid_t = 0
-    
-    print("\(Pname): checking extant lock <\(file)>")
-    if fd == -1 {
-      if errno != ENOENT {
-        warn("open(\(file))")
-      }
-      return true
-    }
-    
-    if st != nil && Darwin.fstat(fd, &st!) == -1 {
-      warn("stat(\(file))")
-      close(fd)
-      return true
-    }
-    
-    var blx : Bool = true
-    var buf : [UInt8] = []
-    
-    if uucpstyle {
-      let len = Darwin.read(fd, &pid, MemoryLayout<pid_t>.size)
-      blx = len != MemoryLayout<pid_t>.size
-    } else {
-      withUnsafeTemporaryAllocation(byteCount: Int(BUFSIZ), alignment: 1) { p in
-        let len = Darwin.read(fd, p.baseAddress!, Int(BUFSIZ) )
-        if len > 0 {
-          buf = Array( UnsafeRawBufferPointer(start: p.baseAddress!, count: len))
-        }
-        blx = len <= 0
-      }
-    }
-    if blx {
-      close(fd)
-      print("\(Pname): lock file format error")
-      return false
-    }
-    close(fd)
-    
-    let s = String(decoding: buf, as: Unicode.ASCII.self)
-    return p_exists(pid: uucpstyle ? pid : pid_t( pid_t(s) ?? 0 ))
-  }
-  
-  func mklock(file: String, pid: pid_t, uucpstyle: Bool) -> Bool {
-    var tmp: String
-    var retcode = false
-    
-    print("\(Pname): trying lock <\(file)> for process \(pid)")
-    if let t = xtmpfile(file, pid, uucpstyle) {
-      tmp = t
-    } else {
-      return false
-    }
-    
-    
-    
-    
-    
-    var nx : Bool? = nil
-    while link(tmp, file) == -1 {
-      switch errno {
-      case EEXIST:
-        nx = doExist(tmp)
-      default:
-        warn("link(\(tmp), \(file))")
-        nx = true
-      }
-    }
-    
-    
-    if nx == nil {
-      var sttmp = stat()
-      // FIXME: Darwin.stat is ambiguouos
-      if stat(tmp, &sttmp) == -1 {
-        warn("stat(\(tmp))")
-        nx = true
-      } else if (sttmp.st_nlink == 2) {
-        if Debug {
-          print("\(Pname): got lock <\(file)>")
-        }
-        retcode = true
-        nx = true
-      }
-    } else { nx = false }
-    
-    if let nx, !nx {
-      let tmp2 = "\(tmp)-2"
-      if Darwin.unlink(tmp2) == -1 {
-        warn("unlink(\(tmp2))")
-      }
-    }
-
-    if Darwin.unlink(tmp) == -1 {
-      warn("unlink\(tmp))")
-    }
-
-    return retcode;
-    
-    
-  }
-  
-  func doExist(_ tmp : String) -> Bool? {
-    if (Debug) {
-      warn("\(Pname): lock <\(file)> already exists")
-      return true
-    }
-    
-    var stlock = Darwin.stat(), sttmp = Darwin.stat(), stlock2 = Darwin.stat()
-
-    var s = Optional(stlock)
-    if (cklock(file, &s, uucpstyle)) {
-      if (Debug) { print("\(Pname): extant lock is valid") }
-      return true
-    }
-    if let s { stlock = s }
-    if stat(tmp, &sttmp) == -1 {
-      warn("stat(\(tmp))")
-      return true
-    }
-        /*
-         * We need to take another lock against the lock
-         * file to protect it against multiple removals
-         */
-        let tmp2 = "\(tmp)-2"
-    if Darwin.unlink(tmp2) == -1 && Darwin.errno != Darwin.ENOENT {
-          warn("unlink(\(tmp2))")
-          return true
-        }
-      if (stlock.st_ctime >= sttmp.st_ctime) {
-        if Debug {
-          print("\(Pname): lock time changed \(stlock.st_ctime) >= \(stlock2.st_ctime)")
-          return true
-        }
-      }
-        if (stlock.st_nlink != 1) {
-          if (Debug) {
-            print("\(Pname): someone else linked to it \(stlock.st_nlink)")
-            return true
-          }
-        }
-    if Darwin.link(file, tmp2) == -1 {
-          /* someone took our temp name! */
-          warn("link(\(file), \(tmp2))")
-          return false
-        }
-    // FIXME: Darwin.stat is ambiguous
-        if (stat(file, &stlock2) == -1) {
-          warn("stat(\(file))")
-          return false
-        }
-      if (stlock.st_ino != stlock2.st_ino) {
-        if Debug {
-          print("\(Pname): lock inode changed \(stlock.st_ino) != \(stlock2.st_ino)")
-          return false
-        }
-      }
-      if (stlock2.st_nlink != 2) {
-        if Debug {
-          print("\(Pname): someone else linked to it \(stlock2.st_nlink)")
-          return false
-        }
-      }
-        
-      if Debug {
-        print("\(Pname): lock is invalid, removing")
-      }
-       
-      if unlink(file) == -1 {
-        warn("unlink(\(file))")
-        return false
-      }
-      if (unlink(tmp2) == -1) {
-        return false
-      }
-      return nil
-    }
-
-  func bad_usage() {
-    var fp = FileDescriptor.standardError
-    print("\(Pname): USAGE: \(Pname) [-du] [-p PID] -f file", to: &fp)
-    Darwin.exit(LOCK_FAIL)
-  }
-  
-  
-  func main() -> Int32 {
+  struct CommandOptions {
+    var debug = false
+    var uucpstyle = false  // indicating UUCP style locks
+    var onlyCheck = true   // don't make a lock
     var pid: pid_t = 0
-    var only_check = true // don't make a lock
-    
-    let a0 = CommandLine.arguments[0]
-    
-    Pname = a0.contains("/") ? String(a0.split(separator: "/").last!) : a0
-    
-    var args = CommandLine.arguments.dropFirst()
-    while !args.isEmpty {
-      let arg = args.removeFirst()
-      if arg.hasPrefix("-") {
-        switch arg.dropFirst().first {
-        case "u":
-          uucpstyle = true
-        case "d":
-          Debug = true
-        case "p":
+    var file: String?
+  }
+
+  var options : CommandOptions!
+
+  /// The name the command was called by.
+  var Pname : String { String(cString: getprogname()) }
+
+  // The message (which names the program twice) is the whole of the usage; the exit status is the failure one.
+  let usage = "usage: shlock [-du] [-p PID] -f file"
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    var opts = CommandOptions()
+    let av = CommandLine.arguments
+    var x = 1
+    while x < av.count {
+      let arg = Array(av[x].utf8)
+      if arg.first == UInt8(ascii: "-") {
+        switch arg.count > 1 ? arg[1] : 0 {
+        case UInt8(ascii: "u"):
+          opts.uucpstyle = true
+        case UInt8(ascii: "d"):
+          opts.debug = true
+        case UInt8(ascii: "p"):
           if arg.count > 2 {
-            pid = Darwin.pid_t(arg.dropFirst(2) ) ?? 0
+            opts.pid = String(decoding: arg[2...], as: UTF8.self).withCString { atoi($0) }
           } else {
-            if args.isEmpty {
+            x += 1
+            if x >= av.count {
               bad_usage()
             }
-            let z = args.removeFirst()
-            pid = Darwin.pid_t(z) ?? 0
+            opts.pid = av[x].withCString { atoi($0) }
           }
-          only_check = false // wants one
-        case "f":
+          opts.onlyCheck = false  // wants one
+        case UInt8(ascii: "f"):
           if arg.count > 2 {
-            file = String(arg.dropFirst(2))
+            opts.file = String(decoding: arg[2...], as: UTF8.self)
           } else {
-            if arg.isEmpty {
+            x += 1
+            if x >= av.count {
               bad_usage()
-              return 1
             }
-            file = args.removeFirst()
+            opts.file = av[x]
           }
         default:
           bad_usage()
         }
       }
-        }
-    
-    if file.isEmpty || (!only_check && pid <= 0) {
+      x += 1
+    }
+
+    if opts.file == nil || (!opts.onlyCheck && opts.pid <= 0) {
       bad_usage()
     }
-    
-    if only_check {
-      var s : Darwin.stat? = nil
-      return cklock(file, &s, uucpstyle) ? LOCK_GOOD : LOCK_BAD
-    }
-    
-    return mklock(file: file, pid: pid, uucpstyle: uucpstyle) ? LOCK_SET : LOCK_FAIL
+    return opts
   }
 
+  func bad_usage() -> Never {
+    fputs("\(Pname): USAGE: \(Pname) [-du] [-p PID] -f file\n", stderr)
+    exit(LOCK_FAIL)
+  }
+
+  /// `dprintf` of the C version: shown only when asked for.
+  func dprint(_ s: String, terminator: String = "\n") {
+    if options.debug {
+      print(s, terminator: terminator)
+    }
+  }
+
+  /// A warning with the description of the error that was just seen.
+  func warning(_ s: String, _ code: Int32) {
+    warnc(code, s)
+  }
+
+  /// Create a temporary file, all ready to lock with.
+  /// The file arg is so we get the filename right, if he gave us a full path, instead of using the current directory
+  /// which might not be in the same filesystem.
+  func xtmpfile(_ file: String, _ pid: pid_t, _ uucpstyle: Bool) -> String? {
+    let name = "shlock\(getpid())"
+    var tempname = name
+    let bytes = Array(file.utf8)
+    if let slash = bytes.lastIndex(of: UInt8(ascii: "/")) {
+      tempname = String(decoding: bytes[...slash], as: UTF8.self) + name
+    }
+    dprint("\(Pname): temporary filename: \(tempname)")
+
+    let text = Array("\(pid)\n".utf8)
+    var fd: Int32
+    repeat {
+      fd = open(tempname, O_RDWR | O_CREAT | O_TRUNC | O_SYNC | O_EXCL, 0o644)
+      if fd == -1 {
+        let e = errno
+        if e == EEXIST {
+          if unlink(tempname) == -1 {
+            warning("unlink(\(tempname))", errno)
+            return nil
+          }
+        } else {
+          warning("open(\(tempname))", e)
+          return nil
+        }
+      }
+    } while fd == -1
+
+    // Write the PID into the temporary file before attempting to link to the actual lock file.  That way we have a
+    // valid lock the instant the link succeeds.
+    var binaryPid = pid
+    let written = uucpstyle
+      ? write(fd, &binaryPid, MemoryLayout<pid_t>.size) != MemoryLayout<pid_t>.size
+      : write(fd, text, text.count) != text.count
+    if written {
+      let e = errno
+      warning("write(\(tempname),\(pid))", e)
+      close(fd)
+      if unlink(tempname) == -1 {
+        warning("unlink(\(tempname))", errno)
+      }
+      return nil
+    }
+    close(fd)
+    return tempname
+  }
+
+  /// Does the PID exist?  Send null signal to find out.
+  func p_exists(_ pid: pid_t) -> Bool {
+    dprint("\(Pname): process \(pid) is ", terminator: "")
+    if pid <= 0 {
+      dprint("invalid")
+      return false
+    }
+    if kill(pid, 0) == -1 {
+      let e = errno
+      switch e {
+      case ESRCH:
+        dprint("dead \(pid)")
+        return false  // pid does not exist
+      case EPERM:
+        dprint("alive")
+        return true  // pid exists
+      default:
+        dprint("state unknown: \(String(cString: strerror(e)))")
+        return true  // be conservative
+      }
+    }
+    dprint("alive")
+    return true  // pid exists
+  }
+
+  /// Check the validity of an existing lock file.
+  ///
+  ///  Read the PID out of the lock
+  ///  Send a null signal to determine whether that PID still exists
+  ///  Existence (or not) determines the validity of the lock.
+  ///
+  /// Two bigs wins to this algorithm:
+  ///
+  ///  o  Locks do not survive crashes of either the system or the application by any appreciable period of time.
+  ///
+  ///  o  No clean up to do if the system or application crashes.
+  func cklock(_ file: String, _ st: UnsafeMutablePointer<Darwin.stat>?, _ uucpstyle: Bool) -> Bool {
+    let fd = open(file, O_RDONLY)
+
+    dprint("\(Pname): checking extant lock <\(file)>")
+    if fd == -1 {
+      if errno != ENOENT {
+        warning("open(\(file))", errno)
+      }
+      return true  // might or might not; conservatism
+    }
+
+    if let st, fstat(fd, st) == -1 {
+      warning("stat(\(file))", errno)
+      close(fd)
+      return true
+    }
+
+    var pid: pid_t = 0
+    var buf = [UInt8](repeating: 0, count: Int(BUFSIZ) + 2)
+    var len: Int
+    if uucpstyle {
+      len = read(fd, &pid, MemoryLayout<pid_t>.size)
+      if len != MemoryLayout<pid_t>.size {
+        close(fd)
+        dprint("\(Pname): lock file format error")
+        return false
+      }
+    } else {
+      len = read(fd, &buf, Int(BUFSIZ))
+      if len <= 0 {
+        close(fd)
+        dprint("\(Pname): lock file format error")
+        return false
+      }
+    }
+    close(fd)
+    return p_exists(uucpstyle ? pid : buf.withUnsafeBufferPointer { p in
+      p.baseAddress!.withMemoryRebound(to: CChar.self, capacity: p.count) { atoi($0) }
+    })
+  }
+
+  /// Where mklock ends up: with the lock (or not) and what is left to clean up.
+  enum Outcome {
+    case out      // the temporary file is to be removed
+    case out2     // the second one too
+  }
+
+  func mklock(_ file: String, _ pid: pid_t, _ uucpstyle: Bool) -> Bool {
+    var retcode = false
+    var stlock = Darwin.stat(), sttmp = Darwin.stat(), stlock2 = Darwin.stat()
+
+    dprint("\(Pname): trying lock <\(file)> for process \(pid)")
+    guard let tmp = xtmpfile(file, pid, uucpstyle) else {
+      return false
+    }
+    let tmp2 = "\(tmp)-2"
+
+    // what is to be cleaned up, once the attempt is over
+    let outcome: Outcome = {
+      while link(tmp, file) == -1 {
+        let e = errno
+        if e != EEXIST {
+          warning("link(\(tmp), \(file))", e)
+          return .out
+        }
+        dprint("\(Pname): lock <\(file)> already exists")
+        if cklock(file, &stlock, uucpstyle) {
+          dprint("\(Pname): extant lock is valid")
+          return .out
+        }
+        if stat(tmp, &sttmp) == -1 {
+          warning("stat(\(tmp))", errno)
+          return .out
+        }
+        // We need to take another lock against the lock file to protect it against multiple removals
+        if unlink(tmp2) == -1 && errno != ENOENT {
+          warning("unlink(\(tmp2))", errno)
+          return .out
+        }
+        if stlock.st_ctimespec.tv_sec >= sttmp.st_ctimespec.tv_sec {
+          dprint("\(Pname): lock time changed \(stlock.st_ctimespec.tv_sec) >= \(stlock2.st_ctimespec.tv_sec)")
+          return .out
+        }
+        if stlock.st_nlink != 1 {
+          dprint("\(Pname): someone else linked to it \(stlock.st_nlink)")
+          return .out
+        }
+        if link(file, tmp2) == -1 {
+          /* someone took our temp name! */
+          warning("link(\(file), \(tmp2))", errno)
+          return .out2
+        }
+        if stat(file, &stlock2) == -1 {
+          warning("stat(\(file))", errno)
+          return .out2
+        }
+        if stlock.st_ino != stlock2.st_ino {
+          dprint("\(Pname): lock inode changed \(stlock.st_ino) != \(stlock2.st_ino)")
+          return .out2
+        }
+        if stlock2.st_nlink != 2 {
+          dprint("\(Pname): someone else linked to it \(stlock2.st_nlink)")
+          return .out2
+        }
+
+        dprint("\(Pname): lock is invalid, removing")
+        if unlink(file) == -1 {
+          warning("unlink(\(file))", errno)
+          return .out2
+        }
+        if unlink(tmp2) == -1 {
+          return .out2
+        }
+      }
+
+      if stat(tmp, &sttmp) == -1 {
+        warning("stat(\(tmp))", errno)
+        return .out
+      }
+
+      if sttmp.st_nlink == 2 {
+        dprint("\(Pname): got lock <\(file)>")
+        retcode = true
+        return .out
+      }
+      return .out2
+    }()
+
+    if outcome == .out2 {
+      if unlink(tmp2) == -1 {
+        warning("unlink(\(tmp2))", errno)
+      }
+    }
+    if unlink(tmp) == -1 {
+      warning("unlink(\(tmp))", errno)
+    }
+
+    return retcode
+  }
+
+  func runCommand() throws(CmdErr) {
+    let o = options!
+    let file = o.file!
+
+    if o.onlyCheck {
+      let good = cklock(file, nil, o.uucpstyle)
+      if !good { throw CmdErr(Int(LOCK_BAD)) }
+      return
+    }
+
+    if !mklock(file, o.pid, o.uucpstyle) {
+      throw CmdErr(Int(LOCK_FAIL))
+    }
+  }
 }
