@@ -15,17 +15,33 @@
 import CMigration
 import Darwin
 
-func error(_ msg : String) {
-  print(msg)
-  exit(2)
+/// Complaints end the program with status 2.
+func error(_ msg : String) -> Never {
+  errx(2, msg)
 }
 
 func eaccess(_ path : String, _ mode : Int32) -> Int32 {
-  return Darwin.faccessat(Darwin.AT_FDCWD, path, mode, Darwin.AT_EACCESS)
+  return faccessat(AT_FDCWD, path, mode, AT_EACCESS)
 }
 
+/* test(1) accepts the following grammar:
+	oexpr	::= aexpr | aexpr "-o" oexpr ;
+	aexpr	::= nexpr | nexpr "-a" aexpr ;
+	nexpr	::= primary | "!" primary
+	primary	::= unary-operator operand
+		| operand binary-operator operand
+		| operand
+		| "(" oexpr ")"
+		;
+	unary-operator ::= "-r"|"-w"|"-x"|"-f"|"-d"|"-c"|"-b"|"-p"|
+		"-u"|"-g"|"-k"|"-s"|"-t"|"-z"|"-n"|"-o"|"-O"|"-G"|"-L"|"-S";
+
+	binary-operator ::= "="|"!="|"-eq"|"-ne"|"-ge"|"-gt"|"-le"|"-lt"|
+			"-nt"|"-ot"|"-ef";
+	operand ::= <any legal UNIX file name>
+*/
+
 enum token_types : Int {
-  case UNKNOWN = 0
   case UNOP = 0x100
   case BINOP = 0x200
   case BUNOP = 0x300
@@ -74,27 +90,29 @@ enum token : Int {
   case BOR
   case LPAREN = 0x501
   case RPAREN
-  
-  var tokenType : token_types { get { TOKEN_TYPE(self) } }
+
+  /// The kind of token, as the part of the number that is not its index.
+  var kind : Int { rawValue & 0xff00 }
 }
 
+/// An operator's spelling (as bytes) and what it stands for.
 struct t_op {
-    var op_text: String
-    var op_num: token
-  
+  var op_text: [UInt8]
+  var op_num: token
+
   init(_ a : String, _ b : token ) {
-    op_text = a
+    op_text = Array(a.utf8)
     op_num  = b
   }
 }
 
 let ops1: [t_op] = [
-  t_op( "=", .STREQ),
-  t_op( "<", .STRLT),
-  t_op( ">", .STRGT),
-  t_op( "!", .UNOT),
-  t_op( "(", .LPAREN),
-  t_op( ")", .RPAREN)
+  t_op("=", .STREQ),
+  t_op("<", .STRLT),
+  t_op(">", .STRGT),
+  t_op("!", .UNOT),
+  t_op("(", .LPAREN),
+  t_op(")", .RPAREN),
 ]
 
 let opsm1: [t_op] = [
@@ -114,258 +132,215 @@ let opsm1: [t_op] = [
   t_op("t", .FILTT),
   t_op("z", .STREZ),
   t_op("n", .STRNZ),
-  t_op("h", .FILSYM),
+  t_op("h", .FILSYM),  /* for backwards compat */
   t_op("O", .FILUID),
   t_op("G", .FILGID),
   t_op("L", .FILSYM),
   t_op("S", .FILSOCK),
   t_op("a", .BAND),
-  t_op("o", .BOR)
+  t_op("o", .BOR),
 ]
 
 let ops2: [t_op] = [
   t_op("==", .STREQ),
-  t_op("!=", .STRNE)
+  t_op("!=", .STRNE),
 ]
 
 let opsm2: [t_op] = [
-  t_op( "eq", .INTEQ),
-  t_op( "ne", .INTNE),
-  t_op( "ge", .INTGE),
-  t_op( "gt", .INTGT),
-  t_op( "le", .INTLE),
-  t_op( "lt", .INTLT),
-  t_op( "nt", .FILNT),
-  t_op( "ot", .FILOT),
-  t_op( "ef", .FILEQ)
+  t_op("eq", .INTEQ),
+  t_op("ne", .INTNE),
+  t_op("ge", .INTGE),
+  t_op("gt", .INTGT),
+  t_op("le", .INTLE),
+  t_op("lt", .INTLT),
+  t_op("nt", .FILNT),
+  t_op("ot", .FILOT),
+  t_op("ef", .FILEQ),
 ]
 
-func TOKEN_TYPE(_ t : token) -> token_types {
-  return token_types(rawValue: t.rawValue & 0xff00)!
-}
+@main final class test : ShellCommand {
 
-@main class test {
-
-  var parenlevel = 0
-  var t_wp : Array<String>.SubSequence = []
-  var nargc : Int = 0
-  
-  required init() {}
-  
-  static func main() {
-    let m = Self()
-    let x = m.main(CommandLine.arguments)
-    exit(x)
+  struct CommandOptions {
+    var args : [String] = []
   }
-  
-  func main(_ argsa : [String] ) -> Int32 {
-    var args = argsa
-    
-    var res: Bool
-    var p: String
-    
-    if args.count == 0 {
-      return 1
-    }
-    
-    if let range = args[0].lastIndex(of: "/") {
-      p = String(args[0][range...].dropFirst())
-    } else {
-      p = args[0]
-    }
-    
-    if p == "[" {
-      if args.last != "]" {
-        print("missing ]")
-      }
-      args = args.dropLast()
-    }
-    
-    if args.isEmpty { return 1 }
-    
-    t_wp = args.dropFirst()
-    nargc = args.count - 1
-    
-    parenlevel = 0
-    if nargc == 4 && t_wp.first! == "!" {
+
+  var options : CommandOptions!
+
+  // There are no options: whatever is on the command line is the expression (or the name of the program).
+  let usage = ""
+
+  func parseOptions() throws(CmdErr) -> CommandOptions {
+    CommandOptions(args: CommandLine.arguments)
+  }
+
+  /// The number of arguments left to look at.
+  var nargc = 0
+  /// The arguments, with a nil at the end as a C argument vector has; `t_wp` is the one being looked at.
+  var argv: [String?] = []
+  var t_wp = 0
+  var parenlevel = 0
+
+  /// The next argument, if there is one to be had.
+  func advance() -> String? {
+    if nargc > 0 {
       nargc -= 1
-      t_wp = t_wp.dropFirst()
-      res = oexpr(t_lex(t_wp.first!))
-    } else {
-      res = !oexpr(t_lex(t_wp.first!))
+      t_wp += 1
+      return argv[t_wp]
     }
-    
+    return nil
+  }
+
+  func runCommand() throws(CmdErr) {
+    var args = options.args
+    if args.isEmpty {
+      throw CmdErr(1)
+    }
+
+    let name = args[0].split(separator: "/", omittingEmptySubsequences: false).last.map(String.init) ?? args[0]
+    if name == "[" {
+      if args.removeLast() != "]" {
+        error("missing ]")
+      }
+    }
+
+    /* no expression => false */
+    if args.count - 1 <= 0 {
+      throw CmdErr(1)
+    }
+
+    setlocale(LC_CTYPE, "")
+    argv = args.map { Optional($0) } + [nil]
+    nargc = args.count - 1
+    t_wp = 1
+    parenlevel = 0
+
+    let res: Bool
+    if nargc == 4 && argv[t_wp] == "!" {
+      /* Things like ! "" -o x do not fit in the normal grammar. */
+      nargc -= 1
+      t_wp += 1
+      res = oexpr(t_lex(argv[t_wp]))
+    } else {
+      res = !oexpr(t_lex(argv[t_wp]))
+    }
+
     nargc -= 1
     if nargc > 0 {
-      print("\(t_wp.first!) unexpected operator")
+      syntax(argv[t_wp], "unexpected operator")
     }
-    
-    return res ? 1 : 0
+
+    if res {
+      throw CmdErr(1)
+    }
   }
-  
-  func syntax(op: String?, msg: String) {
-    if let op = op, !op.isEmpty {
+
+  func syntax(_ op: String?, _ msg: String) -> Never {
+    if let op, !op.isEmpty {
       error("\(op): \(msg)")
     } else {
-      error("\(msg)")
+      error(msg)
     }
   }
-  
+
   func oexpr(_ n: token) -> Bool {
-    let res = aexpr(n: n)
-    var tt : String?
-    var bb : String?
-    if nargc > 0 {
-      nargc -= 1
-      bb = t_wp.removeFirst()
-      tt = t_wp.first
+    let res = aexpr(n)
+    if t_lex(advance()) == .BOR {
+      let r = oexpr(t_lex(advance()))
+      return r || res
     }
-    if t_lex(tt) == .BOR {
-      if nargc > 0 {
-        nargc -= 1
-        t_wp = t_wp.dropFirst()
-        tt = t_wp.first
-      } else {
-        tt = nil
-      }
-      return oexpr(t_lex(tt)) || res
-    }
-    if let bb { t_wp.insert(bb, at: t_wp.startIndex) }
+    t_wp -= 1
     nargc += 1
     return res
   }
-  
-  func aexpr(n: token) -> Bool {
+
+  func aexpr(_ n: token) -> Bool {
     let res = nexpr(n)
-    var tt : String?
-    var bb : String?
-    
-    if nargc > 0 {
-      nargc -= 1
-      bb = t_wp.removeFirst()
-      tt = t_wp.first
+    if t_lex(advance()) == .BAND {
+      let r = aexpr(t_lex(advance()))
+      return r && res
     }
-    if t_lex(tt) == .BAND {
-      if nargc > 0 {
-        nargc -= 1
-        t_wp = t_wp.dropFirst()
-        tt = t_wp.first
-      } else {
-        tt = nil
-      }
-      return aexpr(n: t_lex(tt)) && res
-    }
-    if let bb { t_wp.insert(bb, at: t_wp.startIndex) }
+    t_wp -= 1
     nargc += 1
     return res
   }
-  
-  func nexpr(_ n : token) -> Bool {
-    var tt : String?
-    
+
+  func nexpr(_ n: token) -> Bool {
     if n == .UNOT {
-      if nargc > 0 {
-        nargc -= 1
-        t_wp = t_wp.dropFirst()
-        tt = t_wp.first
-      }
-      return !nexpr( t_lex(tt))
+      return !nexpr(t_lex(advance()))
     }
     return primary(n)
   }
-  
+
   func primary(_ n: token) -> Bool {
-    var res: Bool
-    var tt : String?
-    
     if n == .EOI {
-      return false
+      return false  /* missing expression */
     }
     if n == .LPAREN {
       parenlevel += 1
-      if nargc > 0 {
-        nargc -= 1
-        t_wp = t_wp.dropFirst()
-        tt = t_wp.first
-      }
-      let nn = t_lex(tt)
+      let nn = t_lex(advance())
       if nn == .RPAREN {
         parenlevel -= 1
-        return false
+        return false  /* missing expression */
       }
-      res = oexpr(nn)
-      if nargc > 0 {
-        nargc -= 1
-        t_wp = t_wp.dropFirst()
-        tt = t_wp.first
-      } else {
-        tt = nil
-      }
-      if t_lex(tt) != .RPAREN {
-        syntax(op: nil, msg: "closing paren expected")
+      let res = oexpr(nn)
+      if t_lex(advance()) != .RPAREN {
+        syntax(nil, "closing paren expected")
       }
       parenlevel -= 1
       return res
     }
-    if n.tokenType == .UNOP {
+    if n.kind == token_types.UNOP.rawValue {
+      /* unary expression */
       nargc -= 1
       if nargc == 0 {
-        syntax(op: nil, msg: "argument expected")
+        syntax(nil, "argument expected")  /* impossible */
       }
+      t_wp += 1
+      let operand = argv[t_wp]!
       switch n {
       case .STREZ:
-        t_wp = t_wp.dropFirst()
-        return t_wp.first!.count == 0
+        return operand.isEmpty
       case .STRNZ:
-        t_wp = t_wp.dropFirst()
-        return t_wp.first!.count != 0
+        return !operand.isEmpty
       case .FILTT:
-        t_wp = t_wp.dropFirst()
-          return 0 != Darwin.isatty(Int32(getn(t_wp.first!)))
+        return isatty(getn(operand)) != 0
       default:
-        t_wp = t_wp.dropFirst()
-        return filstat(nm: t_wp.first!, mode: n)
+        return filstat(operand, n)
       }
     }
-    
-    let nn = t_lex(nargc > 0 ? t_wp.dropFirst().first : nil)
-    if nn.tokenType == .BINOP {
-      return binop(n: nn)
+
+    let nn = t_lex(nargc > 0 ? argv[t_wp + 1] : nil)
+    if nn.kind == token_types.BINOP.rawValue {
+      return binop(nn)
     }
-    
-    return t_wp.first!.count > 0
+
+    return !argv[t_wp]!.isEmpty
   }
-  
-  func binop(n: token) -> Bool {
-    let opnd1 = t_wp.first!
-    var op : String? = nil
-    if nargc > 0 {
-      nargc -= 1
-      t_wp = t_wp.dropFirst()
-      op = t_wp.first
+
+  func binop(_ n: token) -> Bool {
+    let opnd1 = argv[t_wp]!
+    let op = advance()
+
+    guard let opnd2 = advance() else {
+      syntax(op, "argument expected")
     }
-    
-    var opnd2 : String?
-    if nargc > 0 {
-      nargc -= 1
-      t_wp = t_wp.dropFirst()
-      opnd2 = t_wp.first
+
+    // strings compare as the bytes they are made of
+    func compare(_ a: String, _ b: String) -> Int {
+      let x = Array(a.utf8), y = Array(b.utf8)
+      if x == y { return 0 }
+      return x.lexicographicallyPrecedes(y) ? -1 : 1
     }
-    
-    guard let opnd2 else {
-      syntax(op: op, msg: "argument expected")
-      return false
-    }
-    
+
     switch n {
     case .STREQ:
-      return opnd1 == opnd2
+      return compare(opnd1, opnd2) == 0
     case .STRNE:
-      return opnd1 != opnd2
+      return compare(opnd1, opnd2) != 0
     case .STRLT:
-      return opnd1 < opnd2
+      return compare(opnd1, opnd2) < 0
     case .STRGT:
-      return opnd1 > opnd2
+      return compare(opnd1, opnd2) > 0
     case .INTEQ:
       return intcmp(opnd1, opnd2) == 0
     case .INTNE:
@@ -385,239 +360,221 @@ func TOKEN_TYPE(_ t : token) -> token_types {
     case .FILEQ:
       return equalf(opnd1, opnd2)
     default:
-      fatalError()
+      abort()
     }
   }
-  
-  func filstat(nm: String, mode: token) -> Bool {
-    guard let s = try? FilePath(nm).stat(followTargetSymlink: !(mode == .FILSYM)) else {
+
+  func filstat(_ nm: String, _ mode: token) -> Bool {
+    var s = stat()
+    if (mode == .FILSYM ? lstat(nm, &s) : stat(nm, &s)) != 0 {
       return false
     }
-    
+
+    let type = s.st_mode & S_IFMT
     switch mode {
     case .FILRD:
-        return eaccess(nm, Darwin.R_OK) == 0
+      return eaccess(nm, R_OK) == 0
     case .FILWR:
-        return eaccess(nm, Darwin.W_OK) == 0
+      return eaccess(nm, W_OK) == 0
     case .FILEX:
-        if eaccess(nm, Darwin.X_OK) != 0 {
+      /* XXX work around eaccess(2) false positives for superuser */
+      if eaccess(nm, X_OK) != 0 {
         return false
       }
-        if s.type == .directory || Darwin.geteuid() != 0 {
+      if type == S_IFDIR || geteuid() != 0 {
         return true
       }
-        return s.permissions.containsAny(of: [.ownerExecute, .groupExecute, .otherExecute])
+      return (s.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0
     case .FILEXIST:
-        return eaccess(nm, Darwin.F_OK) == 0
+      return eaccess(nm, F_OK) == 0
     case .FILREG:
-        return s.type == .regular
+      return type == S_IFREG
     case .FILDIR:
-        return s.type == .directory
+      return type == S_IFDIR
     case .FILCDEV:
-        return s.type == .characterSpecial
+      return type == S_IFCHR
     case .FILBDEV:
-        return s.type == .blockSpecial
+      return type == S_IFBLK
     case .FILFIFO:
-        return s.type == .fifo
+      return type == S_IFIFO
     case .FILSOCK:
-        return s.type == .socket
+      return type == S_IFSOCK
     case .FILSYM:
-        return s.type == .symbolicLink
+      return type == S_IFLNK
     case .FILSUID:
-        return s.permissions.contains(.setUserID )
+      return (s.st_mode & S_ISUID) != 0
     case .FILSGID:
-        return s.permissions.contains(.setGroupID )
+      return (s.st_mode & S_ISGID) != 0
     case .FILSTCK:
-        return s.permissions.contains(.saveText)
+      return (s.st_mode & S_ISVTX) != 0
     case .FILGZ:
-        return s.size > 0
+      return s.st_size > 0
     case .FILUID:
-      return s.userID == UserID(geteuid())
+      return s.st_uid == geteuid()
     case .FILGID:
-      return s.groupID == GroupID(getegid())
+      return s.st_gid == getegid()
     default:
       return true
     }
   }
-  
-  
-  func find_op_1char(_ ops: [t_op], _ c : String) -> token {
-    for op in ops {
-      if c == op.op_text {
-        return op.op_num
-      }
+
+  func find_op_1char(_ ops: [t_op], _ s: [UInt8], _ at: Int) -> token {
+    let c = s[at]
+    for op in ops where c == op.op_text[0] {
+      return op.op_num
     }
     return .OPERAND
   }
-  
-  func find_op(_ s: String) -> token {
+
+  func find_op_2char(_ ops: [t_op], _ s: [UInt8], _ at: Int) -> token {
+    for op in ops where s[at] == op.op_text[0] && s[at + 1] == op.op_text[1] {
+      return op.op_num
+    }
+    return .OPERAND
+  }
+
+  func find_op(_ str: String) -> token {
+    let s = Array(str.utf8)
     if s.isEmpty {
       return .OPERAND
     } else if s.count == 1 {
-      return find_op_1char( ops1, s)
+      return find_op_1char(ops1, s, 0)
     } else if s.count == 2 {
-      return s.first == "-" ? find_op_1char(opsm1, String(s.dropFirst()) ) :
-      find_op_1char(ops2, s)
+      return s[0] == UInt8(ascii: "-") ? find_op_1char(opsm1, s, 1) : find_op_2char(ops2, s, 0)
     } else if s.count == 3 {
-      return s.first == "-" ? find_op_1char(opsm2, String(s.dropFirst())) :
-          .OPERAND
+      return s[0] == UInt8(ascii: "-") ? find_op_2char(opsm2, s, 1) : .OPERAND
     } else {
-        return .OPERAND
+      return .OPERAND
     }
   }
-  
+
   func t_lex(_ s: String?) -> token {
     guard let s else {
       return .EOI
     }
     let num = find_op(s)
-    if ((TOKEN_TYPE(num) == .UNOP || TOKEN_TYPE(num) == .BUNOP)
-        && isunopoperand()) ||
-        (num == .LPAREN && islparenoperand()) ||
-        (num == .RPAREN && isrparenoperand()) {
+    if ((num.kind == token_types.UNOP.rawValue || num.kind == token_types.BUNOP.rawValue) && isunopoperand())
+        || (num == .LPAREN && islparenoperand())
+        || (num == .RPAREN && isrparenoperand()) {
       return .OPERAND
     }
     return num
   }
-  
+
   func isunopoperand() -> Bool {
     if nargc == 1 {
       return true
     }
-    
-    let s = t_wp.dropFirst().first!
-    
+    let s = argv[t_wp + 1]!
     if nargc == 2 {
       return parenlevel == 1 && s == ")"
     }
-    
-    let t = t_wp[t_wp.index(t_wp.startIndex, offsetBy: 2)]
+    let t = Array(argv[t_wp + 2]!.utf8)
     let num = find_op(s)
-    return TOKEN_TYPE(num) == .BINOP &&
-    (parenlevel == 0 || t != ")")
+    return num.kind == token_types.BINOP.rawValue && (parenlevel == 0 || t != [UInt8(ascii: ")")])
   }
-  
+
   func islparenoperand() -> Bool {
     if nargc == 1 {
       return true
     }
-
-    let s = t_wp.dropFirst().first!
-    
+    let s = argv[t_wp + 1]!
     if nargc == 2 {
       return parenlevel == 1 && s == ")"
     }
-    
     if nargc != 3 {
       return false
     }
     let num = find_op(s)
-    return num.tokenType == .BINOP
+    return num.kind == token_types.BINOP.rawValue
   }
-  
+
   func isrparenoperand() -> Bool {
     if nargc == 1 {
       return false
     }
-    
-    let s = t_wp.dropFirst().first
+    let s = argv[t_wp + 1]!
     if nargc == 2 {
       return parenlevel == 1 && s == ")"
     }
     return false
   }
-  
-  func getn(_ ss: String) -> Int {
-    return ss.withCString { s in
-      var p: UnsafeMutablePointer<CChar>?
-      let r: Int = Darwin.strtol(s, &p, 10)
-      
-      if p == nil || s == p! {
-        error("\(s): bad number")
-      }
-      
-      if errno != 0 {
-        error((errno == EINVAL) ? "\(s): bad number" :
-                "\(s): out of range")
-      }
-      
-      while Darwin.isspace(Int32(p!.pointee)) != 0 {
-        p = p!.successor()
-      }
-      
-      if p!.pointee != 0 {
-        error("\(s): bad number")
-      }
-      
-      return r
-    }
-  }
-  
-  func getq(_ ss: String) -> Int {
-    let rr = ss.withCString {s in
-      var p: UnsafeMutablePointer<CChar>?
+
+  /// A number, or a complaint: what the text is must be a whole number, with only white space after it.
+  func number(_ text: String, _ parse: (UnsafePointer<CChar>, UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) -> Int) -> Int {
+    text.withCString { s in
+      var p: UnsafeMutablePointer<CChar>? = nil
       errno = 0
-      let r = Darwin.strtoimax(s, &p, 10)
-      
-      if p == nil || s == p! {
-        error("\(s): bad number")
+      let r = parse(s, &p)
+
+      if UnsafePointer(p) == s {
+        error("\(text): bad number")
       }
-      
+
       if errno != 0 {
-        error((errno == EINVAL) ? "\(s): bad number" :
-                "\(s): out of range")
+        error(errno == EINVAL ? "\(text): bad number" : "\(text): out of range")
       }
-      
-      while Darwin.isspace(Int32(p!.pointee)) != 0 {
-        p = p!.successor()
+
+      while var q = p, isspace(Int32(UInt8(bitPattern: q.pointee))) != 0 {
+        q += 1
+        p = q
       }
-      
-      if p!.pointee != 0 {
-        error("\(s): bad number")
+
+      if let p, p.pointee != 0 {
+        error("\(text): bad number")
       }
+
       return r
     }
-    return rr
   }
-  
+
+  /// atoi with error detection
+  func getn(_ s: String) -> Int32 {
+    Int32(truncatingIfNeeded: number(s) { strtol($0, $1, 10) })
+  }
+
+  /// atoi with error detection and 64 bit range
+  func getq(_ s: String) -> Int {
+    number(s) { Int(strtoimax($0, $1, 10)) }
+  }
+
   func intcmp(_ s1 : String, _ s2 : String) -> Int {
     let q1 = getq(s1)
     let q2 = getq(s2)
-    
+
     if q1 > q2 {
       return 1
     }
-    
+
     if q1 < q2 {
       return -1
     }
-    
+
     return 0
   }
-  
+
   func newerf(_ f1: String, _ f2: String) -> Bool {
-    guard let b1 = try? FilePath(f1).stat(followTargetSymlink: true),
-          let b2 = try? FilePath(f2).stat(followTargetSymlink: true)
-    else {
+    var b1 = stat(), b2 = stat()
+    if stat(f1, &b1) != 0 || stat(f2, &b2) != 0 {
       return false
     }
-    
-    if DateTime(b1.st_mtim) > DateTime(b2.st_mtim) {
+
+    if b1.st_mtimespec.tv_sec > b2.st_mtimespec.tv_sec {
       return true
     }
-    return false
+    if b1.st_mtimespec.tv_sec < b2.st_mtimespec.tv_sec {
+      return false
+    }
+
+    return b1.st_mtimespec.tv_nsec > b2.st_mtimespec.tv_nsec
   }
-  
+
   func olderf(_ f1: String, _ f2: String) -> Bool {
     return newerf(f2, f1)
   }
-  
+
   func equalf(_ f1: String, _ f2: String) -> Bool {
-    if let b1 = try? FilePath(f1).stat(followTargetSymlink: true ),
-       let b2 = try? FilePath(f2).stat(followTargetSymlink: true ) {
-      return b1.deviceID == b2.deviceID && b1.inode == b2.inode
-    } else {
-      return false
-    }
+    var b1 = stat(), b2 = stat()
+    return stat(f1, &b1) == 0 && stat(f2, &b2) == 0 && b1.st_dev == b2.st_dev && b1.st_ino == b2.st_ino
   }
 }
